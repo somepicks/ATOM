@@ -728,7 +728,7 @@ class Trade_np(QThread):
             print('*******************************')
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
-                quit()
+                quit()#
 
         dt = datetime.datetime.now().replace(second=0, microsecond=0)
         one_minute = dt+datetime.timedelta(minutes=1)
