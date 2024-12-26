@@ -478,5 +478,6 @@ def get_week_of_month(input_date):
 # today = datetime.today()
 today = datetime.datetime(2024,12,21)
 week_of_month = get_week_of_month(today)
-
-print(f"오늘은 이번 달의 {week_of_month}주차입니다.")
+dt=datetime.datetime.now().replace(second=0, microsecond=0)
+print(dt)
+print(type(dt))
