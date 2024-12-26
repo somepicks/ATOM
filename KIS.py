@@ -1074,7 +1074,7 @@ class KoreaInvestment:
                 break
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
                 print(f'display_opt_weekly   {res.json()}')
-                QTest.qWait(1000)
+                QTest.qWait(500)
             else:
                 pprint(res.json())
                 raise

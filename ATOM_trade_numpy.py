@@ -669,19 +669,17 @@ class Trade_np(QThread):
                 self.df_trade.loc[stg, '상세봉'] = '1분봉'
             ticker = self.df_trade.loc[stg, 'ticker']
             배팅금액 = self.df_trade.loc[stg, '배팅금액']
-            list_compare = list(set(self.check_compare_ticker(stg)))
             self.df_trade.loc[stg, '비교대상'] = json.dumps(list_compare, ensure_ascii=False)
             # list_compare = json.loads(compare)  # JSON 문자열을 다시 리스트로 변환
-            ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
             if obj[0] == '[' and obj[-1] == ']' or obj[0] == '{' and obj[-1] == '}' : # 대상이 여러개일 경우
                 obj = json.loads(obj)
             if type(obj) == str or (type(obj) != str and 상태 != '대기'): #종목이 지정되어있을 경우
+                ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
                 # if not ticker_full_name in self.list_df_duplicated: # 만들어진 데이터가 없을 경우
-                print(f"'1' {obj= }")
-                print('========================')
                 df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
                 bong_since = df_same['봉제한'].max()
                 df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
+                list_compare = list(set(self.check_compare_ticker(stg)))
                 if list_compare:  # 비교대상이 있을경우 데이터프레임생성
                     df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
                 # self.list_df_duplicated.append(ticker_full_name)
@@ -697,38 +695,36 @@ class Trade_np(QThread):
                 if 상태 != '대기':
                     self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간, 데이터길이,배팅금액, 진입시간, frgn, prsn, orgn)
                 self.active_light()
-                # else:
 
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
                 self.list_obj = self.sorting_tickers(obj)
                 print(f"'2' {obj= }   {self.list_obj= }")
-                if self.list_obj:
-                    for i, ticker in enumerate(self.list_obj):  # 조건 검색에 있는 종목만
-                        ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
-                        # if not ticker_full_name in self.list_df_duplicated:  # 이미 만들어진 데이터가 없을 경우
-                        df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (
-                                    self.df_trade['상세봉'] == bong_detail)]
-                        if df_same.empty:
-                            bong_since = self.df_trade.loc[stg,'봉제한']
-                        else:
-                            bong_since = df_same['봉제한'].max()
-                        df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-                        if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                            df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
-                        if not df.empty:
-                            데이터길이 = df.loc[df.index[-1], '데이터길이']
-                            idx_bong = df['데이터길이'].tolist().index(데이터길이)
-                            # self.list_df_duplicated.append(ticker_full_name)
-                            if i == 0:  # 여러종목일 경우 첫번째로 불러오는 데이터의 봉 시간만 저장
-                                self.df_trade.loc[stg,'진입시간'] = common_def.datetime_to_str(df.index[idx_bong])
-                                self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])
-                        self.active_light()
-                else:
-                    self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(datetime.datetime.now())
-                    self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(datetime.datetime.now())
-                    print(self.df_trade)
-                    raise
+                for i, ticker in enumerate(self.list_obj):  # 조건 검색에 있는 종목만
+                    ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
+                    # if not ticker_full_name in self.list_df_duplicated:  # 이미 만들어진 데이터가 없을 경우
+                    df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
+                    if df_same.empty:
+                        bong_since = self.df_trade.loc[stg,'봉제한']
+                    else:
+                        bong_since = df_same['봉제한'].max()
+                    df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
+                    list_compare = list(set(self.check_compare_ticker(stg)))
+                    if list_compare:  # 비교대상이 있을경우 데이터프레임생성
+                        df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
+                    if not df.empty:
+                        데이터길이 = df.loc[df.index[-1], '데이터길이']
+                        idx_bong = df['데이터길이'].tolist().index(데이터길이)
+                        # self.list_df_duplicated.append(ticker_full_name)
+                        if i == 0:  # 여러종목일 경우 첫번째로 불러오는 데이터의 봉 시간만 저장
+                            self.df_trade.loc[stg,'진입시간'] = common_def.datetime_to_str(df.index[idx_bong])
+                            self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])
+                    self.active_light()
+                # else:
+                #     self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(datetime.datetime.now())
+                #     self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(datetime.datetime.now())
+                #     print(self.df_trade)
+                #     raise
             print('*******************************')
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
@@ -2379,8 +2375,6 @@ class Trade_np(QThread):
             return self.list_obj
         elif self.market == '국내선옵':
             pd.set_option('display.max_rows', None)
-            # df = self.list_tickers
-            # print(df)
             if type(obj) == dict:
                 key = list(obj.keys())[0]
                 value = obj[key]
@@ -2398,29 +2392,33 @@ class Trade_np(QThread):
                         raise
                     df = df.loc[(lower <= df['현재가']) & (df['현재가'] <= upper)]
                     self.list_obj = df.index.tolist()
-                elif key[1:3] == '옵션' and (key[-2:] == '주간' or key[-3:] == '위클리'): #옵션_주간
-                    # 월: 0, 화: 1 ~ 일: 6
-                    week = datetime.datetime.weekday(datetime.datetime.today())
+                elif key[1:3] == '옵션' and key[-3:] == '위클리': #옵션_주간
+                    df_c, df_p,cond_mrkt = self.ex_kis.display_opt_weekly(today)
+                    if key[:1] == '콜':
+                        df = common_def.convert_column_types(df_c)
+                    elif key[:1] == '풋':
+                        df = common_def.convert_column_types(df_p)
+                    else:
+                        df = pd.DataFrame()
+                        raise
+                    df = df.loc[(lower <= df['현재가']) & (df['현재가'] <= upper)]
+                    self.list_obj = df.index.tolist()
+                    # if week == 4 or week == 5 or week == 6 or week == 0: #위클리 월요일일 경우
 
-                    if week == 4 or week == 5 or week == 6 or week == 0: #위클리 월요일일 경우
-                        df_c, df_p = self.ex_kis.display_opt_weekly_mon()
-
-                    else: #목요일 만기 옵션일 경우
-                        first_day_of_month = datetime.datetime.today().replace(day=1)
-
-                        # 첫 번째 주의 목요일 찾기
-                        first_week_start = first_day_of_month - datetime.timedelta(
-                            days=first_day_of_month.weekday())  # 첫 주의 월요일
-                        second_week_start = first_week_start + datetime.timedelta(weeks=1)  # 두 번째 주의 월요일
-                        second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
-
-                        # 오늘이 두 번째 주의 목요일인지 확인
-                        if datetime.datetime.today().date() == second_thursday.date(): #만기주 일 경우
-                            df_c, df_p = self.ex_kis.display_opt()
-                        elif week == 1 or week == 2 or week == 3:
-                            df_c, df_p = self.ex_kis.display_opt_weekly_thur()
-                    # else:
-                    #     raise
+                    # else: #목요일 만기 옵션일 경우
+                    #     first_day_of_month = datetime.datetime.today().replace(day=1)
+                    #
+                    #     # 첫 번째 주의 목요일 찾기
+                    #     first_week_start = first_day_of_month - datetime.timedelta(
+                    #         days=first_day_of_month.weekday())  # 첫 주의 월요일
+                    #     second_week_start = first_week_start + datetime.timedelta(weeks=1)  # 두 번째 주의 월요일
+                    #     second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
+                    #
+                    #     # 오늘이 두 번째 주의 목요일인지 확인
+                    #     if datetime.datetime.today().date() == second_thursday.date(): #만기주 일 경우
+                    #         df_c, df_p = self.ex_kis.display_opt()
+                    #     elif week == 1 or week == 2 or week == 3:
+                    #         df_c, df_p = self.ex_kis.display_opt_weekly_thur()
                 else:
                     raise
             elif type(obj) == list:
@@ -2428,7 +2426,6 @@ class Trade_np(QThread):
             else:
                 print(obj)
                 raise
-            quit()
             return self.list_obj
 
     def market_finish(self):
