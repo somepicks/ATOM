@@ -387,6 +387,7 @@ class Window(QMainWindow):
             df_qt_stocks = self.df_stock_info[self.df_stock_info['PER']!=0] #per 0 제외
             df_qt_stocks = df_qt_stocks[df_qt_stocks['시장구분']!='ETF'] #per 0 제외
             df_qt_stocks = df_qt_stocks[['종목명','시장구분','업종','BPS','PER','PBR' ,'EPS','DIV','DPS']]
+            # 종목 맨 앞에 코스피200이 와야됨 왜냐하면
             self.QT_tickers.clear()
             self.set_table_make(self.QT_tickers,df_qt_stocks)
 
@@ -950,11 +951,7 @@ class Window(QMainWindow):
         self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')
         self.df_stg = self.set_table_modify(self.QT_trade_open, self.df_stg)
         # self.df_instock = pd.read_sql(f"SELECT * FROM 'instock'", self.conn_stg).set_index('index')
-        if self.QCB_market.currentText() == '국내선옵' :
-            # self.df_tickers['종목코드_시장'] = self.df_tickers['종목코드']+self.df_tickers['종목명']
-            list_tickers = self.df_tickers
-        else:
-            list_tickers = self.df_tickers['종목코드'].tolist()
+        list_tickers = self.df_tickers['종목코드'].tolist()
         print(f"{list_tickers= }")
         self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(), self.QCB_simul, self.df_stg,self.QCB_chart_duration.currentText(),self.QCB_tele.isChecked(),list_tickers)
         self.thread.start()

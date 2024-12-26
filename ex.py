@@ -275,11 +275,14 @@ values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['1', '2', '3']
 columns = ['시가_ETH_5분봉', '고가_ETH_5분봉', '저가_ETH_5분봉']
 df1 = pd.DataFrame(index=index,columns=columns,data=values)
-list_col = df.columns.tolist()
-list_col = []
-for i in list_col:
-    print(i)
-
+s = """
+if 현재가 > 0.1 and 현재가 < 0.4: 
+    if datetime.today(13,30,00) < 현재시간:
+        if MACD_코스피200_5분봉 > MACD_SIGNAL_코스피200_5분봉:
+            매수 = 100"""
+print(s)
+s=s.replace('코스피200','111111')
+print(s)
 quit()
 # ex_bybit.fetch_closed_orders(symbol=ticker,since=)
 # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
