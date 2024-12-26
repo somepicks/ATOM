@@ -630,7 +630,8 @@ class Trade_np(QThread):
             self.list_tickers = [x for x in self.list_tickers if len(x) != 1]
 
         elif self.market == '국내주식' or self.market == '국내선옵':
-            dt = 현재시간.strftime('%Y-%m-%d') + '15:30:00'
+            dt = 현재시간.strftime('%Y-%m-%d') + ' 15:30:00' #날짜랑 시간 사이 비울 것
+            dt = 현재시간.strftime('%Y-%m-%d') + ' 23:30:00' #날짜랑 시간 사이 비울 것
             장종료시간 = common_def.str_to_datetime(dt)
             if self.market == '국내주식':
                 if self.simul.isChecked() == True:  # 모의매매
@@ -676,7 +677,8 @@ class Trade_np(QThread):
                 obj = json.loads(obj)
             if type(obj) == str or (type(obj) != str and 상태 != '대기'): #종목이 지정되어있을 경우
                 # if not ticker_full_name in self.list_df_duplicated: # 만들어진 데이터가 없을 경우
-                print(f"1 {obj= }")
+                print(f"'1' {obj= }")
+                print('========================')
                 df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
                 bong_since = df_same['봉제한'].max()
                 df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
@@ -700,6 +702,7 @@ class Trade_np(QThread):
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
                 self.list_obj = self.sorting_tickers(obj)
+                print(f"'2' {obj= }   {self.list_obj= }")
                 if self.list_obj:
                     for i, ticker in enumerate(self.list_obj):  # 조건 검색에 있는 종목만
                         ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
@@ -726,7 +729,7 @@ class Trade_np(QThread):
                     self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(datetime.datetime.now())
                     print(self.df_trade)
                     raise
-
+            print('*******************************')
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
                 quit()
@@ -2354,7 +2357,6 @@ class Trade_np(QThread):
         return df
 
     def sorting_tickers(self,obj):
-        print(f"{obj=}")
         if self.market == '코인':
             fetch_tickers = self.ex_bybit.fetch_tickers()
             df_new = self.bybit_set_tickers(fetch_tickers)
@@ -2376,20 +2378,27 @@ class Trade_np(QThread):
                 self.list_obj.extend(self.ex_kis.ranking(content))
             return self.list_obj
         elif self.market == '국내선옵':
-            self.list_obj = []
-            for content in obj:
-                print(f"{content= }")
-                if content[1:3] == '옵션' and (content[-2:] == '월간' or content[-2:] == '월물'): #옵션_월간
-                    print(1)
-                    print(self.list_tickers)
-                    if '콜' in content:
-                        print(f"{content= }")
-
-                    # df_c, df_p = self.ex_kis.display_opt(datetime.datetime.today())
-                    # print(df_c)
-                    # print(df_p)
-                elif content[1:3] == '옵션' and (content[-2:] == '주간' or content[-3:] == '위클리'): #옵션_주간
-                    # print(2)
+            pd.set_option('display.max_rows', None)
+            # df = self.list_tickers
+            # print(df)
+            if type(obj) == dict:
+                key = list(obj.keys())[0]
+                value = obj[key]
+                upper = float(value[value.index('~')+1:])
+                lower = float(value[:value.index('~')])
+                today = datetime.datetime.now().replace(second=0, microsecond=0)
+                if key[1:3] == '옵션' and key[-2:] == '월물': #옵션_월간
+                    df_c,df_p = self.ex_kis.display_opt(today)
+                    if key[:1] == '콜':
+                        df = common_def.convert_column_types(df_c)
+                    elif key[:1] == '풋':
+                        df = common_def.convert_column_types(df_p)
+                    else:
+                        df = pd.DataFrame()
+                        raise
+                    df = df.loc[(lower <= df['현재가']) & (df['현재가'] <= upper)]
+                    self.list_obj = df.index.tolist()
+                elif key[1:3] == '옵션' and (key[-2:] == '주간' or key[-3:] == '위클리'): #옵션_주간
                     # 월: 0, 화: 1 ~ 일: 6
                     week = datetime.datetime.weekday(datetime.datetime.today())
 
@@ -2414,22 +2423,12 @@ class Trade_np(QThread):
                     #     raise
                 else:
                     raise
-                    # df_c, df_p = self.ex_kis.display_opt()
-
-                    # df_c.drop('종목코드',axis=1,inplace=True)
-                    # df_p.drop('종목코드',axis=1,inplace=True)
-                    # df_c = df_c.apply(to_numeric)
-                    # df_p = df_p.apply(to_numeric)
-                    # self.test_sql(df_c,'call')
-                    # self.test_sql(df_p,'put')
-                # df = df_c if content[:1] == '콜' else df_p
-                # if content[content.index('_')+1:] == '거래량상위':
-                #     df = df[['거래량']].apply(to_numeric)
-                #     df.sort_values(by='거래량',ascending=False,inplace=True)
-                #     df = df.iloc[:10, :] #상위 10개종목
-                #     self.list_obj = df.index.tolist()
-            # print(self.list_obj)
-            # quit()
+            elif type(obj) == list:
+                key = obj[0]
+            else:
+                print(obj)
+                raise
+            quit()
             return self.list_obj
 
     def market_finish(self):
@@ -2724,7 +2723,7 @@ if __name__ == "__main__":
             return df
         conn_stg = sqlite3.connect('DB/stg_futopt.db')
         ex_kis = common_def.make_exchange_kis('모의선옵')
-        date=datetime.datetime.now()
+        date=datetime.datetime.now().replace(second=0, microsecond=0)
 
         df_f = ex_kis.display_fut()
         df_f = convert_column_types(df_f)

@@ -261,8 +261,10 @@ def distribute_by_ratio(number, ratios, decimal_places=0):
 
     return results
 
-
-
+st = '1~2'
+print(st[st.index('~')+1:])
+print(st[:st.index('~')])
+quit()
 
 values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['one', 'two', 'three']
@@ -277,7 +279,8 @@ df1 = pd.DataFrame(index=index,columns=columns,data=values)
 
 print(df)
 print(df[['고가_ETH_5분봉','시가_ETH_5분봉']].loc[['one']])
-
+print(df.loc[df['시가_ETH_5분봉']==1])
+quit()
 # ex_bybit.fetch_closed_orders(symbol=ticker,since=)
 # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
 # res = ex_bybit.create_order(symbol=ticker, type='limit', side='buy', amount=10,

@@ -895,69 +895,72 @@ class KoreaInvestment:
             expiry_month = today.strftime("%Y%m")
 
         i = 0
-        # while True:
-        params = {
-            "FID_COND_MRKT_DIV_CODE": "O",
-            "FID_COND_SCR_DIV_CODE": "20503",
-            "FID_MRKT_CLS_CODE": 'CO',
-            "FID_MTRT_CNT": expiry_month,
-            "FID_COND_MRKT_CLS_CODE": "",
-            "FID_MRKT_CLS_CODE1": "PO"
-            }
+        while True:
+            params = {
+                "FID_COND_MRKT_DIV_CODE": "O",
+                "FID_COND_SCR_DIV_CODE": "20503",
+                "FID_MRKT_CLS_CODE": 'CO',
+                "FID_MTRT_CNT": expiry_month,
+                "FID_COND_MRKT_CLS_CODE": "",
+                "FID_MRKT_CLS_CODE1": "PO"
+                }
 
-        res = requests.get(url, headers=headers, params=params)
-        if res.json()['msg1'] == '정상처리 되었습니다.':
-            # pprint(res.json())
-            df_call = pd.DataFrame(res.json()['output1'])
-            df_put = pd.DataFrame(res.json()['output2'])
-            # if df_call.empty:
-            #     today = today + datetime.timedelta(days=25)
-            # else:
-            df_call.rename(
-                columns={'acpr': '행사가',
-                         'unch_prpr': '환산현재가',
-                         'optn_shrn_iscd': '종목코드',
-                         'optn_prpr': '현재가',
-                         'optn_prdy_vrss': '전일대비',
-                         'prdy_vrss_sign': '전일대비부호',
-                         'optn_prdy_ctrt': '옵션전일대비율',
-                         'total_askp_rsqn': '매도호가잔량',
-                         'total_bidp_rsqn': '매수호가잔량',
-                         'optn_bidp': '매수호가',
-                         'optn_askp': '매도호가',
-                         'hts_otst_stpl_qty':'미결제약정',
-                         'acml_vol': '거래량',
-                         'acml_tr_pbmn': '거래대금'},inplace=True)
-            df_call = df_call[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
-                               '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','미결제약정','거래량','거래대금']]
-            df_call.set_index(df_call['종목코드'], inplace=True)
-            df_put.rename(
-                columns={'acpr': '행사가',
-                         'unch_prpr': '환산현재가',
-                         'optn_shrn_iscd': '종목코드',
-                         'optn_prpr': '현재가',
-                         'optn_prdy_vrss': '전일대비',
-                         'prdy_vrss_sign': '전일대비부호',
-                         'optn_prdy_ctrt': '옵션전일대비율',
-                         'total_askp_rsqn': '매도호가잔량',
-                         'total_bidp_rsqn': '매수호가잔량',
-                         'optn_bidp': '매수호가',
-                         'optn_askp': '매도호가',
-                         'acml_vol': '거래량',
-                         'acml_tr_pbmn': '거래대금'},inplace=True)
-            df_put = df_put[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
-                             '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
-            df_put.set_index(df_put['종목코드'], inplace=True)
-
-        else:
-            # time.sleep(1)
-            # QTest.qWait(1000)
-            # i += 1
-            # if i == 10:
-            pprint(res.json())
-            print('display_opt 조회할 수 없음')
-            df_call = pd.DataFrame()
-            df_put = pd.DataFrame()
+            res = requests.get(url, headers=headers, params=params)
+            if res.json()['msg1'] == '정상처리 되었습니다.':
+                # pprint(res.json())
+                df_call = pd.DataFrame(res.json()['output1'])
+                df_put = pd.DataFrame(res.json()['output2'])
+                # if df_call.empty:
+                #     today = today + datetime.timedelta(days=25)
+                # else:
+                df_call.rename(
+                    columns={'acpr': '행사가',
+                             'unch_prpr': '환산현재가',
+                             'optn_shrn_iscd': '종목코드',
+                             'optn_prpr': '현재가',
+                             'optn_prdy_vrss': '전일대비',
+                             'prdy_vrss_sign': '전일대비부호',
+                             'optn_prdy_ctrt': '옵션전일대비율',
+                             'total_askp_rsqn': '매도호가잔량',
+                             'total_bidp_rsqn': '매수호가잔량',
+                             'optn_bidp': '매수호가',
+                             'optn_askp': '매도호가',
+                             'hts_otst_stpl_qty':'미결제약정',
+                             'acml_vol': '거래량',
+                             'acml_tr_pbmn': '거래대금'},inplace=True)
+                df_call = df_call[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
+                                   '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','미결제약정','거래량','거래대금']]
+                df_call.set_index(df_call['종목코드'], inplace=True)
+                df_put.rename(
+                    columns={'acpr': '행사가',
+                             'unch_prpr': '환산현재가',
+                             'optn_shrn_iscd': '종목코드',
+                             'optn_prpr': '현재가',
+                             'optn_prdy_vrss': '전일대비',
+                             'prdy_vrss_sign': '전일대비부호',
+                             'optn_prdy_ctrt': '옵션전일대비율',
+                             'total_askp_rsqn': '매도호가잔량',
+                             'total_bidp_rsqn': '매수호가잔량',
+                             'optn_bidp': '매수호가',
+                             'optn_askp': '매도호가',
+                             'acml_vol': '거래량',
+                             'acml_tr_pbmn': '거래대금'},inplace=True)
+                df_put = df_put[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
+                                 '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
+                df_put.set_index(df_put['종목코드'], inplace=True)
+                break
+            elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
+                print(f'display_opt   {res.json()}')
+                QTest.qWait(1000)
+            else:
+                # time.sleep(1)
+                # QTest.qWait(1000)
+                # i += 1
+                # if i == 10:
+                pprint(res.json())
+                print('display_opt 조회할 수 없음')
+                df_call = pd.DataFrame()
+                df_put = pd.DataFrame()
         return df_call, df_put
     def display_opt_weekly(self,today):
         """국내선물옵션기본시세/국내옵션전광판_콜풋"""
@@ -1015,16 +1018,16 @@ class KoreaInvestment:
 
         print(f"{expiry_date_week= }, {COND_MRKT=}")
 
-        params = {
-            "FID_COND_MRKT_DIV_CODE": "O",
-            "FID_COND_SCR_DIV_CODE": "20503",
-            "FID_MRKT_CLS_CODE": 'CO',
-            "FID_MTRT_CNT": expiry_date_week[2:], #2024의 경우 앞에 20은 제외
-            "FID_COND_MRKT_CLS_CODE": COND_MRKT,
-            "FID_MRKT_CLS_CODE1": "PO"
-            }
-        res = requests.get(url, headers=headers, params=params)
         while True:
+            params = {
+                "FID_COND_MRKT_DIV_CODE": "O",
+                "FID_COND_SCR_DIV_CODE": "20503",
+                "FID_MRKT_CLS_CODE": 'CO',
+                "FID_MTRT_CNT": expiry_date_week[2:], #2024의 경우 앞에 20은 제외
+                "FID_COND_MRKT_CLS_CODE": COND_MRKT,
+                "FID_MRKT_CLS_CODE1": "PO"
+                }
+            res = requests.get(url, headers=headers, params=params)
             if res.json()['msg1'] == '정상처리 되었습니다.' and res.json()['output1'] and res.json()['output2']:
                 df_call = pd.DataFrame(res.json()['output1'])
                 df_put = pd.DataFrame(res.json()['output2'])

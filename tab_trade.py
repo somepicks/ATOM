@@ -283,33 +283,33 @@ class Window(QMainWindow):
         # print(self.df_manul)
 
     def display_futopt(self):
-        def convert_column_types(df):
-            for col in df.columns:
-                try:
-                    df[col] = pd.to_numeric(df[col], errors='raise')
-                except ValueError:
-                    pass
-            return df
+        # def convert_column_types(df):
+        #     for col in df.columns:
+        #         try:
+        #             df[col] = pd.to_numeric(df[col], errors='raise')
+        #         except ValueError:
+        #             pass
+        #     return df
         QTest.qWait(500)
         df_f = self.ex_kis.display_fut()
-        df_f = convert_column_types(df_f)
+        df_f = common_def.convert_column_types(df_f)
         #
         현재가 = df_f.loc[df_f.index[0], '현재가']
         today = datetime.now()
         QTest.qWait(500)
         # expiry_date = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
         df_c, df_p = self.ex_kis.display_opt(today)
-        df_c = convert_column_types(df_c)
-        df_p = convert_column_types(df_p)
+        df_c = common_def.convert_column_types(df_c)
+        df_p = common_def.convert_column_types(df_p)
         # print(1)
         QTest.qWait(500)
         # expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
         df_c_weekly, df_p_weekly,COND_MRKT = self.ex_kis.display_opt_weekly(today)
-        df_c_weekly = convert_column_types(df_c_weekly)
-        df_p_weekly = convert_column_types(df_p_weekly)
+        df_c_weekly = common_def.convert_column_types(df_c_weekly)
+        df_p_weekly = common_def.convert_column_types(df_p_weekly)
         # df_c_thur, df_p_thur = self.ex_kis.display_opt_weekly_thur()
-        # df_c_thur = convert_column_types(df_c_thur)
-        # df_p_thur = convert_column_types(df_p_thur)
+        # df_c_thur = common_def.convert_column_types(df_c_thur)
+        # df_p_thur = common_def.convert_column_types(df_p_thur)
 
         # print(2)
         df_c = df_c[df_c['행사가'] > 현재가 - 25]

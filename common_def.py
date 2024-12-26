@@ -303,6 +303,14 @@ def import_sql(db_file,table_name):
     conn.close()
     return df
 
+
+def convert_column_types(df): #데이터프레임 중 숫자로 바꿀 수 있는데이터는 숫자로 변환
+    for col in df.columns:
+        try:
+            df[col] = pd.to_numeric(df[col], errors='raise')
+        except ValueError:
+            pass
+    return df
 def stamp_to_int(stamp_time):
     dt = datetime.datetime.fromtimestamp(stamp_time)
     dt = dt.strftime('%Y%m%d%H%M')
@@ -313,7 +321,6 @@ def stamp_to_str(stamp_time):
     return datetime.datetime.strftime(date_time,"%Y-%m-%d %H:%M:%S")
 def str_to_datetime(str):
     # print(f"{str= }")
-    # print(df_trade)
     return datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
 def str_to_stamp(str):
     dt =  datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
