@@ -653,7 +653,6 @@ class Trade_np(QThread):
                 print(f"{self.red('장 운영시간이 아님')}")
                 quit()
 
-        # self.list_df_duplicated = []
         print(f"{self.list_tickers= }")
         print(self.df_trade)
 
@@ -661,7 +660,6 @@ class Trade_np(QThread):
             obj = self.df_trade.loc[stg, '진입대상']
             상태 = self.df_trade.loc[stg, '상태']
             bong = self.df_trade.loc[stg, '봉']
-            # bong_detail = self.df_trade.loc[stg, '상세봉']
             if bong == '일봉' :
                 bong_detail = '일봉'
                 self.df_trade.loc[stg, '상세봉'] = bong_detail
@@ -686,11 +684,10 @@ class Trade_np(QThread):
                 df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
                 bong_since = df_same['봉제한'].max()
                 df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-                list_compare = list(set(self.check_compare_ticker(stg)))
+                list_compare = list(set(self.check_compare_ticker(stg,ticker)))
                 if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                    self.df_trade.loc[stg, '비교대상'] = json.dumps(list_compare, ensure_ascii=False)
+                    # self.df_trade.loc[stg, '비교대상'] = json.dumps(list_compare, ensure_ascii=False)
                     df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
-                # self.list_df_duplicated.append(ticker_full_name)
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상태봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
                 캔들종료시간 = 장종료시간 if bong == '일봉' else df.index[idx_bong] + self.dict_bong_timedelta[bong]
@@ -703,11 +700,11 @@ class Trade_np(QThread):
                 if 상태 != '대기':
                     self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간, 데이터길이,배팅금액, 진입시간, frgn, prsn, orgn)
                 self.active_light()
+                print('quit',quit())
 
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
                 self.list_obj = self.sorting_tickers(obj)
-                print(f"'2' {obj= }   {self.list_obj= }")
                 for i, ticker in enumerate(self.list_obj):  # 조건 검색에 있는 종목만
                     ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
                     # if not ticker_full_name in self.list_df_duplicated:  # 이미 만들어진 데이터가 없을 경우
@@ -2177,27 +2174,36 @@ class Trade_np(QThread):
         누적수익금 = self.df_trade.loc[stg, '누적수익금'] + 수익금
         # print(f"cal_ror - {누적수익금= }    {self.df_trade.loc[stg, '누적수익금']= }     {수익금= },  {수익률= }")
         return 누적수익금
-    def check_compare_ticker(self,stg):
+    def check_compare_ticker(self,stg,ticker):
+        print('check_compare_ticker')
         list_compare = []
         stg_buy = self.df_trade.loc[stg, '진입전략']
-        stg_buy = stg_buy[stg_buy.index('####################'):] # 진입전략의 초기 설정은 버림
+        # 첫 번째 줄 진입대상 삭제
+        lines = stg_buy.splitlines()  # 줄로 나누기
+        stg_buy = "\n".join(lines[1:])  # 첫 줄 제외하고 다시 합치기
         stg_sell = self.df_trade.loc[stg, '청산전략']
-        for ticker in self.list_tickers:
-            stg = stg_buy+stg_sell
-            if ticker in stg_buy or ticker in stg_sell:
-                while ticker in stg:
-                    stg = stg[stg.index(ticker):]
-                    if '봉' in stg:
-                        bong_len = stg.index('봉')
-                    else:
-                        bong_len = 0
-                    if bong_len > 10:
-                        stg = stg[1:]
-                    else:
-                        ticker_full_name = stg[:bong_len+1]
-                        stg = stg.replace(ticker_full_name,'')
+        stg_sum = stg_buy + stg_sell
+
+        if ticker in self.list_tickers:
+            if '풋옵션' in stg_sum and ticker[:1] == '2':
+                symbol = '3' + ticker[1:]
+                stg_sum = stg_sum.replace('풋옵션',symbol)
+            if '콜옵션' in stg_sum and ticker[:1] == '3':
+                symbol = '2' + ticker[1:]
+                stg_sum = stg_sum.replace('콜옵션',symbol)
+            for symbol in self.list_tickers:
+                if symbol in stg_sum:
+                    stg_sum_copy = stg_sum
+                    while symbol in stg_sum_copy:
+                        stg_sum_copy = stg_sum_copy[stg_sum_copy.index(symbol):]
+                        if '봉' in stg_sum_copy:
+                            bong_len = stg_sum_copy.index('봉')
+                        else:
+                            bong_len = 0
+
+                        ticker_full_name = stg_sum_copy[:bong_len+1]
+                        stg_sum_copy = stg_sum.replace(ticker_full_name,'')
                         list_compare.append(ticker_full_name)
-        print(f"check_compare_ticker - {list_compare= }")
         return list_compare
     def make_df(self, ticker_full_name, ticker, bong, bong_detail, bong_since):
         if self.market =='국내주식':
@@ -2307,55 +2313,35 @@ class Trade_np(QThread):
     def add_compare_df(self, ticker_main, df, bong_main, list_compare,bong_detail,bong_since):
         list_idx = df.index.tolist()
         for com_ticker_bong in list_compare:
-            if '풋옵션' == com_ticker_bong[:3] or '콜옵션' == com_ticker_bong[:3]:
-                t = '3' if ticker_main[:1] == '2' else '2'
-                ticker = t + ticker_main[1:]
-                if '_' in com_ticker_bong:
-                    bong = com_ticker_bong[com_ticker_bong.index('_')+1:]
-                else:
-                    bong = bong_main
-            elif '_' in com_ticker_bong:
-                ticker = com_ticker_bong[:com_ticker_bong.index('_')]
-                bong = com_ticker_bong[com_ticker_bong.index('_') + 1:]
+
+            ticker = com_ticker_bong[:com_ticker_bong.index('_')]
+            bong = com_ticker_bong[com_ticker_bong.index('_') + 1:]
+
             ticker_full_name = f'{ticker}_{bong}'
-            # if not f'{ticker_full_name}' in self.list_df_duplicated:  # 만들어진 데이터가 없을 경우
-            #     self.list_df_duplicated.append(ticker_full_name)
             df_compare = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-            if '풋옵션' == com_ticker_bong[:3] or '콜옵션' == com_ticker_bong[:3]:
-                df_compare.columns = [col.replace(ticker_full_name, com_ticker_bong) for col in df_compare.columns]
 
             if bong != '일봉' and bong != '주봉': #분봉일 경우
                 df = pd.merge(df, df_compare, left_index=True, right_index=True, how='left')
             elif bong == '일봉':
                 df['date'] = df.index.date
-                # self.test_sql(df,'df')
                 df_compare['date'] = df_compare.index.date
-                # self.test_sql(df_compare,'df_compare')
                 df = df.merge(df_compare, on='date',how='left', suffixes=('', '_daily')) # how='left' df_compare에 값이 없을 경우 nan
-                # self.test_sql(df,'df_result')
-                # df.to_sql('df_result', sqlite3.connect('DB/bt.db'), if_exists='replace')
                 df.drop('date', axis=1, inplace=True)
             elif bong == '주봉':
                 df['week'] = df.index.to_period('W').astype(str)
                 df_compare['week'] = df_compare.index.to_period('W').astype(str)
                 df = df.merge(df_compare, on='week',how='left', suffixes=('', '_weekly'))
                 df.drop('week', axis=1, inplace=True)
-            # else:
 
             if [x for x in df.columns.tolist() if '_y' in x]:
-                # print('add_compare_df')
                 print('add_compare_df _y 들어가있음')
                 quit()
             df.ffill(inplace=True)
-            # print(df)
             try:
                 df.index = list_idx
             except:
-                # print(list_idx)
-                # print(df)
                 df.index = list_idx
-        # pprint(df.columns.tolist())
-        # quit()
+
         return df
 
     def sorting_tickers(self,obj):

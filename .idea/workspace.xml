@@ -5,15 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b639359a-2076-4a97-ba5f-e613f7628916" name="Changes" comment="home">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/ATOM.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ATOM.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/token.dat" beforeDir="false" afterPath="$PROJECT_DIR$/token.dat" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,19 +44,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.ATOM.executor": "Run",
-    "Python.ATOM_trade_numpy.executor": "Run",
-    "Python.ex.executor": "Run",
-    "Python.tab_trade.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "C:/python_project/ATOM"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.ATOM.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ATOM_trade_numpy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ex.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tab_trade.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/python_project/ATOM&quot;
   }
-}]]></component>
-  <component name="RunManager" selected="Python.ex">
+}</component>
+  <component name="RunManager" selected="Python.ATOM_trade_numpy">
     <configuration name="ATOM_trade_numpy" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -131,9 +125,9 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.ex" />
         <item itemvalue="Python.ATOM_trade_numpy" />
         <item itemvalue="Python.tab_trade" />
+        <item itemvalue="Python.ex" />
       </list>
     </recent_temporary>
   </component>
@@ -209,7 +203,31 @@
       <option name="project" value="LOCAL" />
       <updated>1735208406953</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="home">
+      <option name="closed" value="true" />
+      <created>1735216490756</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1735216490756</updated>
+    </task>
+    <task id="LOCAL-00009" summary="home">
+      <option name="closed" value="true" />
+      <created>1735216516253</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1735216516253</updated>
+    </task>
+    <task id="LOCAL-00010" summary="home">
+      <option name="closed" value="true" />
+      <created>1735238113444</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1735238113444</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
