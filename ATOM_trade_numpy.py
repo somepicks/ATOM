@@ -680,9 +680,9 @@ class Trade_np(QThread):
             if type(obj) == str or (type(obj) != str and 상태 != '대기'): #종목이 지정되어있을 경우
                 ticker = self.df_trade.loc[stg, 'ticker']
                 ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
-                # if not ticker_full_name in self.list_df_duplicated: # 만들어진 데이터가 없을 경우
                 df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
                 bong_since = df_same['봉제한'].max()
+                print(f"{stg= },  {ticker=},  {bong_since=}")
                 df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
                 list_compare = list(set(self.check_compare_ticker(stg,ticker)))
                 if list_compare:  # 비교대상이 있을경우 데이터프레임생성
@@ -700,36 +700,32 @@ class Trade_np(QThread):
                 if 상태 != '대기':
                     self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간, 데이터길이,배팅금액, 진입시간, frgn, prsn, orgn)
                 self.active_light()
-                print('quit',quit())
-
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
                 self.list_obj = self.sorting_tickers(obj)
-                for i, ticker in enumerate(self.list_obj):  # 조건 검색에 있는 종목만
-                    ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
-                    # if not ticker_full_name in self.list_df_duplicated:  # 이미 만들어진 데이터가 없을 경우
-                    df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
-                    if df_same.empty:
-                        bong_since = self.df_trade.loc[stg,'봉제한']
-                    else:
-                        bong_since = df_same['봉제한'].max()
-                    df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-                    list_compare = list(set(self.check_compare_ticker(stg)))
-                    if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                        df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
-                    if not df.empty:
-                        데이터길이 = df.loc[df.index[-1], '데이터길이']
-                        idx_bong = df['데이터길이'].tolist().index(데이터길이)
-                        # self.list_df_duplicated.append(ticker_full_name)
-                        if i == 0:  # 여러종목일 경우 첫번째로 불러오는 데이터의 봉 시간만 저장
-                            self.df_trade.loc[stg,'진입시간'] = common_def.datetime_to_str(df.index[idx_bong])
-                            self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])
-                    self.active_light()
-                # else:
-                #     self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(datetime.datetime.now())
-                #     self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(datetime.datetime.now())
-                #     print(self.df_trade)
-                #     raise
+                if self.list_obj:
+                    for i, ticker in enumerate(self.list_obj):  # 조건 검색에 있는 종목만
+                        ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
+                        df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
+                        if df_same.empty:
+                            bong_since = self.df_trade.loc[stg, '봉제한']
+                        else:
+                            bong_since = df_same['봉제한'].max()
+                        print(f"{ticker_full_name=}")
+                        print(f"{stg= },  {ticker=},  {bong_since=}")
+                        print(f"{df_same= }")
+                        df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
+                        list_compare = list(set(self.check_compare_ticker(stg, ticker)))
+                        if list_compare:  # 비교대상이 있을경우 데이터프레임생성
+                            df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
+                            print(df)
+                        # 데이터길이 = df.loc[df.index[-1], '데이터길이']
+                        # idx_bong = df['데이터길이'].tolist().index(데이터길이)
+                        # 캔들종료시간 = 장종료시간 if bong == '일봉' else df.index[idx_bong] + self.dict_bong_timedelta[bong]
+
+                        self.active_light()
+                else: #해당하는 종목이 없을 경우
+                    df = pd.DataFrame()
             print('*******************************')
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
@@ -773,9 +769,8 @@ class Trade_np(QThread):
             bong_detail = self.df_trade.loc[stg, '상세봉']
             bong_since = self.df_trade.loc[stg, '봉제한']
             bong_time = self.df_trade.loc[stg, '현재봉시간']
-            진입시간 = common_def.str_to_datetime(self.df_trade.loc[stg, '진입시간'])
-            compare = self.df_trade.loc[stg, '비교대상']
-            list_compare = json.loads(compare)  # JSON 문자열을 다시 리스트로 변환
+            # compare = self.df_trade.loc[stg, '비교대상']
+            # list_compare = json.loads(compare)  # JSON 문자열을 다시 리스트로 변환
             배팅금액 = self.df_trade.loc[stg, '배팅금액']
             # 레버리지 = self.df_trade.loc[stg, '레버리지']
             # trade_market = self.df_trade.loc[stg, 'market']
@@ -787,17 +782,21 @@ class Trade_np(QThread):
             # 캔들 캔들종료시간 계산용
             if bong != '일봉':
                 캔들종료시간 = common_def.str_to_datetime(bong_time) + self.dict_bong_timedelta[bong]
-                # self.df_trade.loc[stg,'캔들종료시간'] = 캔들종료시간
             elif bong == '일봉':
                 캔들종료시간 = 장종료시간
             if obj[0] == '[' and obj[-1] == ']' or obj[0] == '{' and obj[-1] == '}' : #대상이 여러개일 경우
                 obj = json.loads(obj)
             if type(obj) == str or (type(obj) != str and 상태 != '대기'):  # 종목이 지정되어있을 경우
+                진입시간 = common_def.str_to_datetime(self.df_trade.loc[stg, '진입시간'])
                 ticker = self.df_trade.loc[stg, 'ticker']
                 ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
                 # if not ticker_full_name in self.list_df_duplicated:  # 데이터가 없을 경우
                 df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
                 # self.list_df_duplicated.append(ticker_full_name)
+
+                list_compare = list(set(self.check_compare_ticker(stg, ticker)))
+                if list_compare:  # 비교대상이 있을경우 데이터프레임생성
+                    df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
 
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
