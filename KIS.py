@@ -1140,6 +1140,7 @@ class KoreaInvestment:
         return df
 
     def investor_trend(self):
+        """국내주식 시세분석/국내기관_외국인 매매종목가집계[국내주식-037]"""
         path = "uapi/domestic-stock/v1/quotations/foreign-institution-total"
         url = f"{self.base_url}/{path}"
         market = "0000"
@@ -1161,16 +1162,37 @@ class KoreaInvestment:
         resp = requests.get(url, headers=headers, params=params)
         pprint(resp)
         return resp.json()
-    def investor_trend_time(self,market):
+    def investor_trend_time(self,market) -> dict:
         """국내주식 시세분석/시장별 투자자매매동향(시세)"""
         path = "uapi/domestic-stock/v1/quotations/inquire-investor-time-by-market"
         url = f"{self.base_url}/{path}"
-        if market == '선물' or market == '콜옵션' or market == '풋옵션':
+        # if market == '선물' or market == '콜옵션' or market == '풋옵션':
+        if market in ['선물','콜옵션','풋옵션']:
             iscd = "K2I"
-            iscd2 = "F001" if market == '선물' else "OC01" if market == '콜옵션' else 'OP01' if market=='풋옵션' \
-                           else "OC05" if market == '위클콜월' else 'OC04' if market == '위클콜목'\
-                           else "OP05" if market == '위클풋월' else 'OP04' if market == '위클풋목'\
-                           else "코스피" if market == '코스피' else ''
+            iscd2 = "F001" if market == '선물' \
+                else "OC01" if market == '콜옵션' \
+                else 'OP01' if market=='풋옵션' else ''
+        elif market == '주식선물':
+            iscd = "999"
+            if market == '주식선물': iscd2 = "S001"
+        elif market in ['콜_위클리_월','콜_위클리_목','풋_위클리_월','풋_위클리_목']:
+            if market in ['콜_위클리_월','풋_위클리_월']:
+                iscd = "WKM"
+                if market == '콜_위클리_월':
+                    iscd2 = "OC05"
+                    market = "콜_위클리"
+                elif market == '풋_위클리_월':
+                    iscd2 = "OP05"
+                    market = "풋_위클리"
+            elif market in ['콜_위클리_목','풋_위클리_목']:
+                iscd = "WKI"
+                if market == '콜_위클리_목':
+                    iscd2 = "OC04"
+                    market = "콜_위클리"
+                elif market == '풋_위클리_목':
+                    iscd2 = "OP04"
+                    market = "풋_위클리"
+
         headers = {
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
@@ -1195,14 +1217,14 @@ class KoreaInvestment:
                 외인 = int(output['frgn_ntby_tr_pbmn'])
                 개인 = int(output['prsn_ntby_tr_pbmn'])
                 기관 = int(output['orgn_ntby_tr_pbmn'])
-                return 외인, 개인, 기관
+                return {f"{market}_외인":외인, f"{market}_개인": 개인, f"{market}_기관":기관}
             elif i == 10:
                 print(f'investor_trend_time : {i}번 이상 해도 조회 안됨 - investor_trend_time')
                 resp = requests.get(url, headers=headers, params=params)
                 pprint(resp.json())
                 return 0, 0, 0
             i += 1
-            QTest.qWait(1000)
+            QTest.qWait(500)
 
 
 
@@ -3353,7 +3375,18 @@ if __name__ == "__main__":
         elif mydate > thismonth_duedate :
             nextmonth_duedate = nth_weekday(mydate+relativedelta(months=1),2, 3)
             return nextmonth_duedate
-    ex_kis = make_exchange_kis('실전주식')
+    ex_kis = make_exchange_kis('모의선옵')
+
+    dict_trend = {}
+    dict_trend.update(ex_kis.investor_trend_time('선물'))
+    dict_trend.update(ex_kis.investor_trend_time('주식선물'))
+    dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
+    dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
+    dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
+    dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
+    current_time = datetime.datetime.now().replace(second=0, microsecond=0)
+    df = pd.DataFrame([dict_trend], index=[current_time])
+    print(df)
     # frgn, prsn, orgn = ex_kis.investor_trend_time('선물')
     # print(f"외인: {frgn}, 개인: {prsn}, 기관: {orgn}")
     # today = datetime.datetime(2025,2,24)

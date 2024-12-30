@@ -241,8 +241,7 @@ def make_exchange_bybit(mock):
 
     return exchange_ccxt, exchange_pybit
 
-def datetime_to_stamp(date_time):
-    return int(time.mktime(date_time.timetuple()))
+
 def make_exchange_kis(trade_type):
     conn = sqlite3.connect('DB/setting.db')
     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
@@ -333,10 +332,12 @@ def int_to_datetime(int_time):
 def stamp_to_datetime(stamp_time):
     int_time=stamp_to_int(stamp_time)
     return datetime.datetime.strptime(str(int_time),'%Y%m%d%H%M')
-# def datetime_to_stamp(self,date_time):
-#     return int(time.mktime(date_time.timetuple()))
+def datetime_to_stamp(date_time):
+    return int(time.mktime(date_time.timetuple()))
 def datetime_to_str(date_time):
     return datetime.datetime.strftime((date_time), "%Y-%m-%d %H:%M:%S")
+def datetime_to_int_time(date_time):
+    return int(datetime.datetime.strftime((date_time), "%H%M%S"))
 
 class PythonHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):

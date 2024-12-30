@@ -280,9 +280,7 @@ if 현재가 > 0.1 and 현재가 < 0.4:
     if datetime.today(13,30,00) < 현재시간:
         if MACD_코스피200_5분봉 > MACD_SIGNAL_코스피200_5분봉:
             매수 = 100"""
-print(s)
-s=s.replace('코스피200','111111')
-print(s)
+print('콜_위클리_월'[2:5])
 quit()
 # ex_bybit.fetch_closed_orders(symbol=ticker,since=)
 # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side

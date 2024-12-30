@@ -497,7 +497,7 @@ class Trade_np(QThread):
     # val_instock = pyqtSignal(pd.DataFrame)
 
 
-    def __init__(self,parent,market,simul,df_stg,chart_duration,tele,list_tickers):
+    def __init__(self,parent,market,simul,df_stg,chart_duration,tele,list_tickers,COND_MRKT):
         super().__init__(parent)
     # def __init__(self,market,simul,df_stg):
     #     super().__init__()
@@ -543,6 +543,7 @@ class Trade_np(QThread):
         self.위탁증거금률 = 10  # 10%
         self.tele = tele
         self.list_tickers = list_tickers
+        self.COND_MRKT = COND_MRKT
         # self.list_close_day = list_close_day
 
 
@@ -690,15 +691,15 @@ class Trade_np(QThread):
                     df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상태봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
-                캔들종료시간 = 장종료시간 if bong == '일봉' else df.index[idx_bong] + self.dict_bong_timedelta[bong]
                 if 상태 == '대기':
-                    self.df_trade.loc[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상태'] == '대기') & (self.df_trade['상세봉'] == bong_detail), '진입시간'] = \
-                                        common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
-                    self.df_trade.loc[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상태'] == '대기') & (self.df_trade['상세봉'] == bong_detail), '현재봉시간'] = \
-                                        common_def.datetime_to_str(df.index[idx_bong])  # 조건: 같은 종목, 같은 봉, 같은 봉제한인 테이블에 동시에 저장
+                    self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
+                    idx = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상태'] == '대기') & (self.df_trade['상세봉'] == bong_detail)].index
+                    # self.df_trade.loc[idx, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 조건: 같은 종목, 같은 봉, 같은 봉제한인 테이블에 동시에 저장
+                    self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])
                 # 매수주문이나 매도주문등이 된 상태에서 프로그램이 꺼질경우 체결이 되었는지 알 수 없기때문에 최초 한번 돌려줌
                 if 상태 != '대기':
-                    self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간, 데이터길이,배팅금액, 진입시간, frgn, prsn, orgn)
+                    캔들종료시간 = 장종료시간 if bong == '일봉' else df.index[idx_bong] + self.dict_bong_timedelta[bong]
+                    self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간, 데이터길이,배팅금액, 진입시간)
                 self.active_light()
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
@@ -711,17 +712,14 @@ class Trade_np(QThread):
                             bong_since = self.df_trade.loc[stg, '봉제한']
                         else:
                             bong_since = df_same['봉제한'].max()
-                        print(f"{ticker_full_name=}")
-                        print(f"{stg= },  {ticker=},  {bong_since=}")
-                        print(f"{df_same= }")
                         df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
                         list_compare = list(set(self.check_compare_ticker(stg, ticker)))
                         if list_compare:  # 비교대상이 있을경우 데이터프레임생성
                             df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
-                            print(df)
-                        # 데이터길이 = df.loc[df.index[-1], '데이터길이']
-                        # idx_bong = df['데이터길이'].tolist().index(데이터길이)
-                        # 캔들종료시간 = 장종료시간 if bong == '일봉' else df.index[idx_bong] + self.dict_bong_timedelta[bong]
+                        데이터길이 = df.loc[df.index[-1], '데이터길이']
+                        idx_bong = df['데이터길이'].tolist().index(데이터길이)
+                        self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
+                        self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 일단은 만들어둠
 
                         self.active_light()
                 else: #해당하는 종목이 없을 경우
@@ -732,19 +730,19 @@ class Trade_np(QThread):
                 quit()#
         dt = datetime.datetime.now().replace(second=0, microsecond=0)
         one_minute = dt+datetime.timedelta(minutes=1)
-        print(f"{dt= }    {one_minute= }")
         if self.market == '코인':
             print(f"{self.blue('bybit 트레이딩 시작')}")
         elif self.market == '국내주식' or self.market == '국내선옵':
             print(f"{self.blue('kis 트레이딩 시작')}")
-            frgn, prsn, orgn = self.ex_kis.investor_trend_time('선물')
+
+            # frgn, prsn, orgn = self.ex_kis.investor_trend_time('선물')
             while self._status:
-                frgn, prsn, orgn, one_minute = self.loop_main(장종료시간, frgn, prsn, orgn, one_minute)
+                one_minute = self.loop_main(장종료시간, one_minute)
                 self.qt_open.emit(self.df_trade)
                 # self.val_light.emit(self.bool_light)
                 # self.bool_light = not self.bool_light
 
-    def loop_main(self,장종료시간, frgn, prsn, orgn, one_minute):
+    def loop_main(self,장종료시간, one_minute):
         global 데이터길이, 현재시간, 진입시간, 캔들종료시간
         현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
 
@@ -753,15 +751,14 @@ class Trade_np(QThread):
         if 장종료시간 < 현재시간:
             self.market_finish()
 
-        # print(self.df_trade[['현재봉시간']])
         elif 현재시간 >= one_minute:  # 모든종목 대상으로 캔들종료시간 초과 시 한번만 실행하도록
             check_time = True
-            if self.market == '국내주식' or self.market == '국내선옵':
-                frgn, prsn, orgn = self.ex_kis.investor_trend_time('선물')
+            # if self.market == '국내주식' or self.market == '국내선옵':
+                # frgn, prsn, orgn = self.ex_kis.investor_trend_time('선물')
             one_minute = 현재시간+datetime.timedelta(minutes=1)
-            print(f"{현재시간= } {one_minute= } :  {frgn= }, {prsn= }, {orgn= } ")
+            print(f"{현재시간= } {one_minute= } ")
 
-        # quit()
+
         for stg in self.df_trade.index:
             obj = self.df_trade.loc[stg, '진입대상']
             상태 = self.df_trade.loc[stg, '상태']
@@ -774,6 +771,7 @@ class Trade_np(QThread):
             배팅금액 = self.df_trade.loc[stg, '배팅금액']
             # 레버리지 = self.df_trade.loc[stg, '레버리지']
             # trade_market = self.df_trade.loc[stg, 'market']
+            진입시간 = common_def.str_to_datetime(self.df_trade.loc[stg, '진입시간'])
 
             # 증거금률 = self.위탁증거금률 / 100 if trade_market == '선물' else 1/레버리지 if trade_market == 'bybit' else 1
             # bought_rate = 0
@@ -787,17 +785,12 @@ class Trade_np(QThread):
             if obj[0] == '[' and obj[-1] == ']' or obj[0] == '{' and obj[-1] == '}' : #대상이 여러개일 경우
                 obj = json.loads(obj)
             if type(obj) == str or (type(obj) != str and 상태 != '대기'):  # 종목이 지정되어있을 경우
-                진입시간 = common_def.str_to_datetime(self.df_trade.loc[stg, '진입시간'])
                 ticker = self.df_trade.loc[stg, 'ticker']
                 ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
-                # if not ticker_full_name in self.list_df_duplicated:  # 데이터가 없을 경우
                 df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-                # self.list_df_duplicated.append(ticker_full_name)
-
                 list_compare = list(set(self.check_compare_ticker(stg, ticker)))
                 if list_compare:  # 비교대상이 있을경우 데이터프레임생성
                     df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
-
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
 
@@ -814,48 +807,40 @@ class Trade_np(QThread):
 
                     print(f'캔들종료시간 < 현재시간 ======= {stg},bong_time: {bong_time},  idx_bong: {df.index[idx_bong]},  캔들종료시간: {common_def.datetime_to_str(캔들종료시간)} < 현재시간: {common_def.datetime_to_str(현재시간)}  {상태= }')
                     # self.test_sql(df,'check')
-                if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                    df = self.add_compare_df(ticker,df,bong, list_compare, bong_detail, bong_since)
                 if [x for x in df.columns.tolist() if '_y' in x]:
                     print('에러1')
                     quit()
-                self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간, frgn, prsn, orgn)
+                self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간)
 
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 if check_time == True:
                     self.list_obj = self.sorting_tickers(obj)
+                if self.list_obj:
+                    for i, ticker in enumerate(self.list_obj):
+                        ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
+                        df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
+                        list_compare = list(set(self.check_compare_ticker(stg, ticker)))
+                        if list_compare:  # 비교대상이 있을경우 데이터프레임생성
+                            df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
+                        데이터길이 = df.loc[df.index[-1], '데이터길이']
+                        idx_bong = df['데이터길이'].tolist().index(데이터길이)
+                        if 캔들종료시간 < 현재시간 and common_def.str_to_datetime(bong_time) < df.index[idx_bong]:  # 현재시간은 finish보다 앞서도라도 증권사에서 보내주는 봉 시간은 조금 느릴 수 있기 때문에 조건 2개 확인
+                            if i == 0:  # 여러종목일 경우 첫번째로 불러오는 데이터의 봉 시간만 저장
+                                self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])
+                                bong_time = self.df_trade.loc[stg, '현재봉시간']  # 시간이 갱신되면 캔들종료시간 시간도 변경되어야 함
+                                캔들종료시간 = common_def.str_to_datetime(bong_time) + self.dict_bong_timedelta[bong]
 
-                for i, ticker in enumerate(self.list_obj):
-                    ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
-                    # if not ticker_full_name in self.list_df_duplicated:  # 기존에 만들어진 df 없으면
-                    df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-                    self.list_df_duplicated.append(ticker_full_name)
-                    if i == 0:  # 여러종목일 경우 첫번째로 불러오는 데이터의 봉 시간만 저장
-                        self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[-1])
-
-                    # elif ticker_full_name in self.list_df_duplicated:
-                    #     list_df = globals()[f'{ticker}_{bong}_{bong_detail}']
-                    #     stamp_date_old = list_df[-1][0] / 1000 + self.dict_bong_stamp[bong_detail]  # 다음봉 시간 계산
-                    #     if stamp_date_old < time.time():  # detail봉 시간 기준 데이터 생성
-                    #         df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-                    #         if i == 0:  # 여러종목일 경우 첫번째로 불러오는 데이터의 봉 시간만 저장
-                    #             self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[-1])
-                    #     else:
-                    #         df = self.make_df(ticker_full_name, ticker, bong, bong_detail, bong_since)
-                    if not df.empty:
-                        데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상태봉이기 때문에  찾아서 다시 들어가야됨
-                        # idx_bong = df['데이터길이'].tolist().index(데이터길이)
-                        #진입대상이 전체인 전략에서 이미 매수를 한 종목은 다시 매수하지 않음
-                        self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간, frgn, prsn, orgn)
-
+                        if [x for x in df.columns.tolist() if '_y' in x]:
+                            print('에러1')
+                            quit()
+                        self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간)
             self.active_light()
         return frgn, prsn, orgn, one_minute
         # print(self.df_trade[['현재봉시간','캔들종료시간']])
         # quit()
 
-    def loop_trade(self, ticker, stg, df_detail, bong, bong_detail, 상태, current_time, candle_endtime, jang_endtime,data_length,배팅금액,enter_time, frgn,prsn,orgn):
-        global np_tik_ar, list_columns, np_tik_idx
-        global np_tik_length
+    def loop_trade(self, ticker, stg, df_detail, bong, bong_detail, 상태, current_time, candle_endtime, jang_endtime,data_length,배팅금액,enter_time):
+        global np_tik_ar, list_columns, np_tik_idx, np_tik_length
         global 매수가, 매도가, 시장가, 레버리지, 매수, 매도
         global 수익률, 최고수익률, 최저수익률
         global 상세시가, 상세고가, 상세저가, 상세종가
@@ -865,38 +850,41 @@ class Trade_np(QThread):
         global 분봉1, 분봉3, 분봉5, 분봉15, 분봉30, 분봉60, 시간봉4, 일봉, 주봉, 월봉
         global 현재가, 시가, 고가, 저가, 종가, 거래량, NAV, 거래량이평3, 이격도20이평, 등락율, 시가총액, 이평
         global 기관, 외인, 개인
-        global 캔들종료시간, 장종료시간, 데이터길이, 진입시간, 현재시간
+        global 캔들종료시간, 장종료시간, 데이터길이, 진입시간, 현재시간, 시분초
         global 분할상태, 매입율
+        global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리, 거래량상위, 등락률상위
         현재시간 = current_time
+        시분초 = common_def.datetime_to_int_time(현재시간)
         캔들종료시간 = candle_endtime
         장종료시간 = jang_endtime
         데이터길이 = data_length
         진입시간 = enter_time
         매입율 = 0
-        시장가 = '시장가',
-        분봉1 = '1분봉'
-        분봉3 = '3분봉' # 시가CN(bong,pre) bong자리에 넣기 위함 변수로 숫자가 앞에 올 수는 없기 때문
-        분봉5 = '5분봉'
-        분봉15 = '15분봉'
-        분봉30 = '30분봉'
-        분봉60 = '60분봉'
-        시간봉4 = '4시간봉'
-        일봉 = '일봉'
-        주봉 = '주봉'
-        월봉 = '월봉'
+        시장가 = '시장가'
+        # 분봉1 = '1분봉'
+        # 분봉3 = '3분봉' # 시가CN(bong,pre) bong자리에 넣기 위함 변수로 숫자가 앞에 올 수는 없기 때문
+        # 분봉5 = '5분봉'
+        # 분봉15 = '15분봉'
+        # 분봉30 = '30분봉'
+        # 분봉60 = '60분봉'
+        # 시간봉4 = '4시간봉'
+        # 일봉 = '일봉'
+        # 주봉 = '주봉'
+        # 월봉 = '월봉'
         롱 = 'long'
-        long = 'long'
         숏 = 'short'
+        long = 'long'
         short = 'short'
+        콜옵션 = '콜옵션'
+        풋옵션 = '풋옵션'
+        콜옵션_위클리 = '콜옵션_위클리'
+        풋옵션_위클리 = '풋옵션_위클리'
         전략명 = stg
         종목코드 = ticker
         for i in range(20):
             globals()[f'매도{i}호가'] = f'매도{i}호가'
         for i in range(20):
             globals()[f'매수{i}호가'] = f'매수{i}호가'
-        기관 = orgn
-        외인 = frgn
-        개인 = prsn
         매수 = False
         매도 = False
         # 매수 = True
@@ -2174,7 +2162,6 @@ class Trade_np(QThread):
         # print(f"cal_ror - {누적수익금= }    {self.df_trade.loc[stg, '누적수익금']= }     {수익금= },  {수익률= }")
         return 누적수익금
     def check_compare_ticker(self,stg,ticker):
-        print('check_compare_ticker')
         list_compare = []
         stg_buy = self.df_trade.loc[stg, '진입전략']
         # 첫 번째 줄 진입대상 삭제
@@ -2278,6 +2265,8 @@ class Trade_np(QThread):
                 df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
             else:  # 비교대상의 경우 'BTC_5분봉'
                 df = common_def.detail_to_compare(df, bong, ticker_full_name)
+            print(df)
+            print(ticker_full_name)
             return df
 
         elif self.market =='코인':
@@ -2372,7 +2361,7 @@ class Trade_np(QThread):
                 upper = float(value[value.index('~')+1:])
                 lower = float(value[:value.index('~')])
                 today = datetime.datetime.now().replace(second=0, microsecond=0)
-                if key[1:3] == '옵션' and key[-2:] == '월물': #옵션_월간
+                if key == '콜옵션' or key == '풋옵션': #옵션_월물
                     df_c,df_p = self.ex_kis.display_opt(today)
                     if key[:1] == '콜':
                         df = common_def.convert_column_types(df_c)
@@ -2383,7 +2372,7 @@ class Trade_np(QThread):
                         raise
                     df = df.loc[(lower <= df['현재가']) & (df['현재가'] <= upper)]
                     self.list_obj = df.index.tolist()
-                elif key[1:3] == '옵션' and key[-3:] == '위클리': #옵션_주간
+                elif key[2:5] == '위클리': #옵션_주간
                     df_c, df_p,cond_mrkt = self.ex_kis.display_opt_weekly(today)
                     if key[:1] == '콜':
                         df = common_def.convert_column_types(df_c)
@@ -2531,6 +2520,22 @@ class Trade_np(QThread):
             print('close 조회 에러')
             order={'id':None,'info':{'orderStatus':None}}
             return order
+
+    def add_trend(self,df):
+        dict_trend = {}
+        dict_trend.update(ex_kis.investor_trend_time('선물'))
+        dict_trend.update(ex_kis.investor_trend_time('주식선물'))
+        dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
+        dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
+        if self.COND_MRKT == "WKM":
+            dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
+            dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
+        elif self.COND_MRKT == "WKI":
+            dict_trend.update(ex_kis.investor_trend_time('콜_위클리_목'))
+            dict_trend.update(ex_kis.investor_trend_time('풋_위클리_목'))
+        current_time = datetime.datetime.now().replace(second=0, microsecond=0)
+        df = pd.DataFrame([dict_trend], index=[current_time])
+        return df
 
     def divide_by_ratio(self, number, ratio_list, decimal_places=0):  #  차이점은 divide_by_ratio(10, [30,30,30], 0)  # [3,3,4]
         total_ratio = sum(ratio_list)
@@ -2721,10 +2726,10 @@ if __name__ == "__main__":
         df_p = convert_column_types(df_p)
         df_c = df_c[df_c['행사가'] > 현재가 - 25]
         df_c = df_c[df_c['행사가'] < 현재가 + 25]
-        df_c['종목명'] = '콜_월물'
+        df_c['종목명'] = '콜옵션'
         df_p = df_p[df_p['행사가'] > 현재가 - 25]
         df_p = df_p[df_p['행사가'] < 현재가 + 25]
-        df_p['종목명'] = '풋_월물'
+        df_p['종목명'] = '풋옵션'
         time.sleep(1)
         df_c_w,df_p_w,COND_MRKT = ex_kis.display_opt_weekly(date)
         df_c_w = convert_column_types(df_c_w)
@@ -2764,11 +2769,11 @@ if __name__ == "__main__":
 
             df_c_w = df_c_w[df_c_w['행사가'] > 현재가 - 25]
             df_c_w = df_c_w[df_c_w['행사가'] < 현재가 + 25]
-            df_c_w['종목명'] = '콜_'+yoil+'_위클리'
+            df_c_w['종목명'] = '콜'+'_위클리_'+yoil
 
             df_p_w = df_p_w[df_p_w['행사가'] > 현재가 - 25]
             df_p_w = df_p_w[df_p_w['행사가'] < 현재가 + 25]
-            df_p_w['종목명'] = '풋_'+yoil+'_위클리'
+            df_p_w['종목명'] = '풋'+'_위클리_'+yoil
 
             df_c_w.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
             df_p_w.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
@@ -2794,6 +2799,6 @@ if __name__ == "__main__":
     # df_instock = pd.DataFrame()
     tele = True
     duration = 30
-    trade = Trade_np(None,market,simul,df_stg,duration,tele,list_tickers)
+    trade = Trade_np(None,market,simul,df_stg,duration,tele,list_tickers,COND_MRKT)
     # print(trade.fie('asdf'))
     trade.run()

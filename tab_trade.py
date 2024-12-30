@@ -304,7 +304,7 @@ class Window(QMainWindow):
         # print(1)
         QTest.qWait(500)
         # expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
-        df_c_weekly, df_p_weekly,COND_MRKT = self.ex_kis.display_opt_weekly(today)
+        df_c_weekly, df_p_weekly,self.COND_MRKT = self.ex_kis.display_opt_weekly(today)
         df_c_weekly = common_def.convert_column_types(df_c_weekly)
         df_p_weekly = common_def.convert_column_types(df_p_weekly)
         # df_c_thur, df_p_thur = self.ex_kis.display_opt_weekly_thur()
@@ -314,10 +314,10 @@ class Window(QMainWindow):
         # print(2)
         df_c = df_c[df_c['행사가'] > 현재가 - 25]
         df_c = df_c[df_c['행사가'] < 현재가 + 25]
-        df_c['종목명'] = '콜_월물'
+        df_c['종목명'] = '콜옵션'
         df_p = df_p[df_p['행사가'] > 현재가 - 25]
         df_p = df_p[df_p['행사가'] < 현재가 + 25]
-        df_p['종목명'] = '풋_월물'
+        df_p['종목명'] = '풋옵션'
 
         df_f.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
         df_c.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
@@ -345,20 +345,20 @@ class Window(QMainWindow):
         df_combined = pd.concat([df1_with_separator, df2_with_separator, df3_with_separator], ignore_index=True)
 
         if not df_c_weekly.empty and not df_p_weekly.empty:
-            if COND_MRKT == "WKM":
+            if self.COND_MRKT == "WKM":
                 yoil = '월'
-            elif COND_MRKT == "WKI":
+            elif self.COND_MRKT == "WKI":
                 yoil = '목'
             else:
                 yoil = '만기'
 
             df_c_weekly = df_c_weekly[df_c_weekly['행사가'] > 현재가 - 25]
             df_c_weekly = df_c_weekly[df_c_weekly['행사가'] < 현재가 + 25]
-            df_c_weekly['종목명'] = '콜_'+yoil+'_위클리'
+            df_c_weekly['종목명'] = '콜'+'_위클리_'+yoil
 
             df_p_weekly = df_p_weekly[df_p_weekly['행사가'] > 현재가 - 25]
             df_p_weekly = df_p_weekly[df_p_weekly['행사가'] < 현재가 + 25]
-            df_p_weekly['종목명'] = '풋_'+yoil+'_위클리'
+            df_p_weekly['종목명'] = '풋'+'_위클리_'+yoil
 
             df_c_weekly.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
             df_p_weekly.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
@@ -535,13 +535,9 @@ class Window(QMainWindow):
         시간외잔략상위 = '시간외잔략상위'
         체결강도상위 = '체결강도상위'
         관심종목등록상위 = '관심종목등록상위'
-        global 콜옵션_월간, 풋옵션_월간, 콜옵션_월물, 풋옵션_월물, 콜옵션_주간, 풋옵션_주간, 콜옵션_위클리, 풋옵션_위클리
-        콜옵션_월간 = '콜옵션_월간'
-        풋옵션_월간 = '풋옵션_월간'
-        콜옵션_월물 = '콜옵션_월물'
-        풋옵션_월물 = '풋옵션_월물'
-        콜옵션_주간 = '콜옵션_주간'
-        풋옵션_주간 = '풋옵션_주간'
+        global 콜옵션, 풋옵션, 콜옵션_위클리, 풋옵션_위클리
+        콜옵션 = '콜옵션'
+        풋옵션 = '풋옵션'
         콜옵션_위클리 = '콜옵션_위클리'
         풋옵션_위클리 = '풋옵션_위클리'
         if self.QCB_market.currentText() == '국내주식' and self.QLE_stg.text() != '':
@@ -601,7 +597,7 @@ class Window(QMainWindow):
             # bong_detail = 분봉1
             leverage = 1
             if type(object) == list or type(object) == dict :
-                trade_market = '선옵'
+                trade_market = '조건검색'
                 ticker = ''
             else:
                 trade_market = '선물' if object[:1] == '1' else '콜옵션' if object[:1] == '2' else '풋옵션' if object[:1] == '3' else '스프레드'
@@ -812,7 +808,17 @@ class Window(QMainWindow):
         self.QCB_stgs.clear()
         self.QCB_stgs.addItems(self.df_stg.index.tolist())
         self.df_stg.sort_values('table',inplace=True)
-        self.df_stg.to_sql('stg', self.conn_stg, if_exists='replace')
+        try:
+            self.df_stg.to_sql('stg', self.conn_stg, if_exists='replace')
+        except:
+            # 열별로 저장 시도
+            for column in self.df_stg.columns:
+                try:
+                    temp_df = self.df_stg[[column]]  # 문제 열만 선택
+                    temp_df.to_sql('temp_table', self.conn_stg, if_exists='replace', index=False)
+                    print(f"Column '{column}' saved successfully.")
+                except Exception as e:
+                    print(f"Error with column '{column}': {e}")
         self.reset_stg_table()
 
     def del_stg(self):
@@ -953,7 +959,9 @@ class Window(QMainWindow):
         # self.df_instock = pd.read_sql(f"SELECT * FROM 'instock'", self.conn_stg).set_index('index')
         list_tickers = self.df_tickers['종목코드'].tolist()
         print(f"{list_tickers= }")
-        self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(), self.QCB_simul, self.df_stg,self.QCB_chart_duration.currentText(),self.QCB_tele.isChecked(),list_tickers)
+        self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(), self.QCB_simul, self.df_stg,
+                                                self.QCB_chart_duration.currentText(),self.QCB_tele.isChecked(),
+                                                list_tickers, self.COND_MRKT)
         self.thread.start()
         # self.QPB_start.setText({True: "정지", False: "시작"}[self.thread.status])
         self.thread.qt_open.connect(self.qtable_open)
