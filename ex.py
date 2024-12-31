@@ -264,7 +264,9 @@ def distribute_by_ratio(number, ratios, decimal_places=0):
 st = '1~2'
 print(st[st.index('~')+1:])
 print(st[:st.index('~')])
-
+import sys
+print(sys.path)
+quit()
 values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['one', 'two', 'three']
 columns = ['시가_ETH_5분봉', '고가_ETH_5분봉', '저가_ETH_5분봉']
