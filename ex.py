@@ -267,9 +267,17 @@ print(st[:st.index('~')])
 
 values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['one', 'two', 'three']
-columns = ['시가_ETH_5분봉', '고가_ETH_5분봉', '저가_ETH_5분봉']
+columns = ['시가_ETH_외인', '고가_ETH_기관', '저가_ETH_개인']
 import json
 df = pd.DataFrame(index=index,columns=columns,data=values)
+print(df)
+print(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_investor"))
+print(df.columns.to_list())
+li_col = df.columns.to_list()
+print(('콜옵션_위클리')[4:7])
+
+if '외인' in df.columns.to_list():
+    print(1)
 
 values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['1', '2', '3']

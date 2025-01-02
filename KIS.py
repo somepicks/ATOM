@@ -998,25 +998,31 @@ class KoreaInvestment:
                 number_of_week += 1
             expiry_date_week = datetime.datetime.strftime(today,'%Y%m')+'0'+str(number_of_week)
         else:
-            first_day_of_month = datetime.datetime.today().replace(day=1)
+            # first_day_of_month = datetime.datetime.today().replace(day=1,second=0, microsecond=0)
+            first_day_of_month = today.replace(day=1,second=0, microsecond=0)
 
             # 첫 번째 주의 목요일 찾기
-            first_week_start = first_day_of_month - datetime.timedelta(
-                days=first_day_of_month.weekday())  # 첫 주의 월요일
+            first_week_start = first_day_of_month - datetime.timedelta(days=first_day_of_month.weekday())  # 첫 주의 월요일
+
             second_week_start = first_week_start + datetime.timedelta(weeks=1)  # 두 번째 주의 월요일
             second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
 
             # 오늘이 두 번째 주의 목요일인지 확인
-            if datetime.datetime.today().date() == second_thursday.date():  # 만기주 일 경우
-                COND_MRKT = "" #몬슬리(목)
-                expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
+            thursday_week = second_thursday.date()-datetime.timedelta(days=2)
+
+            if thursday_week < today.date() and today.date() <= second_thursday.date() :  # 만기주 일 경우
+                df_call, df_put = self.display_opt(today)
+                return df_call, df_put, '만기주'
+                # COND_MRKT = "" #몬슬리(목)
+                # expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
+
             elif yoil == dict_yoil['화'] or yoil == dict_yoil['수'] or yoil == dict_yoil['목']:
+                number_of_week += 1
                 expiry_date_week = datetime.datetime.strftime(today,'%Y%m')+'0'+str(number_of_week)
                 COND_MRKT = "WKI" #위클리(목)
             else:
                 raise
 
-        print(f"{expiry_date_week= }, {COND_MRKT=}")
 
         while True:
             params = {
@@ -1192,7 +1198,9 @@ class KoreaInvestment:
                 elif market == '풋_위클리_목':
                     iscd2 = "OP04"
                     market = "풋_위클리"
-
+        elif market == '코스피':
+            iscd = "KSP"
+            iscd2 = "0001"
         headers = {
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
@@ -3327,7 +3335,26 @@ class KoreaInvestment:
         elif mydate > thismonth_duedate :
             nextmonth_duedate = self.nth_weekday(mydate+relativedelta(months=1),2, 3)
             return nextmonth_duedate
-
+    def add_trend(self,현재시간,df_trend,COND_MRKT):
+        dict_trend = {}
+        dict_trend.update(ex_kis.investor_trend_time('코스피'))
+        dict_trend.update(ex_kis.investor_trend_time('선물'))
+        dict_trend.update(ex_kis.investor_trend_time('주식선물'))
+        dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
+        dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
+        if COND_MRKT == "WKM":
+            dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
+            dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
+        elif COND_MRKT == "WKI":
+            dict_trend.update(ex_kis.investor_trend_time('콜_위클리_목'))
+            dict_trend.update(ex_kis.investor_trend_time('풋_위클리_목'))
+        # current_time = datetime.datetime.now().replace(second=0, microsecond=0)
+        df = pd.DataFrame([dict_trend], index=[현재시간])
+        if not df_trend.empty:
+            df_trend = pd.concat([df_trend, df],axis=0)
+        else:
+            df_trend = df
+        return df_trend
 
 if __name__ == "__main__":
     def make_exchange_kis(trade_type):
@@ -3376,16 +3403,34 @@ if __name__ == "__main__":
             nextmonth_duedate = nth_weekday(mydate+relativedelta(months=1),2, 3)
             return nextmonth_duedate
     ex_kis = make_exchange_kis('모의선옵')
+    df_trend = pd.DataFrame()
 
-    dict_trend = {}
-    dict_trend.update(ex_kis.investor_trend_time('선물'))
-    dict_trend.update(ex_kis.investor_trend_time('주식선물'))
-    dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
-    dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
-    dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
-    dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
-    current_time = datetime.datetime.now().replace(second=0, microsecond=0)
-    df = pd.DataFrame([dict_trend], index=[current_time])
+    li = [x for x in range(45, 60)]
+    i=0
+    print(li)
+    현재시간 = datetime.datetime(2024,12,26,8,li[i])
+    one_minute = 현재시간 + datetime.timedelta(minutes=1)
+    ohlcv = ex_kis.fetch_futopt_1m_ohlcv('301W01282',3)
+    df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
+    df = pd.concat([df,df_trend],axis=1)
+
+    while True:
+        현재시간 = datetime.datetime(2024,12,26,8,li[i])
+        if 현재시간 >= one_minute:
+            one_minute = 현재시간 + datetime.timedelta(minutes=1)
+            print(f"{현재시간= }")
+            df_trend = ex_kis.add_trend(현재시간, df_trend,'WKM')
+            print(df_trend)
+            if li[i] == 59:
+                break
+        i += 1
+        time.sleep(0.5)
+
+    # current_time = datetime.datetime(2024,12,26,8,46).replace(second=0, microsecond=0)
+    # df_trend = pd.DataFrame([dict_trend], index=[current_time])
+    df = pd.concat([df,df_trend],axis=1)
+    print(df.columns.tolist())
+    df.drop(['코스피_외인', '코스피_개인', '코스피_기관', '선물_외인', '선물_개인', '선물_기관', '주식선물_외인', '주식선물_개인', '주식선물_기관', '콜옵션_외인', '콜옵션_개인', '콜옵션_기관', '풋옵션_외인', '풋옵션_개인', '풋옵션_기관', '콜_위클리_외인', '콜_위클리_개인', '콜_위클리_기관', '풋_위클리_외인', '풋_위클리_개인', '풋_위클리_기관'],inplace=True,axis=1)
     print(df)
     # frgn, prsn, orgn = ex_kis.investor_trend_time('선물')
     # print(f"외인: {frgn}, 개인: {prsn}, 기관: {orgn}")
@@ -3398,8 +3443,6 @@ if __name__ == "__main__":
     # print(list_close_day)
     # print(list_duple_day)
     # dt = datetime.datetime.now().isocalendar()
-    today = datetime.datetime(2024,10,3)
-    print(ex_kis.nth_weekday(today,2,3))
     # ex_kis.display_opt_weekly(today)
 
     # res = ex.create_limit_buy_order(symbol='309D5W350',price=5,quantity=5,side='buy')

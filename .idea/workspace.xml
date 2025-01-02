@@ -7,10 +7,8 @@
     <list default="true" id="b639359a-2076-4a97-ba5f-e613f7628916" name="Changes" comment="home">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/stg_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
@@ -59,7 +57,8 @@
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/python_project/ATOM&quot;
+    &quot;last_opened_file_path&quot;: &quot;C:/python_project/ATOM&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
 }</component>
   <component name="RunManager" selected="Python.ATOM_trade_numpy">
@@ -154,9 +153,9 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.ATOM_trade_numpy" />
-        <item itemvalue="Python.KIS" />
-        <item itemvalue="Python.ex" />
         <item itemvalue="Python.tab_trade" />
+        <item itemvalue="Python.ex" />
+        <item itemvalue="Python.KIS" />
       </list>
     </recent_temporary>
   </component>
@@ -272,7 +271,15 @@
       <option name="project" value="LOCAL" />
       <updated>1735530517135</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="home">
+      <option name="closed" value="true" />
+      <created>1735565485301</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1735565485301</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

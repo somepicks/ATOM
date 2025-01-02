@@ -260,7 +260,7 @@ class Window(QMainWindow):
         li_col = ['전략명','market', '진입대상', 'ticker', '봉', '방향', '초기자금','배팅금액', '매입금액','청산금액', '레버리지',
                   '진입전략', '청산전략',  '현재가', '진입가', '주문수량', '체결수량','보유수량','진입시간', '청산가', '청산시간',
                   '수익률', '최고수익률', '최저수익률', '수익금', '평가금액', '상태', 'id', '수수료', '진입수수료', '승률(win/all)', '누적수익금',
-                  '잔고', '봉제한', '현재봉시간', 'table', '비교대상', '분할매수', '분할매도', '분할상태', '분할진입가','매입율',
+                  '잔고', '봉제한', '현재봉시간', 'table', '분할매수', '분할매도', '분할상태', '분할진입가','매입율',
                   # '상세봉',
                   '분할청산가', '분할주문수량', '분할보유수량', '분할매입금액', '분할청산금액', '분할진입수수료', '분할id',
                   '분할평가금액','분할진입시간','분할청산시간','매도전환','진입신호시간','청산신호시간']
@@ -438,11 +438,9 @@ class Window(QMainWindow):
             if self.QCB_market.currentText() == '코인':
                 self.QTE_stg_buy.setText("진입대상 = ''\n"
                                          "봉 = {'4시간봉':10}\n"
-                                         # "상세봉 = 분봉1\n"
                                          "방향 = 'long'\n"
                                          "초기자금 = 100\n"
                                          "레버리지 = 3\n"
-                                         # "비교대상 = []\n"
                                          "분할매수 = []\n"
                                          "분할매도 = []\n"
                                          "####################\n"
@@ -455,9 +453,7 @@ class Window(QMainWindow):
             elif self.QCB_market.currentText() == '국내주식':
                 self.QTE_stg_buy.setText("진입대상 = ''\n"
                                          "봉 = {일봉:365}\n"
-                                         # "상세봉 = 일봉\n" #주식, 코인은 상세봉이 1분봉
                                          "초기자금 = 1000000\n"
-                                         # "비교대상 = []\n"
                                          "분할매수 = []\n"
                                          "분할매도 = []\n"
                                          "####################\n"
@@ -470,10 +466,8 @@ class Window(QMainWindow):
             elif self.QCB_market.currentText() == '국내선옵':
                 self.QTE_stg_buy.setText("진입대상 = ''\n"
                                          "봉 = {'5분봉':5}\n"
-                                         # "상세봉 = 분봉1\n" #주식, 코인은 상세봉이 1분봉
                                          "방향 = 'long'\n"
                                          "초기자금 = 10000000\n"
-                                         # "비교대상 = []\n"
                                          "분할매수 = []\n"
                                          "분할매도 = []\n"
                                          "####################\n"
@@ -484,7 +478,6 @@ class Window(QMainWindow):
                                          # "매도 = False\n"
                                          "")
             self.df_old = pd.DataFrame(columns=['ticker', '진입시간', '진입가', '주문수량',
-                                                # '상세봉',
                                                 '청산가', '청산시간', '상태', 'id', '현재봉시간'])
             # else:
             #     self.df_old = self.df_stg[['ticker', '진입시간', '진입가', '주문수량',
@@ -547,15 +540,9 @@ class Window(QMainWindow):
             bong = self.QTE_stg_buy.toPlainText().split("\n", 2)[1]  # 둘줄 읽기 추출
             exec(bong, None, locals_dict_buy)
             bong = locals_dict_buy.get('봉')
-            # bong_detail = self.QTE_stg_buy.toPlainText().split("\n", 3)[2]
-            # exec(bong_detail, None, locals_dict_buy)
-            # bong_detail = locals_dict_buy.get('상세봉')
             bet = self.QTE_stg_buy.toPlainText().split("\n", 3)[2]  # 넷줄 읽기 추출
             exec(bet, None, locals_dict_buy)
             bet = locals_dict_buy.get('초기자금')
-            # compare = self.QTE_stg_buy.toPlainText().split("\n", 5)[4]  # 셋줄 읽기 추출
-            # exec(compare, None, locals_dict_buy)
-            # compare = locals_dict_buy.get('비교대상')
             division_buy = self.QTE_stg_buy.toPlainText().split("\n", 4)[3]  # 셋줄 읽기 추출
             exec(division_buy, None, locals_dict_buy)
             division_buy = locals_dict_buy.get('분할매수')
@@ -585,9 +572,6 @@ class Window(QMainWindow):
             bet = self.QTE_stg_buy.toPlainText().split("\n", 4)[3]  # 셋줄 읽기 추출
             exec(bet, None, locals_dict_buy)
             bet = locals_dict_buy.get('초기자금')
-            # compare = self.QTE_stg_buy.toPlainText().split("\n", 5)[4]  # 셋줄 읽기 추출
-            # exec(compare, None, locals_dict_buy)
-            # compare = locals_dict_buy.get('비교대상')
             division_buy = self.QTE_stg_buy.toPlainText().split("\n", 5)[4]  # 셋줄 읽기 추출
             exec(division_buy, None, locals_dict_buy)
             division_buy = locals_dict_buy.get('분할매수')
@@ -611,9 +595,6 @@ class Window(QMainWindow):
             bong = self.QTE_stg_buy.toPlainText().split("\n", 2)[1]  # 둘줄 읽기 추출
             exec(bong, None, locals_dict_buy)
             bong = locals_dict_buy.get('봉')
-            # bong_detail = self.QTE_stg_buy.toPlainText().split("\n", 3)[2]
-            # exec(bong_detail, None, locals_dict_buy)
-            # bong_detail = locals_dict_buy.get('상세봉')
             direction = self.QTE_stg_buy.toPlainText().split("\n", 3)[2]
             exec(direction, None, locals_dict_buy)
             direction = locals_dict_buy.get('방향')
@@ -623,9 +604,6 @@ class Window(QMainWindow):
             leverage = self.QTE_stg_buy.toPlainText().split("\n", 5)[4]
             exec(leverage, None, locals_dict_buy)
             leverage = locals_dict_buy.get('레버리지')
-            # compare = self.QTE_stg_buy.toPlainText().split("\n", 7)[6]  # 셋줄 읽기 추출
-            # exec(compare, None, locals_dict_buy)
-            # compare = locals_dict_buy.get('비교대상')
             division_buy = self.QTE_stg_buy.toPlainText().split("\n", 6)[5]  # 셋줄 읽기 추출
             exec(division_buy, None, locals_dict_buy)
             division_buy = locals_dict_buy.get('분할매수')
@@ -638,8 +616,6 @@ class Window(QMainWindow):
                 ticker = object
             trade_market = 'bybit'
 
-        # print(f"{compare=}")
-        # print(f"{type(compare)=}")
 
         if (stg_name in self.df_stg.index.tolist()) and stg_name != '':
             print(f'{trade_market} - {stg_name} 기존전략에 덮어쓰기 {bet= }')
@@ -655,16 +631,12 @@ class Window(QMainWindow):
             self.df_stg.loc[stg_name, 'ticker'] = ticker
             self.df_stg.loc[stg_name, '봉'] = list(bong.keys())[0]  # 딕셔너리로 받는 봉정보의 키값
             self.df_stg.loc[stg_name, '봉제한'] = bong[list(bong.keys())[0]]  # 딕셔너리로 받는 봉정보의 밸류값
-            # self.df_stg.loc[stg_name, '상세봉'] = bong_detail  # 딕셔너리로 받는 봉정보의 밸류값
             self.df_stg.loc[stg_name, 'market'] = trade_market
             self.df_stg.loc[stg_name, '방향'] = direction
             self.df_stg.loc[stg_name, '초기자금'] = bet
             self.df_stg.loc[stg_name, '배팅금액'] = bet
             self.df_stg.loc[stg_name, '레버리지'] = leverage
             self.df_stg.loc[stg_name, '전략명'] = stg_name
-            # self.df_stg.loc[stg_name, '비교대상'] = json.dumps(compare,ensure_ascii=False) # 5. 리스트를 JSON 문자열로 변환하여 삽입
-            # self.df_stg.loc[stg_name,'현재봉시간'] = self.stamp_to_int(time.time())
-            # self.df_stg.loc[stg_name, '현재봉시간'] = ""
             self.df_stg.loc[stg_name, '잔고'] = bet # 나중에 전략명은 그대로에 전략만 변경될 경우 주석처리 할 것
             self.df_stg.loc[stg_name, '상태'] = '대기'
             self.df_stg.loc[stg_name, '청산금액'] = 0
@@ -711,7 +683,6 @@ class Window(QMainWindow):
                          '진입수수료': 0, '승률(win/all)': '0/0(0%)', '누적수익금': 0, '잔고': bet,'매입율':0,
                          # '상세봉':bong_detail ,
                          '봉제한':bong[list(bong.keys())[0]],  '현재봉시간': '', 'table': 0,
-                         # '비교대상':json.dumps(compare,ensure_ascii=False),
                          '분할매수':json.dumps(division_buy),
                          '분할매도':json.dumps(division_sell),'분할상태':json.dumps([]),'분할진입가':json.dumps([]),
                          '분할청산가':json.dumps([]),'분할주문수량':json.dumps([]),'분할보유수량':json.dumps([]),
