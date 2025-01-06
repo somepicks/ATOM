@@ -317,8 +317,11 @@ def stamp_to_str(stamp_time):
     date_time = stamp_to_datetime(stamp_time)
     return datetime.datetime.strftime(date_time,"%Y-%m-%d %H:%M:%S")
 def str_to_datetime(str):
-    # print(f"{str= }")
-    return datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
+    try:
+        return datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
+    except:
+        print(f"{str= }")
+        return datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
 def str_to_stamp(str):
     dt =  datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
     return int(dt.timestamp())

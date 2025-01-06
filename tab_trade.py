@@ -626,6 +626,7 @@ class Window(QMainWindow):
                 ticker = ''
             self.df_stg.loc[stg_name, '진입전략'] = self.replace_tabs_with_spaces(self.QTE_stg_buy.toPlainText())
             self.df_stg.loc[stg_name, '청산전략'] = self.replace_tabs_with_spaces(self.QTE_stg_sell.toPlainText())
+
             if type(object) == list or type(object) == dict:
                 object = json.dumps(object, ensure_ascii=False)
             self.df_stg.loc[stg_name, '진입대상'] = object
@@ -673,7 +674,7 @@ class Window(QMainWindow):
             self.df_stg.loc[stg_name, '청산신호시간'] = json.dumps([])
         elif not stg_name in self.df_stg.index.tolist() and self.QLE_stg.text() != '':
             print(f'{trade_market} - {stg_name} 새로운전략 저장 {bet= }')
-            if type(object) == list:
+            if type(object) == list  or type(object) == dict:
                 object = json.dumps(object, ensure_ascii=False)
             dict_data = {'전략명':self.QLE_stg.text(),'market': trade_market, '진입대상': object, 'ticker': ticker,
                          '봉': list(bong.keys())[0], '방향': direction, '초기자금': bet,'배팅금액': bet,  '매입금액': 0, '청산금액': 0,
@@ -788,9 +789,9 @@ class Window(QMainWindow):
                 try:
                     temp_df = self.df_stg[[column]]  # 문제 열만 선택
                     temp_df.to_sql('temp_table', self.conn_stg, if_exists='replace', index=False)
-                    print(f"Column '{column}' saved successfully.")
+                    print(f"Column '{column} {type(column)}' saved successfully.")
                 except Exception as e:
-                    print(f"Error with column '{column}': {e}")
+                    print(f"Error with column '{column}  {type(column)}': {e}")
         self.reset_stg_table()
 
     def del_stg(self):

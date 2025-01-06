@@ -264,9 +264,9 @@ def distribute_by_ratio(number, ratios, decimal_places=0):
 st = '1~2'
 print(st[st.index('~')+1:])
 print(st[:st.index('~')])
-di={'선물': '일봉'}
-print(di.values()[0])
-
+di = [{'수급동향': False},{'asdf': True}]
+print(f"{선물_외인=}, {선물_개인=}, {선물_기관=}, ")
+quit()
 values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['one', 'two', 'three']
 columns = ['시가_ETH_외인', '고가_ETH_기관', '저가_ETH_개인']

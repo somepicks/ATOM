@@ -678,7 +678,7 @@ class Trade_np(QThread):
                 self.df_trade.loc[stg, '상세봉'] = '1분봉'
 
             dict_stg[stg] = {'진입대상':[], 'ticker':'','봉':bong, '상세봉':bong_detail,
-                             '봉제한':1, '팩터':[], '비교대상':[]}
+                             '봉제한':1, '팩터':[], '비교대상':{'수급동향':False}}
 
             if obj[0] == '[' and obj[-1] == ']' or obj[0] == '{' and obj[-1] == '}' : # 대상이 여러개일 경우
                 obj = json.loads(obj)
@@ -708,6 +708,7 @@ class Trade_np(QThread):
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
                 self.list_obj = self.sorting_tickers(obj)
+                # print(f"{self.list_obj= }")
                 if self.list_obj:
                     for i, ticker in enumerate(self.list_obj):  # 조건 검색에 있는 종목만
                         df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
@@ -721,6 +722,7 @@ class Trade_np(QThread):
                         dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
                         if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
                             df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                        print(dict_stg[stg])
                         데이터길이 = df.loc[df.index[-1], '데이터길이']
                         idx_bong = df['데이터길이'].tolist().index(데이터길이)
                         self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
@@ -729,9 +731,13 @@ class Trade_np(QThread):
                         self.active_light()
                 else: #해당하는 종목이 없을 경우
                     df = pd.DataFrame()
+                    self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(현재시간)  # 변수로 사용하기 때문에 일단은 만들어둠
+                    self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(현재시간)  # 일단은 만들어둠
+
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
                 quit()#
+
         if self.market == '코인':
             print(f"{self.blue('bybit 트레이딩 시작')}")
         elif self.market == '국내주식' or self.market == '국내선옵':
@@ -739,12 +745,12 @@ class Trade_np(QThread):
             dt = datetime.datetime.now().replace(second=0, microsecond=0)
             one_minute = dt+datetime.timedelta(minutes=1)
             while self._status:
-                one_minute = self.loop_main(장종료시간, one_minute)
+                one_minute = self.loop_main(장종료시간, one_minute, dict_stg)
                 self.qt_open.emit(self.df_trade)
                 # self.val_light.emit(self.bool_light)
                 # self.bool_light = not self.bool_light
 
-    def loop_main(self,장종료시간, one_minute):
+    def loop_main(self,장종료시간, one_minute, dict_stg):
         global 데이터길이, 현재시간, 진입시간, 캔들종료시간
         현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
 
@@ -758,8 +764,7 @@ class Trade_np(QThread):
             if self.market == '국내주식' or self.market == '국내선옵':
                 self.add_investor_trend(현재시간)
             one_minute = 현재시간+datetime.timedelta(minutes=1)
-            print(f"{현재시간= } {one_minute= } ")
-
+            print(self.df_trend)
 
         for stg in self.df_trade.index:
             obj = self.df_trade.loc[stg, '진입대상']
@@ -785,10 +790,10 @@ class Trade_np(QThread):
             if type(obj) == str or (type(obj) != str and 상태 != '대기'):  # 종목이 지정되어있을 경우
                 ticker = self.df_trade.loc[stg, 'ticker']
                 # ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
-                df = self.make_df(dict_stg[stg])
-                list_compare = list(set(self.check_compare_ticker(stg, ticker)))
+                df = self.make_df(ticker,bong,bong_detail,bong_since,False)
+                list_compare = self.check_compare_ticker(stg, ticker, dict_stg[stg])
                 if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                    df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
+                    df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
 
@@ -814,11 +819,10 @@ class Trade_np(QThread):
                     self.list_obj = self.sorting_tickers(obj)
                 if self.list_obj:
                     for i, ticker in enumerate(self.list_obj):
-                        ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
-                        df = self.make_df(dict_stg[stg])
-                        list_compare = list(set(self.check_compare_ticker(stg, ticker)))
+                        df = self.make_df(ticker,bong,bong_detail,bong_since,False)
+                        list_compare = self.check_compare_ticker(stg, ticker,dict_stg[stg])
                         if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                            df = self.add_compare_df(ticker, df, bong, list_compare, bong_detail, bong_since)
+                            df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                         데이터길이 = df.loc[df.index[-1], '데이터길이']
                         idx_bong = df['데이터길이'].tolist().index(데이터길이)
                         if 캔들종료시간 < 현재시간 and common_def.str_to_datetime(bong_time) < df.index[idx_bong]:  # 현재시간은 finish보다 앞서도라도 증권사에서 보내주는 봉 시간은 조금 느릴 수 있기 때문에 조건 2개 확인
@@ -2302,26 +2306,35 @@ class Trade_np(QThread):
                     stg_sum_copy = stg_sum
                     while symbol in stg_sum_copy:
                         stg_sum_copy = stg_sum_copy[stg_sum_copy.index(symbol):]
-                        ticker_full_name = stg_sum_copy[:stg_sum_copy.index('봉')+1]
-                        stg_sum_copy = stg_sum_copy.replace(ticker_full_name,'')
-                        bong = ticker_full_name[ticker_full_name.index('_')+1:]
-                        dict_stg_stg['비교대상'].append({symbol: bong})
+                        if '봉' in stg_sum_copy:
+                            ticker_full_name = stg_sum_copy[:stg_sum_copy.index('봉')+1]
+                            stg_sum_copy = stg_sum_copy.replace(ticker_full_name,'')
+                            bong = ticker_full_name[ticker_full_name.index('_')+1:]
+                            dict_stg_stg['비교대상'][symbol] = bong
+                        else:
+                            break
 
-        if '외인' in stg_sum or '개인' in stg_sum or '기관' in stg_sum:
-            dict_stg_stg['비교대상'].append({'매매동향': True})
+            if '외인' in stg_sum or '개인' in stg_sum or '기관' in stg_sum:
+                dict_stg_stg['비교대상']['수급동향'] = True
+            dict_stg_stg['비교대상']['301W01337'] = '5분봉'
         return dict_stg_stg
     def add_compare_df(self, ticker, df, dict_stg_stg,bong_detail,bong_since):
         list_idx = df.index.tolist()
-        for com_ticker_bong in dict_stg_stg['비교대상']:
-            if com_ticker_bong == '매매동향':
-                df.drop(
-                    ['코스피_외인', '코스피_개인', '코스피_기관', '선물_외인', '선물_개인', '선물_기관', '주식선물_외인', '주식선물_개인', '주식선물_기관',
-                     '콜옵션_외인', '콜옵션_개인', '콜옵션_기관', '풋옵션_외인', '풋옵션_개인', '풋옵션_기관', '콜_위클리_외인', '콜_위클리_개인',
-                     '콜_위클리_기관', '풋_위클리_외인', '풋_위클리_개인', '풋_위클리_기관'], inplace=True, axis=1)
-                df = pd.concat([df, self.df_trend], axis=1)
+        for symbol,bong in dict_stg_stg['비교대상'].items():
+            # symbol = {'3AF75W332':'5분봉'}
+            if symbol=='수급동향':
+                if bong == True:
+                    # if '코스피_외인' in df.columns.tolist():
+                    #     df.drop(
+                    #         ['코스피_외인', '코스피_개인', '코스피_기관', '선물_외인', '선물_개인', '선물_기관', '주식선물_외인', '주식선물_개인', '주식선물_기관',
+                    #          '콜옵션_외인', '콜옵션_개인', '콜옵션_기관', '풋옵션_외인', '풋옵션_개인', '풋옵션_기관', '콜_위클리_외인', '콜_위클리_개인',
+                    #          '콜_위클리_기관', '풋_위클리_외인', '풋_위클리_개인', '풋_위클리_기관'], inplace=True, axis=1)
+                    df = pd.concat([df, self.df_trend], axis=1)
+                else:
+                    pass
             else:
-                symbol = list(com_ticker_bong.keys())[0]
-                bong = list(com_ticker_bong.values())[0]
+                # symbol = list(symbol.keys())[0]
+                # bong = list(symbol.values())[0]
                 # ticker_full_name = f'{symbol}_{bong}'
                 symbol_orgin = symbol
                 if symbol == '선물':
