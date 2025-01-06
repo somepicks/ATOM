@@ -264,6 +264,8 @@ def distribute_by_ratio(number, ratios, decimal_places=0):
 st = '1~2'
 print(st[st.index('~')+1:])
 print(st[:st.index('~')])
+di={'선물': '일봉'}
+print(di.values()[0])
 
 values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['one', 'two', 'three']

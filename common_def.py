@@ -202,7 +202,7 @@ def detail_to_spread(df_min, bong,bong_detail):
     else:
         df = pd.DataFrame()
     return df,df_combined
-def detail_to_compare(df, bong, ticker_full_name):
+def detail_to_compare(df, ticker, bong):
     # print(ticker_full_name)
     dict_bong_rule = {'1분봉': '1min', '3분봉': '3', '5분봉': '5min', '15분봉': '15min', '30분봉': '30min', '60분봉': '60min', '4시간봉': '240min', '일봉': 'D',
                        '주봉': 'W'}
@@ -212,8 +212,6 @@ def detail_to_compare(df, bong, ticker_full_name):
 
     # 컬럼명중에 bong 이름이 들어가는 컬럼을 제거 ( '시가_일봉_BTC_일봉' 이렇게 나오기 때문에)
     df = df.drop(columns=df.filter(like='_'+bong).columns)
-
-    df.columns = [col + '_'+ticker_full_name for col in df.columns]
     return df
 def make_exchange_bybit(mock):
     conn = sqlite3.connect('DB/setting.db')

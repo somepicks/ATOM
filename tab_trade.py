@@ -312,6 +312,7 @@ class Window(QMainWindow):
         # df_p_thur = common_def.convert_column_types(df_p_thur)
 
         # print(2)
+        # 조건에 '시가_풋옵션_5분봉' 과같은 팩터가 올 수 있으니 비율을 똑같이 해줘야 함
         df_c = df_c[df_c['행사가'] > 현재가 - 25]
         df_c = df_c[df_c['행사가'] < 현재가 + 25]
         df_c['종목명'] = '콜옵션'
