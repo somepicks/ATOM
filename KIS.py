@@ -1081,6 +1081,10 @@ class KoreaInvestment:
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
                 print(f'display_opt_weekly   {res.json()}')
                 QTest.qWait(500)
+            elif res.json()['msg1'] == '정상처리 되었습니다.' and not res.json()['output1'] and not res.json()['output2']:
+                df_call = pd.DataFrame()
+                df_put = pd.DataFrame()
+                return  df_call, df_put, COND_MRKT
             else:
                 pprint(res.json())
                 raise
@@ -3407,31 +3411,11 @@ if __name__ == "__main__":
 
     li = [x for x in range(45, 60)]
     i=0
-    print(li)
-    현재시간 = datetime.datetime(2024,12,26,8,li[i])
-    one_minute = 현재시간 + datetime.timedelta(minutes=1)
-    ohlcv = ex_kis.fetch_futopt_1m_ohlcv('301W01282',3)
-    df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
-    df = pd.concat([df,df_trend],axis=1)
+    today = datetime.datetime.now()
+    df_c_weekly, df_p_weekly, COND_MRKT = ex_kis.display_opt_weekly(today)
 
-    while True:
-        현재시간 = datetime.datetime(2024,12,26,8,li[i])
-        if 현재시간 >= one_minute:
-            one_minute = 현재시간 + datetime.timedelta(minutes=1)
-            print(f"{현재시간= }")
-            df_trend = ex_kis.add_trend(현재시간, df_trend,'WKM')
-            print(df_trend)
-            if li[i] == 59:
-                break
-        i += 1
-        time.sleep(0.5)
 
-    # current_time = datetime.datetime(2024,12,26,8,46).replace(second=0, microsecond=0)
-    # df_trend = pd.DataFrame([dict_trend], index=[current_time])
-    df = pd.concat([df,df_trend],axis=1)
-    print(df.columns.tolist())
-    df.drop(['코스피_외인', '코스피_개인', '코스피_기관', '선물_외인', '선물_개인', '선물_기관', '주식선물_외인', '주식선물_개인', '주식선물_기관', '콜옵션_외인', '콜옵션_개인', '콜옵션_기관', '풋옵션_외인', '풋옵션_개인', '풋옵션_기관', '콜_위클리_외인', '콜_위클리_개인', '콜_위클리_기관', '풋_위클리_외인', '풋_위클리_개인', '풋_위클리_기관'],inplace=True,axis=1)
-    print(df)
+
     # frgn, prsn, orgn = ex_kis.investor_trend_time('선물')
     # print(f"외인: {frgn}, 개인: {prsn}, 기관: {orgn}")
     # today = datetime.datetime(2025,2,24)

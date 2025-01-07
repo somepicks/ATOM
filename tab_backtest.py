@@ -842,17 +842,23 @@ class Window(QWidget):
             self.exchange = self.make_exchange_kis()
             self.conn_DB = sqlite3.connect('DB/DB_stock.db',check_same_thread=False)
             self.QLE_bet.setText('1000000')
+            conn_stg = sqlite3.connect('DB/stg_stock.db')
+
             market_name = 'krx'
             self.stocks_info = pd.read_sql(f"SELECT * FROM 'stocks_info'", self.conn_DB).set_index('종목코드')
         elif market == '국내선옵':
             self.exchange = self.make_exchange_kis()
             self.conn_DB = sqlite3.connect('DB/DB_futopt.db',check_same_thread=False)
             self.QLE_bet.setText('10000000')
+            conn_stg = sqlite3.connect('DB/stg_futopt.db')
+
             market_name = 'krx'
         elif market == '코인':
             self.exchange = self.make_exchange_bybit()
             self.conn_DB = sqlite3.connect('DB/DB_bybit.db',check_same_thread=False)
             self.QLE_bet.setText('1000000')
+            conn_stg = sqlite3.connect('DB/stg_bybit.db')
+
             market_name = 'coin'
             # self.stocks_info = pd.DataFrame()
         else:
@@ -863,8 +869,9 @@ class Window(QWidget):
         self.table_list_DB = cursor.fetchall()
         cursor.close()
         if not self.table_list_DB:
+            print(f"{self.table_list_DB= }")
             print('* DB 테이블이 비어있음 - 확인 필요 *')
-            raise
+            # raise
         else:
             self.table_list_DB = np.concatenate(self.table_list_DB).tolist()
 
@@ -887,7 +894,6 @@ class Window(QWidget):
             # list_ticker = [self.dict_ticker[x] for x in list_ticker if x in self.dict_ticker.keys()]
             list_ticker = new_list_ticker
             # print(list_ticker)
-        conn_stg = sqlite3.connect('DB/strategy.db')
         cursor_stg = conn_stg.cursor()
         cursor_stg.execute("SELECT name FROM sqlite_master WHERE type='table';")
         table_list = cursor_stg.fetchall()
