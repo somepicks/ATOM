@@ -698,6 +698,7 @@ class Window(QMainWindow):
         else:
             print(f'{trade_market} - {stg_name} 저장 에러')
             raise
+        ##
         # print("=======================================")
         # print(f"{stg_name= }   {ticker=}   {len(division_buy)= }")
         # print(f"{stg_name= }   {ticker=}   {len(division_sell)= }")

@@ -458,3 +458,4 @@ class CodeEditor(QTextEdit):
         #     self.setTextCursor(cursor)
         else:
             super(CodeEditor, self).keyPressEvent(event)
+###

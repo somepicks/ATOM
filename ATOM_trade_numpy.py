@@ -871,6 +871,7 @@ class Trade_np(QThread):
         global 장종료시간, 데이터길이, 진입시간, 현재시간, 시분초
         global 분할상태, 매입율
         global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리, 거래량상위, 등락률상위
+        ###
         # 현재시간 = current_time
         # 캔들종료시간 = candle_endtime
         # 장종료시간 = jang_endtime

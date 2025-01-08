@@ -156,6 +156,7 @@ class make_data(QThread):
             sliced_df = df_detail[start_time:end_time]
             dfs.append(sliced_df)
         df_detail = pd.concat(dfs)
+        ###
         return df_detail
 class Window(QWidget):
     def __init__(self,chart_table):

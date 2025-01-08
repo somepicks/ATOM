@@ -239,7 +239,7 @@ def convert_array( text):
 import sqlite3
 import json  # 리스트를 문자열로 변환하기 위해 필요
 
-
+###
 def distribute_by_ratio(number, ratios, decimal_places=0):
     # 비율 합계를 100으로 보정하여 계산할 비율을 구함
     total_ratio = sum(ratios)
