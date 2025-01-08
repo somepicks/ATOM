@@ -246,6 +246,8 @@ def 고가TN(ticker_bong,pre):
 def 저가TN(ticker_bong,pre):
     return np_tik_ar[int(-pre*dict_bong_stamp[ticker_bong[ticker_bong.index('_')+1:]]/bong_detail_stamp), list_columns.index('저가_'+ticker_bong)]
 def 종가TN(ticker_bong,pre):
+    print(int(-pre*dict_bong_stamp[ticker_bong[ticker_bong.index('_')+1:]]/bong_detail_stamp))
+    print(np_tik_ar)
     return np_tik_ar[int(-pre*dict_bong_stamp[ticker_bong[ticker_bong.index('_')+1:]]/bong_detail_stamp), list_columns.index('종가_'+ticker_bong)]
 def 이평5TN(ticker_bong,pre):
     return np_tik_ar[int(-pre*dict_bong_stamp[ticker_bong[ticker_bong.index('_')+1:]]/bong_detail_stamp), list_columns.index('이평5_'+ticker_bong)]
@@ -635,8 +637,9 @@ class Trade_np(QThread):
 
         elif self.market == '국내주식' or self.market == '국내선옵':
             # dt = 현재시간.strftime('%Y-%m-%d') + ' 15:30:00' #날짜랑 시간 사이 비울 것
-            dt = 현재시간.strftime('%Y-%m-%d') + ' 23:59:00' #날짜랑 시간 사이 비울 것
-            장종료시간 = common_def.str_to_datetime(dt)
+            장종료시간 = ' 23:20:00'
+            장종료시간 = 현재시간.strftime('%Y-%m-%d') + 장종료시간 #날짜랑 시간 사이 비울 것
+            장종료시간 = common_def.str_to_datetime(장종료시간)
             if self.market == '국내주식':
                 if self.simul.isChecked() == True:  # 모의매매
                     self.ex_kis = common_def.make_exchange_kis('모의주식')
@@ -657,8 +660,8 @@ class Trade_np(QThread):
                 quit()
             self.df_trend = pd.DataFrame()
             self.add_investor_trend(현재시간)
-        print(f"{self.list_tickers= }")
-        print(self.df_trade)
+        # print(f"{self.list_tickers= }")
+        # print(self.df_trade)
 
         dict_stg = {}
 
@@ -677,8 +680,9 @@ class Trade_np(QThread):
                 bong_detail = '1분봉'
                 self.df_trade.loc[stg, '상세봉'] = '1분봉'
 
-            dict_stg[stg] = {'진입대상':[], 'ticker':'','봉':bong, '상세봉':bong_detail,
-                             '봉제한':1, '팩터':[], '비교대상':{'수급동향':False}}
+            dict_stg[stg] = {'전략명':stg, '진입대상':[], '종목코드':'','봉':bong, '상세봉':bong_detail,
+                             '봉제한':1, '팩터':[], '비교대상':{'수급동향':False}, '현재시간':현재시간,
+                             '장종료시간':장종료시간, '진입시간':진입시간}
 
             if obj[0] == '[' and obj[-1] == ']' or obj[0] == '{' and obj[-1] == '}' : # 대상이 여러개일 경우
                 obj = json.loads(obj)
@@ -687,12 +691,12 @@ class Trade_np(QThread):
                 ticker = self.df_trade.loc[stg, 'ticker']
                 df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
                 bong_since = df_same['봉제한'].max()
-                dict_stg[stg]['ticker'] = ticker
+                dict_stg[stg]['종목코드'] = ticker
                 dict_stg[stg]['봉제한'] = bong_since
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False)
                 dict_stg[stg] = self.check_compare_ticker(stg,ticker,dict_stg[stg])
-                if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임 생성
-                    df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임 생성
+                df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상태봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
                 if 상태 == '대기':
@@ -702,8 +706,8 @@ class Trade_np(QThread):
                     self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])
                 # 매수주문이나 매도주문등이 된 상태에서 프로그램이 꺼질경우 체결이 되었는지 알 수 없기때문에 최초 한번 돌려줌
                 elif 상태 != '대기':
-                    캔들종료시간 = 장종료시간 if bong == '일봉' else df.index[idx_bong] + self.dict_bong_timedelta[bong]
-                    self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간, 데이터길이,배팅금액, 진입시간)
+                    dict_stg[stg]['캔들종료시간'] = 장종료시간 if bong == '일봉' else df.index[idx_bong] + self.dict_bong_timedelta[bong]
+                    self.loop_trade(df, dict_stg[stg], 상태, 배팅금액, 데이터길이)
                 self.active_light()
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
@@ -716,13 +720,13 @@ class Trade_np(QThread):
                             bong_since = self.df_trade.loc[stg, '봉제한']
                         else:
                             bong_since = df_same['봉제한'].max()
-                        dict_stg[stg]['ticker'] = ticker
-                        dict_stg[stg]['봉제한'] = bong_since
                         df = self.make_df(ticker,bong,bong_detail,bong_since,False)
+                        dict_stg[stg]['종목코드'] = ticker
+                        dict_stg[stg]['봉제한'] = bong_since
+                        dict_stg[stg]['비교대상']['수급동향'] = False
                         dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
-                        if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
-                            df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
-                        print(dict_stg[stg])
+                        # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
+                        df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                         데이터길이 = df.loc[df.index[-1], '데이터길이']
                         idx_bong = df['데이터길이'].tolist().index(데이터길이)
                         self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
@@ -737,7 +741,7 @@ class Trade_np(QThread):
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
                 quit()#
-
+            print(dict_stg[stg])
         if self.market == '코인':
             print(f"{self.blue('bybit 트레이딩 시작')}")
         elif self.market == '국내주식' or self.market == '국내선옵':
@@ -767,11 +771,15 @@ class Trade_np(QThread):
             print(self.df_trend)
 
         for stg in self.df_trade.index:
-            obj = self.df_trade.loc[stg, '진입대상']
+            bong = dict_stg[stg]['봉']
+            bong_detail = dict_stg[stg]['상세봉']
+            bong_since = dict_stg[stg]['봉제한']
+            obj = dict_stg[stg]['진입대상']
+            # bong = self.df_trade.loc[stg, '봉']
+            # bong_detail = self.df_trade.loc[stg, '상세봉']
+            # bong_since = self.df_trade.loc[stg, '봉제한']
+            # obj = self.df_trade.loc[stg, '진입대상']
             상태 = self.df_trade.loc[stg, '상태']
-            bong = self.df_trade.loc[stg, '봉']
-            bong_detail = self.df_trade.loc[stg, '상세봉']
-            bong_since = self.df_trade.loc[stg, '봉제한']
             bong_time = self.df_trade.loc[stg, '현재봉시간']
             배팅금액 = self.df_trade.loc[stg, '배팅금액']
             진입시간 = common_def.str_to_datetime(self.df_trade.loc[stg, '진입시간'])
@@ -785,15 +793,16 @@ class Trade_np(QThread):
                 캔들종료시간 = common_def.str_to_datetime(bong_time) + self.dict_bong_timedelta[bong]
             elif bong == '일봉':
                 캔들종료시간 = 장종료시간
-            if obj[0] == '[' and obj[-1] == ']' or obj[0] == '{' and obj[-1] == '}' : #대상이 여러개일 경우
-                obj = json.loads(obj)
+            # if obj[0] == '[' and obj[-1] == ']' or obj[0] == '{' and obj[-1] == '}' : #대상이 여러개일 경우
+            #     obj = json.loads(obj)
             if type(obj) == str or (type(obj) != str and 상태 != '대기'):  # 종목이 지정되어있을 경우
-                ticker = self.df_trade.loc[stg, 'ticker']
+                # ticker = self.df_trade.loc[stg, 'ticker']
+                ticker = dict_stg[stg]['종목코드']
                 # ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False)
-                list_compare = self.check_compare_ticker(stg, ticker, dict_stg[stg])
-                if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                    df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                # list_compare = self.check_compare_ticker(stg, ticker, dict_stg[stg])
+                # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
+                df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
 
@@ -812,17 +821,22 @@ class Trade_np(QThread):
                 if [x for x in df.columns.tolist() if '_y' in x]:
                     print('에러1')
                     quit()
-                self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간)
+                # self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간)
+                self.loop_trade(df, dict_stg[stg], 상태, 배팅금액, 데이터길이)
 
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 if check_time == True:
                     self.list_obj = self.sorting_tickers(obj)
                 if self.list_obj:
                     for i, ticker in enumerate(self.list_obj):
+                        dict_stg[stg]['종목코드'] = ticker
+                        # 비교대상에서 긴 봉제한을 갖고왔을 때 어떡게 df에 접목할지 고민 해봐야 함
+                        # dict_stg[stg]['봉제한'] = bong_since
                         df = self.make_df(ticker,bong,bong_detail,bong_since,False)
-                        list_compare = self.check_compare_ticker(stg, ticker,dict_stg[stg])
-                        if list_compare:  # 비교대상이 있을경우 데이터프레임생성
-                            df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                        dict_stg[stg]['비교대상']['수급동향'] = False
+                        dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
+                        # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
+                        df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                         데이터길이 = df.loc[df.index[-1], '데이터길이']
                         idx_bong = df['데이터길이'].tolist().index(데이터길이)
                         if 캔들종료시간 < 현재시간 and common_def.str_to_datetime(bong_time) < df.index[idx_bong]:  # 현재시간은 finish보다 앞서도라도 증권사에서 보내주는 봉 시간은 조금 느릴 수 있기 때문에 조건 2개 확인
@@ -834,13 +848,16 @@ class Trade_np(QThread):
                         if [x for x in df.columns.tolist() if '_y' in x]:
                             print('에러1')
                             quit()
-                        self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간)
+                        # self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간)
+                        self.loop_trade(df, dict_stg[stg], 상태, 배팅금액, 데이터길이)
+
             self.active_light()
         return one_minute
         # print(self.df_trade[['현재봉시간','캔들종료시간']])
         # quit()
 
-    def loop_trade(self, ticker, stg, df_detail, bong, bong_detail, 상태, current_time, candle_endtime, jang_endtime,data_length,배팅금액,enter_time):
+    # def loop_trade(self, ticker, stg, df_detail, bong, bong_detail, 상태, current_time, candle_endtime, jang_endtime,data_length,배팅금액,enter_time):
+    def loop_trade(self, df_detail, dict_stg_stg, 상태, 배팅금액, data_length):
         global np_tik_ar, list_columns, np_tik_idx, np_tik_length
         global 매수가, 매도가, 시장가, 레버리지, 매수, 매도
         global 수익률, 최고수익률, 최저수익률
@@ -851,27 +868,25 @@ class Trade_np(QThread):
         global 분봉1, 분봉3, 분봉5, 분봉15, 분봉30, 분봉60, 시간봉4, 일봉, 주봉, 월봉
         global 현재가, 시가, 고가, 저가, 종가, 거래량, NAV, 거래량이평3, 이격도20이평, 등락율, 시가총액, 이평
         global 기관, 외인, 개인
-        global 캔들종료시간, 장종료시간, 데이터길이, 진입시간, 현재시간, 시분초
+        global 장종료시간, 데이터길이, 진입시간, 현재시간, 시분초
         global 분할상태, 매입율
         global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리, 거래량상위, 등락률상위
-        현재시간 = current_time
+        # 현재시간 = current_time
+        # 캔들종료시간 = candle_endtime
+        # 장종료시간 = jang_endtime
+        # 진입시간 = enter_time
+        전략명 = dict_stg_stg['전략명']
+        종목코드 = dict_stg_stg['종목코드']
+        현재시간 = dict_stg_stg['현재시간']
+        # 캔들종료시간 = dict_stg_stg['캔들종료시간']
+        장종료시간 = dict_stg_stg['장종료시간']
+        진입시간 = dict_stg_stg['진입시간']
+        bong = dict_stg_stg['봉']
+        bong_detail = dict_stg_stg['상세봉']
         시분초 = common_def.datetime_to_int_time(현재시간)
-        캔들종료시간 = candle_endtime
-        장종료시간 = jang_endtime
-        데이터길이 = data_length
-        진입시간 = enter_time
         매입율 = 0
+        데이터길이 = data_length
         시장가 = '시장가'
-        # 분봉1 = '1분봉'
-        # 분봉3 = '3분봉' # 시가CN(bong,pre) bong자리에 넣기 위함 변수로 숫자가 앞에 올 수는 없기 때문
-        # 분봉5 = '5분봉'
-        # 분봉15 = '15분봉'
-        # 분봉30 = '30분봉'
-        # 분봉60 = '60분봉'
-        # 시간봉4 = '4시간봉'
-        # 일봉 = '일봉'
-        # 주봉 = '주봉'
-        # 월봉 = '월봉'
         롱 = 'long'
         숏 = 'short'
         long = 'long'
@@ -881,17 +896,15 @@ class Trade_np(QThread):
         콜옵션_위클리 = '콜옵션_위클리'
         풋옵션_위클리 = '풋옵션_위클리'
         전략명 = stg
-        종목코드 = ticker
+        # 종목코드 = ticker
         for i in range(10):
             globals()[f'매도{i}호가'] = f'매도{i}호가'
         for i in range(10):
             globals()[f'매수{i}호가'] = f'매수{i}호가'
         매수 = False
         매도 = False
-        # 매수 = True
-        # 매도 = True
+
         현재가 = df_detail.loc[df_detail.index[-1],'종가']
-        # 현재시간 = datetime.datetime.now()
         최저수익률 = self.df_trade.loc[stg, '최저수익률']
         최고수익률 = self.df_trade.loc[stg, '최고수익률']
         수익률 = self.df_trade.loc[stg, '수익률']
@@ -924,11 +937,12 @@ class Trade_np(QThread):
             stg_buy = self.df_trade.loc[stg,'진입전략']
             locals_dict_buy = {}
             exec(stg_buy, None, locals_dict_buy) #전략연산
+
             매수 = locals_dict_buy.get('매수')
 
             if 매수 != False and 매수 != None :  # 매수 주문
                 매수가 = locals_dict_buy.get('매수가')
-                self.df_trade.loc[stg, 'ticker'] = ticker
+                self.df_trade.loc[stg, 'ticker'] = 종목코드
                 self.df_trade.loc[stg, '현재가'] = 현재가
                 if type(매수가) == list and type(매수) == list: # 분할매수일 경우
                     상태 = self.buy_on_scale(stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태)
@@ -951,9 +965,9 @@ class Trade_np(QThread):
         elif 상태 == '매수주문' or 상태 == '부분매수' or 상태 == '시장가매수' or 상태 == '매수취소' or \
                상태 == '분할매수주문' or 상태 == '분할부분매수' or 상태 == '분할매수취소': # 진입 주문 시
             self.df_trade.loc[stg, '현재가'] = 현재가
-            print(f"elif 상태 == '매수주문' or 상태 == '부분매수' {stg= }     {ticker=  }     {상태= }   {분할상태=}" )
+            # print(f"elif 상태 == '매수주문' or 상태 == '부분매수' {stg= }     {종목코드=  }     {상태= }   {분할상태=}" )
             if 상태 == '분할매수주문' or 상태 == '분할부분매수' or 상태 == '분할매수취소': #분할매수일 경우
-                self.chegyeol_buy_on_scale(stg, ticker, 방향, 현재시간, 상태)
+                self.chegyeol_buy_on_scale(stg, 종목코드, 방향, 현재시간, 상태)
             else:
                 누적진입수수료= self.df_trade.loc[stg, '진입수수료']
                 주문수량 = self.df_trade.loc[stg, '주문수량']
@@ -961,7 +975,7 @@ class Trade_np(QThread):
                 매입금액 = self.df_trade.loc[stg, '매입금액']
                 진입가 = self.df_trade.loc[stg, '진입가']
                 id = self.df_trade.loc[stg, 'id']
-                상태, 보유수량, 매입금액, 총진입수수료, 진입가 = self.chegyeol_buy(stg, ticker, 방향, 진입가, 현재시간, 상태, 잔고,누적진입수수료,주문수량,보유수량,매입금액,id)
+                상태, 보유수량, 매입금액, 총진입수수료, 진입가 = self.chegyeol_buy(stg, 종목코드, 방향, 진입가, 현재시간, 상태, 잔고,누적진입수수료,주문수량,보유수량,매입금액,id)
                 self.df_trade.loc[stg, '진입수수료'] = 총진입수수료
                 self.df_trade.loc[stg, '상태'] = 상태
                 if 상태 == '매수':
@@ -994,9 +1008,9 @@ class Trade_np(QThread):
                 self.df_trade.loc[stg, '매도전환'] = '매도중'
                 상태 = '매수'
                 self.df_trade.loc[stg, '상태'] = 상태
-                print(f"if self.df_trade.loc[stg, '매도전환'] == True:  {stg= }    {ticker= }  {상태= } {분할상태= }  {self.df_trade.loc[stg, '매도전환']= }")
+                print(f"if self.df_trade.loc[stg, '매도전환'] == True:  {stg= }    {종목코드= }  {상태= } {분할상태= }  {self.df_trade.loc[stg, '매도전환']= }")
             # self.df_trade.loc[stg, '분할상태'] = json.dumps(['매수'], ensure_ascii=False) # chegyeol_sell에서 분할매도인지 아닌지 확인하기 위해 리스트원소를 1개로 초기화 해줌
-            print(f"elif 상태 == '매수' or {stg= }    {ticker= }   {분할상태= }    {self.df_trade.loc[stg, '매도전환']= }   {type(self.df_trade.loc[stg, '매도전환'])= }")
+            print(f"elif 상태 == '매수' or {stg= }    {종목코드= }   {분할상태= }    {self.df_trade.loc[stg, '매도전환']= }   {type(self.df_trade.loc[stg, '매도전환'])= }")
             self.df_trade.loc[stg, '현재가'] = 현재가
             누적수익금 = self.cal_ror(stg, 현재가, 방향)
             # self.df_trade.drop(['진입전략','청산전략'],axis=1,inplace=True)
@@ -1007,7 +1021,7 @@ class Trade_np(QThread):
             매도 = locals_dict_sell.get('매도')
             if 매도 == True or type(매도)==list:  # 청산 주문
                 매도가 = locals_dict_sell.get('매도가')
-                print(f"if 매도 == True or type(매도)==list: {stg= }    {ticker= }   {분할상태= }   {매도=}    {매도가= }   {type(매도가)= }")
+                print(f"if 매도 == True or type(매도)==list: {stg= }    {종목코드= }   {분할상태= }   {매도=}    {매도가= }   {type(매도가)= }")
                 if type(매도가) == list: # 분할매도일 경우
                     상태 = self.sell_on_scale(stg, 매도, 매도가, 방향) #시장가 매도 일 경우 '매수'를 받기 때문에 반환받아야됨
                 else:
@@ -1030,10 +1044,10 @@ class Trade_np(QThread):
         elif 상태 == '매도주문' or 상태 == '부분매도' or 상태 == '시장가매도' or \
             상태 == '분할매도주문' or 상태 == '분할부분매도': # 청산 주문 시
             self.df_trade.loc[stg, '현재가'] = 현재가
-            print(f"loop_trade  -   {stg= }     {ticker= }    {상태= }    {self.df_trade.loc[stg, '분할상태']}   {self.df_trade.loc[stg, '분할보유수량']} ")
+            print(f"loop_trade  -   {stg= }     {종목코드= }    {상태= }    {self.df_trade.loc[stg, '분할상태']}   {self.df_trade.loc[stg, '분할보유수량']} ")
             # 수익금, 누적수익금 = self.cal_ror(stg, 현재가, 방향)
             if 상태 == '분할매도주문' or 상태 == '분할부분매도' or 상태 == '분할매도취소': #분할매도일 경우
-                상태, 누적수익금 = self.chegyeol_sell_on_scale(stg, ticker, 방향, 현재시간, 상태)
+                상태, 누적수익금 = self.chegyeol_sell_on_scale(stg, 종목코드, 방향, 현재시간, 상태)
             else:
                 보유수량 = self.df_trade.loc[stg, '보유수량']
                 매입금액 = self.df_trade.loc[stg, '매입금액']
@@ -1045,7 +1059,7 @@ class Trade_np(QThread):
                 id = self.df_trade.loc[stg, 'id']
 
                 상태, 누적수익금, 보유수량, 평가금액, 청산금액 = \
-                    self.chegyeol_sell(stg, ticker, 방향, 상태, 보유수량, 잔고, 현재가, 현재시간,매입금액,
+                    self.chegyeol_sell(stg, 종목코드, 방향, 상태, 보유수량, 잔고, 현재가, 현재시간,매입금액,
                                        주문수량, 청산금액, 진입수수료, id, 청산가)
 
                 self.df_trade.loc[stg, '보유수량'] = 보유수량
@@ -1065,12 +1079,12 @@ class Trade_np(QThread):
             # 매수에서는 이럴경우 어떡게 되어있는지도 확인 필요
             if 매도 == True :
                 if 매도가 == 시장가 and 상태 != '시장가매도' and 상태 != '매도': # 지정가로 매도주문이 나간상태인데 손절라인에 걸려서 시장가 매도 주문이 나가야할 경우
-                    print(f'{stg= }, {ticker= } | 잔량 시장가 매도 - {datetime.datetime.now()}')
+                    print(f'{stg= }, {종목코드= } | 잔량 시장가 매도 - {datetime.datetime.now()}')
                     주문수량 = self.df_trade.loc[stg, '주문수량']
                     보유수량 = self.df_trade.loc[stg, '보유수량']
                     if 상태 == '매도주문' or 상태 == '부분매도': #분할매도 아닐 경우
                         id = self.df_trade.loc[stg, 'id']
-                        상태, 잔여수량 = self.order_cancel(stg, ticker, 상태, 주문수량, 보유수량, 방향,id, 0,'')
+                        상태, 잔여수량 = self.order_cancel(stg, 종목코드, 상태, 주문수량, 보유수량, 방향,id, 0,'')
                     else: #분할매도일 경우
                         print('분할매도 시장가 손절')
                         분할상태 = json.loads(self.df_trade.loc[stg, '분할상태'])
@@ -1080,7 +1094,7 @@ class Trade_np(QThread):
                         잔여수량 = 0
                         for num, 세부상태 in enumerate(분할상태):
                             if 세부상태 == '매도주문' or 세부상태 == '시장가매도' or 세부상태 == '부분매도' :
-                                상태, 세부잔여수량 = self.order_cancel(stg, ticker, 세부상태, 분할주문수량[num], 분할보유수량[num], 방향,분할id[num], 0,'')
+                                상태, 세부잔여수량 = self.order_cancel(stg, 종목코드, 세부상태, 분할주문수량[num], 분할보유수량[num], 방향,분할id[num], 0,'')
                                 잔여수량 += 세부잔여수량
                         print(f"if 매도 == True : {분할주문수량=}   {상태=}")
                     상태 = '매도주문'
@@ -2288,42 +2302,56 @@ class Trade_np(QThread):
         stg_sell = self.df_trade.loc[stg, '청산전략']
         stg_sum = stg_buy + stg_sell
         list_compare = []
-
+        # print(stg_sum)
+        # print('===========')
         if self.market == '국내선옵':
-            if '_선물_' in stg_sum:
+            if '선물' in stg_sum:
+#                 print('선물')
                 # stg_sum = stg_sum.replace('선물', self.list_tickers[0])
                 list_compare.append('선물')
             if '풋옵션' in stg_sum and ticker[:1] == '2':
+#                 print('풋옵션')
                 # symbol = '3' + ticker[1:]
 #                 stg_sum = stg_sum.replace('풋옵션', symbol)
                 list_compare.append('풋옵션')
             if '콜옵션' in stg_sum and ticker[:1] == '3':
+#                 print('콜옵션')
                 # symbol = '2' + ticker[1:]
 #                 stg_sum = stg_sum.replace('콜옵션', symbol)
                 list_compare.append('콜옵션')
+#             print(list_compare)
             for symbol in list_compare:
+#                 print(f"{symbol= }")
                 if symbol in stg_sum:
+#                 #     print(f"--------in--------")
                     stg_sum_copy = stg_sum
+                    list_bong = []
                     while symbol in stg_sum_copy:
+#                         print(stg_sum_copy)
+#                         print('***************')
                         stg_sum_copy = stg_sum_copy[stg_sum_copy.index(symbol):]
+#                         print(stg_sum_copy)
+#                         print('***************')
                         if '봉' in stg_sum_copy:
                             ticker_full_name = stg_sum_copy[:stg_sum_copy.index('봉')+1]
                             stg_sum_copy = stg_sum_copy.replace(ticker_full_name,'')
                             bong = ticker_full_name[ticker_full_name.index('_')+1:]
-                            dict_stg_stg['비교대상'][symbol] = bong
+                            list_bong.append(bong)
+#                             print(f"{dict_stg_stg['비교대상']=}")
                         else:
                             break
-
+#                         print('----------------------')
+                    dict_stg_stg['비교대상'][symbol] = list_bong
             if '외인' in stg_sum or '개인' in stg_sum or '기관' in stg_sum:
                 dict_stg_stg['비교대상']['수급동향'] = True
-            dict_stg_stg['비교대상']['301W01337'] = '5분봉'
+            # dict_stg_stg['비교대상']['301W01337'] = '5분봉'
         return dict_stg_stg
     def add_compare_df(self, ticker, df, dict_stg_stg,bong_detail,bong_since):
         list_idx = df.index.tolist()
-        for symbol,bong in dict_stg_stg['비교대상'].items():
+        for symbol,list_bong in dict_stg_stg['비교대상'].items():
             # symbol = {'3AF75W332':'5분봉'}
             if symbol=='수급동향':
-                if bong == True:
+                if list_bong == True:
                     # if '코스피_외인' in df.columns.tolist():
                     #     df.drop(
                     #         ['코스피_외인', '코스피_개인', '코스피_기관', '선물_외인', '선물_개인', '선물_기관', '주식선물_외인', '주식선물_개인', '주식선물_기관',
@@ -2333,30 +2361,28 @@ class Trade_np(QThread):
                 else:
                     pass
             else:
-                # symbol = list(symbol.keys())[0]
-                # bong = list(symbol.values())[0]
-                # ticker_full_name = f'{symbol}_{bong}'
-                symbol_orgin = symbol
+                symbol_orgin = symbol # 전략에는 시가_선물_일봉 이런식으로 들어가지만 조회할 때는 선물 ticker를 찾아야해서
                 if symbol == '선물':
                     symbol = self.list_tickers[0]
                 elif symbol == '콜옵션':
                     symbol = '2' + ticker[1:]
                 elif symbol == '풋옵션':
                     symbol = '3' + ticker[1:]
-                df_compare = self.make_df(symbol, bong, bong_detail, bong_since, True)
-                df_compare.columns = [f"{col}_{symbol_orgin}_{bong}" for col in df_compare.columns]
-                if bong != '일봉' and bong != '주봉': #분봉일 경우
-                    df = pd.merge(df, df_compare, left_index=True, right_index=True, how='left')
-                elif bong == '일봉':
-                    df['date'] = df.index.date
-                    df_compare['date'] = df_compare.index.date
-                    df = df.merge(df_compare, on='date',how='left', suffixes=('', '_daily')) # how='left' df_compare에 값이 없을 경우 nan
-                    df.drop('date', axis=1, inplace=True)
-                elif bong == '주봉':
-                    df['week'] = df.index.to_period('W').astype(str)
-                    df_compare['week'] = df_compare.index.to_period('W').astype(str)
-                    df = df.merge(df_compare, on='week',how='left', suffixes=('', '_weekly'))
-                    df.drop('week', axis=1, inplace=True)
+                for bong in list_bong:
+                    df_compare = self.make_df(symbol, bong, bong_detail, bong_since, True)
+                    df_compare.columns = [f"{col}_{symbol_orgin}_{bong}" for col in df_compare.columns]
+                    if bong != '일봉' and bong != '주봉': #분봉일 경우
+                        df = pd.merge(df, df_compare, left_index=True, right_index=True, how='left')
+                    elif bong == '일봉':
+                        df['date'] = df.index.date
+                        df_compare['date'] = df_compare.index.date
+                        df = df.merge(df_compare, on='date',how='left', suffixes=('', '_daily')) # how='left' df_compare에 값이 없을 경우 nan
+                        df.drop('date', axis=1, inplace=True)
+                    elif bong == '주봉':
+                        df['week'] = df.index.to_period('W').astype(str)
+                        df_compare['week'] = df_compare.index.to_period('W').astype(str)
+                        df = df.merge(df_compare, on='week',how='left', suffixes=('', '_weekly'))
+                        df.drop('week', axis=1, inplace=True)
 
                 if [x for x in df.columns.tolist() if '_y' in x]:
                     print('add_compare_df _y 들어가있음')
@@ -2844,5 +2870,16 @@ if __name__ == "__main__":
     tele = True
     duration = 30
     trade = Trade_np(None,market,simul,df_stg,duration,tele,list_tickers,COND_MRKT)
+
+    stg = '시가_풋'
+    ticker = '201W01337'
+    dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '5분봉', '상세봉': '1분봉', '봉제한': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}
+
+
+    # trade.run()
+    # dict_stg_stg = trade.check_compare_ticker(stg,ticker, dict_stg_stg)
+    # print(f"{dict_stg_stg['비교대상']=}")
+
+    # quit()
     # print(trade.fie('asdf'))
     trade.run()
