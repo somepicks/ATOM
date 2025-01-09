@@ -423,6 +423,7 @@ class Window(QMainWindow):
             df_tickers['종목코드'] = df_tickers.index
             self.df_tickers = df_tickers[['종목코드','quoteVolume','volume24h','percentage','change']]
             self.QT_tickers.clear()
+            self.COND_MRKT = None
             self.set_table_make(self.QT_tickers,self.df_tickers)
 
         else:
