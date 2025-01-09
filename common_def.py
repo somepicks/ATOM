@@ -40,8 +40,31 @@ def convert_df(df):
     df['고저평균대비등락율'] = ((df['종가'] / ((df['고가'] + df['저가']) / 2) - 1) * 100).round(2)
     df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
     return df
-
-def resample_df(df, bong, rule, name):
+def convert_df_compare(df):
+    # print(convert_df)
+    df['등락율'] = round((df['종가'] - df['종가'].shift(1)) / df['종가'].shift(1) * 100, 2)
+    df['변화율'] = round((df['종가'] - df['시가']) / df['시가'] * 100, 2)
+    df['이평5'] = talib.MA(df['종가'], 5)
+    df['이평20'] = talib.MA(df['종가'], 20)
+    df['이평60'] = talib.MA(df['종가'], 60)
+    df['이평120'] = talib.MA(df['종가'], 120)
+    # df['이평240'] = talib.MA(df['종가'], 200)
+    # df['거래량이평3'] = talib.MA(df['거래량'], 3)
+    # df['거래량이평20'] = talib.MA(df['거래량'], 20)
+    # df['거래량이평60'] = talib.MA(df['거래량'], 60)
+    df['MACD'], df['MACD_SIGNAL'], df['MACD_HIST'] = talib.MACD(df['종가'], fastperiod=12, slowperiod=26, signalperiod=9)
+    df['RSI14'] = talib.RSI(df["종가"], timeperiod=14).round(1)
+    # df['RSI18'] = talib.RSI(df["종가"], timeperiod=18).round(1)
+    # df['RSI30'] = talib.RSI(df["종가"], timeperiod=30).round(1)
+    # df['ATR'] = talib.ATR(df['고가'], df['저가'], df['종가'], timeperiod=10)
+    # df['TRANGE'] = talib.TRANGE(df['고가'], df['저가'], df['종가'])
+    # df['이격도20이평'] = df['종가'].shift(1) / df['이평20'].shift(1) * 100
+    # df['이격도60이평'] = df['종가'].shift(1) / df['이평60'].shift(1) * 100
+    df['밴드상'], df['밴드중'], df['밴드하'] = talib.BBANDS(df['종가'].shift(1), 20, 2)
+    # df['고저평균대비등락율'] = ((df['종가'] / ((df['고가'] + df['저가']) / 2) - 1) * 100).round(2)
+    df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
+    return df
+def resample_df(df, bong, rule, name, compare):
     ohlc_dict = {
         '상세시가': 'first',
         '상세고가': 'max',
@@ -56,7 +79,11 @@ def resample_df(df, bong, rule, name):
     if bong == name:  # 기준봉일 경우
         df.rename(columns={f'상세시가': f'시가', f'상세고가': f'고가', f'상세저가': f'저가', f'상세종가': f'종가',
                            f'상세거래량': f'거래량', f'상세거래대금': f'거래대금'}, inplace=True)  # 컬럼명 변경
-        df = convert_df(df)
+        if not compare == True:
+            df = convert_df(df)
+        else:
+            df = convert_df_compare(df)
+
         df[f'시가_{name}'] = df['시가'].copy()
         df[f'고가_{name}'] = df['고가'].copy()
         df[f'저가_{name}'] = df['저가'].copy()
@@ -117,8 +144,7 @@ def get_bybit_ohlcv(ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, b
                 print(f' {ticker_full_name=}, {bong=}, {i}회 이상 fetch_ohlcv 조회 에러')
                 raise '조회에러'
 
-
-def detail_to_spread(df_min, bong,bong_detail):
+def detail_to_spread(df_min, bong, bong_detail, compare):
     dict_bong_stamp = {'1분봉': 1, '3분봉': 3, '5분봉': 5, '15분봉': 15, '30분봉': 30, '60분봉': 60, '4시간봉': 240, '일봉': 1440,
                        '주봉': 10080}
     df_min.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
@@ -127,22 +153,22 @@ def detail_to_spread(df_min, bong,bong_detail):
     list_idx = df_min.index.tolist()
     # print(f"{dict_bong_stamp= }")
     if detail_unit == dict_bong_stamp['1분봉']:
-        df_1min = resample_df(df_min, bong, '1min', '1분봉')
+        df_1min = resample_df(df_min, bong, '1min', '1분봉',compare)
     if detail_unit < dict_bong_stamp['3분봉']:
-        df_3min = resample_df(df_min, bong, '3min', '3분봉')
+        df_3min = resample_df(df_min, bong, '3min', '3분봉',compare)
     if detail_unit < dict_bong_stamp['5분봉']:
-        df_5min = resample_df(df_min, bong, '5min', '5분봉')
+        df_5min = resample_df(df_min, bong, '5min', '5분봉',compare)
     if detail_unit < dict_bong_stamp['15분봉']:
-        df_15min = resample_df(df_min, bong, '15min', '15분봉')
+        df_15min = resample_df(df_min, bong, '15min', '15분봉',compare)
     if detail_unit < dict_bong_stamp['30분봉']:
-        df_30min = resample_df(df_min, bong, '30min', '30분봉')
+        df_30min = resample_df(df_min, bong, '30min', '30분봉',compare)
     if detail_unit < dict_bong_stamp['60분봉']:
-        df_60min = resample_df(df_min, bong, '60min', '60분봉')
+        df_60min = resample_df(df_min, bong, '60min', '60분봉',compare)
     if detail_unit < dict_bong_stamp['4시간봉']:
-        df_4h = resample_df(df_min, bong, '240min', '4시간봉')
-    df_daily = resample_df(df_min, bong, 'D', '일봉')
-    df_weekly = resample_df(df_min, bong, 'W', '주봉')
-    df_monthly = resample_df(df_min, bong, 'ME', '월봉')
+        df_4h = resample_df(df_min, bong, '240min', '4시간봉',compare)
+    df_daily = resample_df(df_min, bong, 'D', '일봉',compare)
+    df_weekly = resample_df(df_min, bong, 'W', '주봉',compare)
+    df_monthly = resample_df(df_min, bong, 'ME', '월봉',compare)
 
     df_daily['date'] = df_daily.index.date
     df_weekly['week'] = df_weekly.index.to_period('W').astype(str)
@@ -203,15 +229,18 @@ def detail_to_spread(df_min, bong,bong_detail):
         df = pd.DataFrame()
     return df,df_combined
 def detail_to_compare(df, ticker, bong):
-    # print(ticker_full_name)
+    # print('==================')
+    # # print(ticker_full_name)
     dict_bong_rule = {'1분봉': '1min', '3분봉': '3', '5분봉': '5min', '15분봉': '15min', '30분봉': '30min', '60분봉': '60min', '4시간봉': '240min', '일봉': 'D',
                        '주봉': 'W'}
     df.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
                            '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
-    df = resample_df(df, bong, dict_bong_rule[bong], bong)
-
+#     print(df)
+    df = resample_df(df, bong, dict_bong_rule[bong], bong, True)
+#     print(df)
     # 컬럼명중에 bong 이름이 들어가는 컬럼을 제거 ( '시가_일봉_BTC_일봉' 이렇게 나오기 때문에)
     df = df.drop(columns=df.filter(like='_'+bong).columns)
+#     print(df)
     return df
 def make_exchange_bybit(mock):
     conn = sqlite3.connect('DB/setting.db')
@@ -299,7 +328,9 @@ def import_sql(db_file,table_name):
     # 연결 종료
     conn.close()
     return df
-
+def replace_tabs_with_spaces(text): #스페이스랑 탭 혼용 시 (들여쓰기)에러 방지용
+    space_count = 4
+    return text.replace('\t', ' ' * space_count)
 
 def convert_column_types(df): #데이터프레임 중 숫자로 바꿀 수 있는데이터는 숫자로 변환
     for col in df.columns:

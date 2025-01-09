@@ -152,7 +152,7 @@ class Window(QMainWindow):
             self.QCB_division_buy: self.QCB_division_sell,
             QLabel('→ : 시장가[롱]'): QLabel('← : 시장가[숏]'),
             QLabel('↑ : 지정가[롱]'): QLabel('↓ : 지정가[숏]'),
-            QLabel('mdd'): self.QL_mdd,
+            QLabel('MDD'): self.QL_mdd,
             QLabel('수익률'): self.QL_ror,
             QLabel('수익금'): self.QL_benefit,
             QLabel("||"):QLabel("||"),
@@ -624,8 +624,8 @@ class Window(QMainWindow):
                 ticker = self.df_stg.loc[stg_name, 'ticker']
             elif self.df_stg.loc[stg_name, '상태'] == '대기' and type(object) == list:
                 ticker = ''
-            self.df_stg.loc[stg_name, '진입전략'] = self.replace_tabs_with_spaces(self.QTE_stg_buy.toPlainText())
-            self.df_stg.loc[stg_name, '청산전략'] = self.replace_tabs_with_spaces(self.QTE_stg_sell.toPlainText())
+            self.df_stg.loc[stg_name, '진입전략'] = common_def.replace_tabs_with_spaces(self.QTE_stg_buy.toPlainText())
+            self.df_stg.loc[stg_name, '청산전략'] = common_def.replace_tabs_with_spaces(self.QTE_stg_sell.toPlainText())
 
             if type(object) == list or type(object) == dict:
                 object = json.dumps(object, ensure_ascii=False)
@@ -678,8 +678,8 @@ class Window(QMainWindow):
                 object = json.dumps(object, ensure_ascii=False)
             dict_data = {'전략명':self.QLE_stg.text(),'market': trade_market, '진입대상': object, 'ticker': ticker,
                          '봉': list(bong.keys())[0], '방향': direction, '초기자금': bet,'배팅금액': bet,  '매입금액': 0, '청산금액': 0,
-                         '레버리지': leverage, '진입전략': self.replace_tabs_with_spaces(self.QTE_stg_buy.toPlainText()),
-                         '청산전략': self.replace_tabs_with_spaces(self.QTE_stg_sell.toPlainText()), '현재가': 0, '진입가': 0,
+                         '레버리지': leverage, '진입전략': common_def.replace_tabs_with_spaces(self.QTE_stg_buy.toPlainText()),
+                         '청산전략': common_def.replace_tabs_with_spaces(self.QTE_stg_sell.toPlainText()), '현재가': 0, '진입가': 0,
                          '주문수량': 0, '체결수량':0, '보유수량':0, '진입시간': '', '청산가': 0, '청산시간': '', '수익률': 0,
                          '최고수익률': 0, '최저수익률': 0, '수익금': 0, '평가금액': bet, '상태': '대기', 'id': '', '수수료': 0,
                          '진입수수료': 0, '승률(win/all)': '0/0(0%)', '누적수익금': 0, '잔고': bet,'매입율':0,
@@ -923,8 +923,10 @@ class Window(QMainWindow):
     def effect_start(self, light):
         if light == True:
             self.QPB_start.setStyleSheet("background-color: #fa3232;")
+            print(self.QL_ror.setText('0'))
         if light == False:
             self.QPB_start.setStyleSheet("background-color: #cccccc;")
+            print(self.QL_ror.setText('1'))
 
     def do_trade(self):
         self.light_start = False
@@ -1045,9 +1047,7 @@ class Window(QMainWindow):
         df_history['청산금액'] = df_history['청산금액'].apply(lambda int_num : "{:,}".format(int_num))
         df_history['잔고'] = df_history['잔고'].apply(lambda int_num : "{:,}".format(int_num))
         self.set_table_make(self.QT_trade_closed, df_history)
-    def replace_tabs_with_spaces(self,text): #스페이스랑 탭 혼용 시 에러 방지용
-        space_count = 4
-        return text.replace('\t', ' ' * space_count)
+
 
     def bybit_set_tickers(self,fetch_tickers):
         for ticker in fetch_tickers.keys():
@@ -1166,12 +1166,12 @@ class Window(QMainWindow):
             df['날짜'] = df['날짜'].dt.tz_localize(None)
             df.set_index('날짜', inplace=True)
             df.index = df.index - pd.Timedelta(hours=9)
-            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
             # df.index = df.index + pd.Timedelta(hours=9)
         if market == '국내선옵' :
             ohlcv = self.ex_kis.fetch_futopt_1m_ohlcv(symbol=ticker, limit=int(bong_since))
             df = common_def.get_kis_ohlcv(market, ohlcv)
-            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
         df['매수가'] = np.nan
         df['매도가'] = np.nan
         df['진입신호'] = np.nan
@@ -1203,12 +1203,12 @@ class Window(QMainWindow):
             df['날짜'] = df['날짜'].dt.tz_localize(None)
             df.set_index('날짜', inplace=True)
             df.index = df.index - pd.Timedelta(hours=9)
-            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
             # df.index = df.index + pd.Timedelta(hours=9)
         if market == '국내선옵' :
             ohlcv = self.ex_kis.fetch_futopt_1m_ohlcv(symbol=ticker, limit=int(bong_since))
             df = common_def.get_kis_ohlcv(market, ohlcv)
-            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+            df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
 
 
         stg = Qtable.item(int(row), 1).text()

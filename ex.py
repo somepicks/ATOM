@@ -267,13 +267,24 @@ print(st[:st.index('~')])
 di = {'수급동향': False,'asdf': True}
 if di:
     print('asdf')
-quit()
-values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
+print('===================')
+마디가 = [0.04,0.08,0.12,0.18,0.35,0.45,0.53,0.62,0.73,0.86,1.0,1.18,1.4,1.66,1.95,2.33,2.75,3.25,3.75]
+print(마디가)
+진입가 = 2.0
+익절가 = [x for x in 마디가 if 진입가 * 1.1 < x ][1]
+print(익절가)
+# print(익절가[1])
+손절가 = max([x for x in 마디가 if 진입가 * 0.9 > x ])
+print(손절가)
+values = [['2', 2, 3], ['4', 5, 6], ['1', 8, 9]]
 index = ['one', 'two', 'three']
 columns = ['시가_ETH_외인', '고가_ETH_기관', '저가_ETH_개인']
 import json
 df = pd.DataFrame(index=index,columns=columns,data=values)
-print(df)
+print(df.iloc[0,0])
+if np.isnan(df.iloc[0,0]):
+    print(123)
+quit()
 print(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_investor"))
 print(df.columns.to_list())
 li_col = df.columns.to_list()
@@ -431,14 +442,7 @@ specific_number = 1   # 특정 숫자
 is_all_specific = (df['col1'] == specific_number).all()
 if (df['col1'] == df.loc[df.index[0],'col1']).all():
     print(f"{column_name} 열이 모두 {specific_number}인가요? {is_all_specific}")
-print('===================')
-마디값 = [0.86, 1.0, 1.18, 1.4, 1.66, 1.95, 2.33, 2.75, 3.25, 3.75]
-print(마디값)
-중심가 = 2.0
-익절가 = [x for x in 마디값 if 중심가 * 1.1 < x ]
-print(익절가)
 
-print(익절가[1])
 from dateutil.relativedelta import relativedelta
 def nth_weekday(the_date, nth_week, week_day):
     temp = the_date.replace(day=1)
@@ -456,9 +460,7 @@ def get_recent_due(mydate:datetime)->datetime:
         nextmonth_duedate = nth_weekday(mydate+relativedelta(months=1),2, 3)
         return nextmonth_duedate
 
-손절가 = [x for x in 마디값 if 중심가 * 0.9 > x ]
-print(손절가)
-print(max(손절가))
+
 # x = [x for x in 마디값 if 중심가 * 1.1 > x ]
 콜옵션_월간 = '콜옵션_월간'
 
