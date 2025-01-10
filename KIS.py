@@ -1715,6 +1715,7 @@ class KoreaInvestment:
                 dict_amount['증거금총액'] = int(data['output2']['mgna_tota'])
                 dict_amount['평가금액합계'] = int(data['output2']['evlu_amt_smtl'])
                 dict_amount['주문가능현금'] = int(data['output2']['ord_psbl_cash'])
+                dict_amount['계좌번호'] = f"{self.acc_no_prefix}-{self.acc_no_postfix}"
                 df_instock = pd.DataFrame(data['output1'])
                 if not df_instock.empty:
                     df_instock.rename(
@@ -3412,9 +3413,9 @@ if __name__ == "__main__":
     li = [x for x in range(45, 60)]
     i=0
     today = datetime.datetime.now()
-    df_c_weekly, df_p_weekly, COND_MRKT = ex_kis.display_opt_weekly(today)
-
-
+    # df_c_weekly, df_p_weekly, COND_MRKT = ex_kis.display_opt_weekly(today)
+    dict_chegyeol = ex_kis.fetch_closed_order(side='buy',ticker='301W02292',id='4572')
+    pprint(dict_chegyeol)
 
     # frgn, prsn, orgn = ex_kis.investor_trend_time('선물')
     # print(f"외인: {frgn}, 개인: {prsn}, 기관: {orgn}")

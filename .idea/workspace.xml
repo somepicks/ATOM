@@ -4,15 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="변경">
-      <change beforePath="$PROJECT_DIR$/.idea/ATOM.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ATOM.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="company">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/stg_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,7 +34,7 @@
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/somepicks/ATOM.git&quot;,
-    &quot;accountId&quot;: &quot;c045744d-7ac8-4a5c-a60e-b1f1042918bc&quot;
+    &quot;accountId&quot;: &quot;6cb44d87-eab8-4176-b355-a8e8d4b675fe&quot;
   }
 }</component>
   <component name="MarkdownSettingsMigration">
@@ -48,6 +44,9 @@
   &quot;associatedIndex&quot;: 7
 }</component>
   <component name="ProjectId" id="2qh0BwH8ba0F0CsBUwbpjBNHxyF" />
+  <component name="ProjectLevelVcsManager">
+    <OptionsSetting value="false" id="Update" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -68,7 +67,7 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
 }</component>
-  <component name="RunManager" selected="Python.ATOM_trade_numpy">
+  <component name="RunManager" selected="Python.tab_trade">
     <configuration name="ATOM_trade_numpy" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -181,18 +180,18 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.ATOM_trade_numpy" />
         <item itemvalue="Python.tab_trade" />
-        <item itemvalue="Python.tab_backtest" />
         <item itemvalue="Python.KIS" />
+        <item itemvalue="Python.ATOM_trade_numpy" />
         <item itemvalue="Python.ex" />
+        <item itemvalue="Python.tab_backtest" />
       </list>
     </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-1b1018131e27-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.22562.180" />
+        <option value="bundled-python-sdk-fb887030ada0-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.21565.199" />
       </set>
     </attachedChunks>
   </component>
@@ -317,7 +316,15 @@
       <option name="project" value="LOCAL" />
       <updated>1735835329806</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="company">
+      <option name="closed" value="true" />
+      <created>1736322856917</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1736322856917</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -337,7 +344,8 @@
     <MESSAGE value="db_init" />
     <MESSAGE value="trade numpy" />
     <MESSAGE value="home" />
-    <option name="LAST_COMMIT_MESSAGE" value="home" />
+    <MESSAGE value="company" />
+    <option name="LAST_COMMIT_MESSAGE" value="company" />
     <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
   </component>
 </project>
