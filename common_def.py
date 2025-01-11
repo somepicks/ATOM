@@ -342,7 +342,7 @@ def convert_column_types(df): #데이터프레임 중 숫자로 바꿀 수 있�
 def stamp_to_int(stamp_time):
     dt = datetime.datetime.fromtimestamp(stamp_time)
     dt = dt.strftime('%Y%m%d%H%M')
-    print(f"{stamp_time=},,,{dt=}")
+    # print(f"{stamp_time=},,,{dt=}")
     return int(dt)
 def stamp_to_str(stamp_time):
     date_time = stamp_to_datetime(stamp_time)
@@ -352,6 +352,7 @@ def str_to_datetime(str):
         return datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
     except:
         print(f"{str= }")
+        raise
         return datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')
 def str_to_stamp(str):
     dt =  datetime.datetime.strptime(str,'%Y-%m-%d %H:%M:%S')

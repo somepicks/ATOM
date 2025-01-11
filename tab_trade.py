@@ -313,11 +313,11 @@ class Window(QMainWindow):
 
         # print(2)
         # 조건에 '시가_풋옵션_5분봉' 과같은 팩터가 올 수 있으니 비율을 똑같이 해줘야 함
-        df_c = df_c[df_c['행사가'] > 현재가 - 25]
-        df_c = df_c[df_c['행사가'] < 현재가 + 25]
+        df_c = df_c[df_c['행사가'] > 현재가 - 30]
+        df_c = df_c[df_c['행사가'] < 현재가 + 30]
         df_c['종목명'] = '콜옵션'
-        df_p = df_p[df_p['행사가'] > 현재가 - 25]
-        df_p = df_p[df_p['행사가'] < 현재가 + 25]
+        df_p = df_p[df_p['행사가'] > 현재가 - 30]
+        df_p = df_p[df_p['행사가'] < 현재가 + 30]
         df_p['종목명'] = '풋옵션'
 
         df_f.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
@@ -353,12 +353,12 @@ class Window(QMainWindow):
             else:
                 yoil = '만기'
 
-            df_c_weekly = df_c_weekly[df_c_weekly['행사가'] > 현재가 - 25]
-            df_c_weekly = df_c_weekly[df_c_weekly['행사가'] < 현재가 + 25]
+            df_c_weekly = df_c_weekly[df_c_weekly['행사가'] > 현재가 - 30]
+            df_c_weekly = df_c_weekly[df_c_weekly['행사가'] < 현재가 + 30]
             df_c_weekly['종목명'] = '콜'+'_위클리_'+yoil
 
-            df_p_weekly = df_p_weekly[df_p_weekly['행사가'] > 현재가 - 25]
-            df_p_weekly = df_p_weekly[df_p_weekly['행사가'] < 현재가 + 25]
+            df_p_weekly = df_p_weekly[df_p_weekly['행사가'] > 현재가 - 30]
+            df_p_weekly = df_p_weekly[df_p_weekly['행사가'] < 현재가 + 30]
             df_p_weekly['종목명'] = '풋'+'_위클리_'+yoil
 
             df_c_weekly.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
@@ -523,11 +523,12 @@ class Window(QMainWindow):
         locals_dict_buy = {}
         self.QTE_stg_buy.toPlainText()
         stg_name = self.QLE_stg.text()
-        global 등락률상위, 거래량상위, 시가총액상위, 시간외잔략상위, 체결강도상위, 관심종목등록상위
+        global 등락률상위, 거래량상위, 거래대금상위, 시가총액상위, 시간외잔량상위, 체결강도상위, 관심종목등록상위
         등락률상위 = '등락률상위'
         거래량상위 = '거래량상위'
+        거래대금상위 = '거래대금상위'
         시가총액상위 = '시가총액상위'
-        시간외잔략상위 = '시간외잔략상위'
+        시간외잔량상위 = '시간외잔량상위'
         체결강도상위 = '체결강도상위'
         관심종목등록상위 = '관심종목등록상위'
         global 콜옵션, 풋옵션, 콜옵션_위클리, 풋옵션_위클리
@@ -612,7 +613,7 @@ class Window(QMainWindow):
             division_sell = self.QTE_stg_buy.toPlainText().split("\n", 7)[6]  # 셋줄 읽기 추출
             exec(division_sell, None, locals_dict_buy)
             division_sell = locals_dict_buy.get('분할매도')
-            if type(object) == list:
+            if type(object) == dict:
                 ticker = ''
             else:
                 ticker = object
@@ -924,10 +925,12 @@ class Window(QMainWindow):
     def effect_start(self, light):
         if light == True:
             self.QPB_start.setStyleSheet("background-color: #fa3232;")
-            print(self.QL_ror.setText('0'))
+            self.QL_ror.setText('0')
+            self.df_stg
+
+            print(self.df_history)
         if light == False:
             self.QPB_start.setStyleSheet("background-color: #cccccc;")
-            print(self.QL_ror.setText('1'))
 
     def do_trade(self):
         self.light_start = False
@@ -1147,7 +1150,6 @@ class Window(QMainWindow):
     def cell_doubleclick_ticker_table(self):
         row = self.QT_tickers.currentRow()
         ticker = self.QT_tickers.item(int(row), 0).text()
-
         bong = self.QCB_chart_bong.currentText()
         bong_detail = self.QCB_chart_bong_detail.currentText()
         bong_since = self.QCB_chart_duration.currentText()

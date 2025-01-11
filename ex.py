@@ -261,6 +261,42 @@ def distribute_by_ratio(number, ratios, decimal_places=0):
 
     return results
 
+def bybit_set_tickers(fetch_tickers):
+    for ticker in fetch_tickers.keys():
+        fetch_tickers[ticker]['ask1Price'] = float(fetch_tickers[ticker]['info']['ask1Price'])
+        # fetch_tickers[ticker]['ask1Size'] = int(fetch_tickers[ticker]['info']['ask1Size'])
+        fetch_tickers[ticker]['bid1Price'] = float(fetch_tickers[ticker]['info']['bid1Price'])
+        # fetch_tickers[ticker]['bid1Size'] = int(fetch_tickers[ticker]['info']['bid1Size'])
+        fetch_tickers[ticker]['highPrice24h'] = float(fetch_tickers[ticker]['info']['highPrice24h'])
+        fetch_tickers[ticker]['indexPrice'] = float(fetch_tickers[ticker]['info']['indexPrice'])
+        fetch_tickers[ticker]['lastPrice'] = float(fetch_tickers[ticker]['info']['lastPrice'])
+        fetch_tickers[ticker]['lowPrice24h'] = float(fetch_tickers[ticker]['info']['lowPrice24h'])
+        fetch_tickers[ticker]['markPrice'] = float(fetch_tickers[ticker]['info']['markPrice'])
+        # fetch_tickers[ticker]['openInterest'] = int(fetch_tickers[ticker]['info']['openInterest'])
+        fetch_tickers[ticker]['openInterestValue'] = float(fetch_tickers[ticker]['info']['openInterestValue'])
+        fetch_tickers[ticker]['prevPrice1h'] = float(fetch_tickers[ticker]['info']['prevPrice1h'])
+        fetch_tickers[ticker]['prevPrice24h'] = float(fetch_tickers[ticker]['info']['prevPrice24h'])
+        fetch_tickers[ticker]['price24hPcnt'] = float(fetch_tickers[ticker]['info']['price24hPcnt'])
+        fetch_tickers[ticker]['turnover24h'] = float(fetch_tickers[ticker]['info']['turnover24h'])
+        fetch_tickers[ticker]['volume24h'] = float(fetch_tickers[ticker]['info']['volume24h'])
+        del fetch_tickers[ticker]['info']
+    df = pd.DataFrame.from_dict(data=fetch_tickers, orient='index')  # 딕셔너리로 데이터프레임  만들기 키값으로 행이름을 사용
+    return df
+
+# Bybit API에 연결
+bybit = ccxt.bybit({
+    'apiKey': api_key,
+    'secret': api_secret,
+    'enableRateLimit': True,
+    'options': {
+        'position_mode': True
+        # 'defaultType': 'inverse',  # spot 또는 future를 설정할 수 있음
+    },
+})
+# tickers = bybit.fetch_tickers()
+# df = bybit_set_tickers(tickers)
+# print(df['quoteVolume'])
+
 st = '1~2'
 print(st[st.index('~')+1:])
 print(st[:st.index('~')])
@@ -281,14 +317,8 @@ index = ['one', 'two', 'three']
 columns = ['시가_ETH_외인', '고가_ETH_기관', '저가_ETH_개인']
 import json
 df = pd.DataFrame(index=index,columns=columns,data=values)
-print(df.iloc[0,0])
-if np.isnan(df.iloc[0,0]):
-    print(123)
-quit()
-print(datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_investor"))
-print(df.columns.to_list())
+
 li_col = df.columns.to_list()
-print(('콜옵션_위클리')[4:7])
 
 if '외인' in df.columns.to_list():
     print(1)
@@ -297,12 +327,17 @@ values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['1', '2', '3']
 columns = ['시가_ETH_5분봉', '고가_ETH_5분봉', '저가_ETH_5분봉']
 df1 = pd.DataFrame(index=index,columns=columns,data=values)
-s = """
-if 현재가 > 0.1 and 현재가 < 0.4: 
-    if datetime.today(13,30,00) < 현재시간:
-        if MACD_코스피200_5분봉 > MACD_SIGNAL_코스피200_5분봉:
-            매수 = 100"""
-print('콜_위클리_월'[2:5])
+print(df1)
+print(df1.iloc[1:2])
+conn = sqlite3.connect('DB/stg_bybit.db')
+df = pd.read_sql(f"SELECT * FROM 'history'", conn).set_index('index')
+today = datetime.datetime(2024,11,26).strftime('%Y%m%d')
+print(df['청산시간'])
+df['청산시간'] = pd.to_datetime(df['청산시간'], utc=True)
+print(df)
+print(df['청산시간'])
+today_rows = df[df['청산시간'].dt.date == today]
+print(df)
 quit()
 # ex_bybit.fetch_closed_orders(symbol=ticker,since=)
 # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
@@ -358,16 +393,7 @@ import ccxt
 api_key = "ZFEksBSBjIHk7drUou"
 api_secret = "MXWVVshe71hnKR4SZEoUH4XqYxLLeV3uFIAI"
 
-# Bybit API에 연결
-bybit = ccxt.bybit({
-    'apiKey': api_key,
-    'secret': api_secret,
-    'enableRateLimit': True,
-    'options': {
-        'position_mode': True
-        # 'defaultType': 'inverse',  # spot 또는 future를 설정할 수 있음
-    },
-})
+
 
 # print('==============================================')
 # pprint(bybit.fetch_balance(params={'type':'linear'}))

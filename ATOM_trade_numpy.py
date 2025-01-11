@@ -599,6 +599,7 @@ class Trade_np(QThread):
             # print(dict_stg)
             while self._status:
                 QTest.qWait(1000)
+                장종료시간 = dt + datetime.timedelta(days=30)
                 one_minute, dict_stg = self.loop_main(장종료시간,one_minute,dict_stg)
                 schedule.run_pending()
                 self.qt_open.emit(self.df_trade)
@@ -667,7 +668,7 @@ class Trade_np(QThread):
         # print(f"{self.list_tickers= }")
         # print(self.df_trade)
 
-        self.dict_sorting_obj = {}
+        # self.dict_sorting_obj = {}
 
         dict_stg = {}
         for stg in self.df_trade.index:
@@ -679,9 +680,9 @@ class Trade_np(QThread):
             else:
                 bong_detail = '1분봉'
                 self.df_trade.loc[stg, '상세봉'] = '1분봉'
-            dict_stg[stg] = {'전략명':stg, '진입대상':obj, '종목코드':'','봉':bong, '상세봉':bong_detail,
+            dict_stg[stg] = {'전략명':stg, '진입대상':obj,'종목코드':'','봉':bong, '상세봉':bong_detail,
                              '봉제한':1, '팩터':[], '비교대상':{'수급동향':False}, '현재시간':현재시간,
-                             '장종료시간':장종료시간, '진입시간':진입시간}
+                             '장종료시간':장종료시간, '진입시간':진입시간, '검색대상':[]}
             if obj[0] == '{' and obj[-1] == '}' : # 대상이 여러개일 경우
                 obj = json.loads(obj)
                 dict_stg[stg]['진입대상'] = obj
@@ -711,7 +712,7 @@ class Trade_np(QThread):
                 # self.dict_sorting_obj = self.sorting_tickers(stg,obj)
 
             if type(obj) == str or (type(obj) == dict and 상태 != '대기') and (type(obj) == dict and 상태 != '청산'): #종목이 지정되어있을 경우
-
+                pass
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False)
                 dict_stg[stg] = self.check_compare_ticker(stg,ticker,dict_stg[stg])
                 # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임 생성
@@ -735,13 +736,13 @@ class Trade_np(QThread):
 
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
-                self.dict_sorting_obj = self.sorting_tickers(stg,obj)
+                dict_stg[stg]['검색대상'] = self.sorting_tickers(dict_stg[stg],obj)
                 # print(f"{self.dict_sorting_obj= }")
                 # self.dict_sorting_obj[stg] = []
                 # print(f"{self.dict_sorting_obj= }")
-                if self.dict_sorting_obj[stg]:
-                    # print(f"{dict_stg[stg]=}  |  {self.dict_sorting_obj[stg]= } | ")
-                    for i, ticker in enumerate(self.dict_sorting_obj[stg]):  # 조건 검색에 있는 종목만
+                if dict_stg[stg]['검색대상']:
+                    # print(f"{dict_stg[stg]=}  |  {dict_stg[stg]['검색대상']= } | ")
+                    for i, ticker in enumerate(dict_stg[stg]['검색대상']):  # 조건 검색에 있는 종목만
                         df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
                         if df_same.empty:
                             bong_since = self.df_trade.loc[stg, '봉제한']
@@ -768,7 +769,6 @@ class Trade_np(QThread):
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
                 quit()#
-            # print(dict_stg[stg])
         if self.market == '코인':
             print(f"{self.blue('bybit 트레이딩 시작')}")
         elif self.market == '국내주식' or self.market == '국내선옵':
@@ -792,41 +792,39 @@ class Trade_np(QThread):
 
         elif 현재시간 >= one_minute:  # 모든종목 대상으로 캔들종료시간 초과 시 한번만 실행하도록
             check_time = True
-            if self.market == '국내주식' or self.market == '국내선옵':
+            if self.market == '코인':
+                self.sorting_make_df(dict_stg)
+            elif self.market == '국내주식' or self.market == '국내선옵':
                 self.add_investor_trend(현재시간)
                 self.sorting_make_df(dict_stg)
             one_minute = 현재시간+datetime.timedelta(minutes=1)
             # print(self.df_trend)
         # print(self.df_trade)
-
         for stg in self.df_trade.index:
             bong = dict_stg[stg]['봉']
             bong_detail = dict_stg[stg]['상세봉']
             bong_since = dict_stg[stg]['봉제한']
             obj = dict_stg[stg]['진입대상']
-            상태 = self.df_trade.loc[stg, '상태']
-            bong_time = self.df_trade.loc[stg, '현재봉시간']
-            배팅금액 = self.df_trade.loc[stg, '배팅금액']
             dict_stg[stg]['진입시간'] = common_def.str_to_datetime(self.df_trade.loc[stg, '진입시간'])
             dict_stg[stg]['현재시간'] = 현재시간
+            # 상태 = self.df_trade.loc[stg, '상태']
+            # bong_time = self.df_trade.loc[stg, '현재봉시간']
+            # 배팅금액 = self.df_trade.loc[stg, '배팅금액']
 
             # 증거금률 = self.위탁증거금률 / 100 if trade_market == '선물' else 1/레버리지 if trade_market == 'bybit' else 1
             # bought_rate = 0
             # 매도전환 = False
-
+            bong_time = self.df_trade.loc[stg, '현재봉시간']
+            상태 = self.df_trade.loc[stg, '상태']
+            배팅금액 = self.df_trade.loc[stg, '배팅금액']
             # 캔들 캔들종료시간 계산용
             if bong != '일봉':
                 캔들종료시간 = common_def.str_to_datetime(bong_time) + self.dict_bong_timedelta[bong]
             elif bong == '일봉':
                 캔들종료시간 = 장종료시간
             if type(obj) == str or (type(obj) == dict and 상태 != '대기') and (type(obj) == dict and 상태 != '청산'):  # 종목이 지정되어있을 경우
-                # ticker = self.df_trade.loc[stg, 'ticker']
-
                 ticker = dict_stg[stg]['종목코드']
-                # ticker_full_name = f'{ticker}_{bong}_{bong_detail}'
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False)
-                # list_compare = self.check_compare_ticker(stg, ticker, dict_stg[stg])
-                # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
                 df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 # if not np.isnan():
@@ -852,15 +850,18 @@ class Trade_np(QThread):
 
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 if check_time == True:
-                    self.dict_sorting_obj = self.sorting_tickers(stg,obj)
-                if self.dict_sorting_obj[stg]:
-                    # print(f"{stg=}    {self.dict_sorting_obj[stg]= }  {상태= }")
-                    for i, ticker in enumerate(self.dict_sorting_obj[stg]):
-                        dict_stg[stg]['종목코드'] = ticker
+                    dict_stg[stg]['검색대상'] = self.sorting_tickers(stg,obj)
+                if dict_stg[stg]['검색대상']:
+                    # print(f"{stg=}    {dict_stg[stg]['검색대상']= }  {상태= }")
+                    for i, ticker in enumerate(dict_stg[stg]['검색대상']):
+                        ticker = dict_stg[stg]['종목코드']
+                        상태 = self.df_trade.loc[stg, '상태']
+                        bong_time = self.df_trade.loc[stg, '현재봉시간']
+                        배팅금액 = self.df_trade.loc[stg, '배팅금액']
+                        dict_stg[stg]['비교대상']['수급동향'] = False
                         # 비교대상에서 긴 봉제한을 갖고왔을 때 어떡게 df에 접목할지 고민 해봐야 함
                         # dict_stg[stg]['봉제한'] = bong_since
                         df = self.make_df(ticker,bong,bong_detail,bong_since,False)
-                        dict_stg[stg]['비교대상']['수급동향'] = False
                         dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
                         # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
                         df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
@@ -877,9 +878,10 @@ class Trade_np(QThread):
                         if [x for x in df.columns.tolist() if '_y' in x]:
                             print('에러1')
                             quit()
-                        # self.loop_trade(ticker, stg, df, bong, bong_detail, 상태, 현재시간, 캔들종료시간, 장종료시간,데이터길이,배팅금액, 진입시간)
-                        self.loop_trade(df, dict_stg[stg], 상태, 배팅금액, 데이터길이)
-
+                        if 상태 == '대기':
+                            self.loop_trade(df, dict_stg[stg], 상태, 배팅금액, 데이터길이)
+                            if self.df_trade.loc[stg,'상태'] != '대기':
+                                break
             self.active_light()
         return one_minute, dict_stg
         # print(self.df_trade[['현재봉시간','캔들종료시간']])
@@ -899,6 +901,7 @@ class Trade_np(QThread):
         global 장종료시간, 데이터길이, 진입시간, 현재시간, 시분초
         global 분할상태, 매입율
         global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리, 거래량상위, 등락률상위
+        global 거래대금상위, 시가총액상위, 시간외잔량상위, 체결강도상위, 관심종목등록상위
         ###
         # 현재시간 = current_time
         # 캔들종료시간 = candle_endtime
@@ -925,6 +928,8 @@ class Trade_np(QThread):
         풋옵션 = '풋옵션'
         콜옵션_위클리 = '콜옵션_위클리'
         풋옵션_위클리 = '풋옵션_위클리'
+        거래대금상위 = '거래대금상위'
+        시가총액상위 = '시가총액상위'
         # 전략명 = stg
         # 종목코드 = ticker
         for i in range(10):
@@ -2446,6 +2451,7 @@ class Trade_np(QThread):
                         print(list_idx)
                         print(df)
                         df.index = list_idx
+                        raise Exception('Exception')
         # print(df)
         # quit()
         return df
@@ -2458,24 +2464,24 @@ class Trade_np(QThread):
         for val in dict_stg.values():
             if type(val['진입대상']) == dict:
                 li_obj_type.append(list(val['진입대상'].keys())[0])
-        # print(li_obj_type)
         if li_obj_type:
             if self.market == '코인':
                 fetch_tickers = self.ex_bybit.fetch_tickers()
-                df_new = self.bybit_set_tickers(fetch_tickers)
-                # print(df_new)
-                # se_vol = self.se_vol - df_new['quoteVolume']
-                # se_vol.sort_values(ascending=False, inplace=True)  # 거래대금 급등 순 정렬
-                # self.se_vol = df_new['quoteVolume']
-                # se_vol = se_vol.dropna()
-                # list_increase_vol = se_vol.tolist()[:50]  # 거래대금 급등 상위 20위만 거래
-                # se_top = self.se_vol.copy()
-                # se_top.sort_values(ascending=False, inplace=True)  # 거래대금 상위 순 정렬
-                # list_top_vol = se_top.tolist()[:50]
-                # self.dict_sorting_obj = list(set(list_increase_vol) & set(list_top_vol))  # 거래대금 급등, 거래대금 상위 교집합
-                # self.dict_sorting_obj = [x[:-10] for x in list_tickers if x[-4:] == 'USDT' and x[:6] != 'GASDAO']  #GASDAO 종목 삭제
-                # list_tickers = list(set(list_tickers) - set(self.list_stg_tickers))  # 전체 대상에서 전략에 종목이 지정된 종목은 제외
-                self.sorting_df = pd.DataFrame()
+                df = self.bybit_set_tickers(fetch_tickers)
+                if '거래대금급등' in li_obj_type:  # 옵션_월물
+                    se_vol = self.se_vol - df['quoteVolume']
+                    se_vol.sort_values(ascending=False, inplace=True)  # 거래대금 급등 순 정렬
+                    self.se_vol = df['quoteVolume']
+                    se_vol = se_vol.dropna()
+                    list_increase_vol = se_vol.tolist()[:50]  # 거래대금 급등 상위 20위만 거래
+                    se_top = self.se_vol.copy()
+                if '거래대금상위' in li_obj_type:  # 옵션_월물
+                    self.df_quotevolum = df['quoteVolume'].copy()
+                    self.df_quotevolum.sort_values(ascending=False, inplace=True)  # 거래대금 상위 순 정렬
+
+                    # self.dict_sorting_obj = list(set(list_increase_vol) & set(list_top_vol))  # 거래대금 급등, 거래대금 상위 교집합
+                    # self.dict_sorting_obj = [x[:-10] for x in list_tickers if x[-4:] == 'USDT' and x[:6] != 'GASDAO']  #GASDAO 종목 삭제
+                    # list_tickers = list(set(list_tickers) - set(self.list_stg_tickers))  # 전체 대상에서 전략에 종목이 지정된 종목은 제외
             elif self.market == '국내선옵':
                 if '콜옵션' in li_obj_type or '풋옵션' in li_obj_type:  # 옵션_월물
                     # print('콜풋')
@@ -2508,9 +2514,19 @@ class Trade_np(QThread):
                 #     elif week == 1 or week == 2 or week == 3:
                 #         df_c, df_p = self.ex_kis.display_opt_weekly_thur()
 
-    def sorting_tickers(self,stg,obj):
+    def sorting_tickers(self,dict_stg_stg,obj):
+        key = list(obj.keys())[0]
+        value = obj[key]
+        upper = float(value[value.index('~') + 1:])
+        lower = float(value[:value.index('~')])
         if self.market == '코인':
-            pass
+            if type(obj) == dict:
+                if key == '거래대금상위':
+                    list_idx = self.df_quotevolum.index.tolist()
+                    list_idx = [x[:x.index('/')] for x in list_idx]
+                    list_sorting = list_idx[int(lower)-1:int(upper)]
+                else:
+                    raise
         elif self.market == '국내주식':
             self.dict_sorting_obj = []
             for content in obj:
@@ -2519,26 +2535,21 @@ class Trade_np(QThread):
         elif self.market == '국내선옵':
             # pd.set_option('display.max_rows', None)
             if type(obj) == dict:
-                key = list(obj.keys())[0]
-                value = obj[key]
-                upper = float(value[value.index('~')+1:])
-                lower = float(value[:value.index('~')])
                 if key == '콜옵션':
                     df = self.df_c.loc[(lower <= self.df_c['현재가']) & (self.df_c['현재가'] <= upper)]
                 elif key == '풋옵션':
                     df = self.df_p.loc[(lower <= self.df_p['현재가']) & (self.df_p['현재가'] <= upper)]
                 elif key == '콜옵션_위클리':
-                    df = self.df_c.loc[(lower <= self.df_c['현재가']) & (self.df_c['현재가'] <= upper)]
+                    df = self.df_c_weekly.loc[(lower <= self.df_c_weekly['현재가']) & (self.df_c_weekly['현재가'] <= upper)]
                 elif key == '풋옵션_위클리':
-                    df = self.df_p.loc[(lower <= self.df_p['현재가']) & (self.df_p['현재가'] <= upper)]
+                    df = self.df_p_weekly.loc[(lower <= self.df_p_weekly['현재가']) & (self.df_p_weekly['현재가'] <= upper)]
                 else:
                     raise
-                self.dict_sorting_obj[stg] = df.index.tolist()
-
+                list_sorting = df.index.tolist()
             else:
                 print(obj)
                 raise
-            return self.dict_sorting_obj
+        return list_sorting
 
     def market_finish(self):
         print(f'장 마감 {datetime.datetime.now()=}')
@@ -2838,8 +2849,8 @@ if __name__ == "__main__":
     simul = simul_QCB()
 
     # market = '국내주식'
-    market = '국내선옵'
-    # market = '코인'
+    # market = '국내선옵'
+    market = '코인'
     list_tickers = []
     if market == '국내주식':
         conn_stg = sqlite3.connect('DB/stg_stock.db')
