@@ -327,17 +327,33 @@ values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
 index = ['1', '2', '3']
 columns = ['시가_ETH_5분봉', '고가_ETH_5분봉', '저가_ETH_5분봉']
 df1 = pd.DataFrame(index=index,columns=columns,data=values)
-print(df1)
-print(df1.iloc[1:2])
-conn = sqlite3.connect('DB/stg_bybit.db')
-df = pd.read_sql(f"SELECT * FROM 'history'", conn).set_index('index')
-today = datetime.datetime(2024,11,26).strftime('%Y%m%d')
+# print(df1)
+# print(df1.iloc[1:2])
+conn = sqlite3.connect('DB/stg_futopt.db')
+df_closed = pd.read_sql(f"SELECT * FROM 'history'", conn).set_index('index')
+df_stg = pd.read_sql(f"SELECT * FROM 'stg'", conn).set_index('index')
+today = datetime.datetime(2025,1,7)
+# print(datetime.datetime.now())
+df_closed['청산시간'] = pd.to_datetime(df_closed['청산시간'], utc=True)
+df_closed = df_closed[df_closed['청산시간'].dt.date == today.date()]
+# print(df_closed)
+# print(df_stg)
+# df = pd.concat([df_closed,df_stg],axis=1,ignore_index=False)
+# print(df)
+# sum_closed = df_closed['매입금액'].sum()
+win = len(df_closed.loc[df_closed['수익금'] > 0])
+
+print((win/len(df_closed))*100)
+
+quit()
 print(df['청산시간'])
 df['청산시간'] = pd.to_datetime(df['청산시간'], utc=True)
-print(df)
-print(df['청산시간'])
-today_rows = df[df['청산시간'].dt.date == today]
-print(df)
+# print(df)
+# print(df['청산시간'])
+print('=================')
+today_rows = df[df['청산시간'].dt.date == today.date()]
+print(today_rows)
+
 quit()
 # ex_bybit.fetch_closed_orders(symbol=ticker,since=)
 # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side

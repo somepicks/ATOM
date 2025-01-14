@@ -31,6 +31,7 @@ import subprocess
 import common_def
 import json  # 리스트를 문자열로 변환하기 위해 필요
 import tab_chart_table
+# from ex import df_history
 
 pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
@@ -107,7 +108,7 @@ class Window(QMainWindow):
         self.QLE_bet = QLineEdit()
         self.QCB_hoga_buy = QComboBox()
         self.QCB_hoga_sell = QComboBox()
-        self.QL_mdd = QLabel()
+        self.QL_win = QLabel()
         self.QL_ror = QLabel()
         self.QL_benefit = QLabel()
         self.QL_qty = QLabel()
@@ -152,7 +153,7 @@ class Window(QMainWindow):
             self.QCB_division_buy: self.QCB_division_sell,
             QLabel('→ : 시장가[롱]'): QLabel('← : 시장가[숏]'),
             QLabel('↑ : 지정가[롱]'): QLabel('↓ : 지정가[숏]'),
-            QLabel('MDD'): self.QL_mdd,
+            QLabel('승률'): self.QL_win,
             QLabel('수익률'): self.QL_ror,
             QLabel('수익금'): self.QL_benefit,
             QLabel("||"):QLabel("||"),
@@ -444,41 +445,39 @@ class Window(QMainWindow):
                                          "초기자금 = 100\n"
                                          "레버리지 = 3\n"
                                          "분할매수 = []\n"
-                                         "분할매도 = []\n"
+                                         # "분할매도 = []\n"
                                          "####################\n"
                                          "매수가 = \n"
                                          # "매수 = False\n"
                                          "")
-                self.QTE_stg_sell.setText("매도가 = \n"
-                                         # "매도=False\n"
-                                         "")
+
             elif self.QCB_market.currentText() == '국내주식':
                 self.QTE_stg_buy.setText("진입대상 = ''\n"
                                          "봉 = {일봉:365}\n"
                                          "초기자금 = 1000000\n"
                                          "분할매수 = []\n"
-                                         "분할매도 = []\n"
+                                         # "분할매도 = []\n"
                                          "####################\n"
                                          "매수가 = \n"
                                          # "매수 = False\n"
                                          "")
-                self.QTE_stg_sell.setText("매도가 = \n"
-                                         # "매도 = False\n"
-                                         "")
+
             elif self.QCB_market.currentText() == '국내선옵':
                 self.QTE_stg_buy.setText("진입대상 = ''\n"
                                          "봉 = {'5분봉':5}\n"
                                          "방향 = 'long'\n"
                                          "초기자금 = 10000000\n"
                                          "분할매수 = []\n"
-                                         "분할매도 = []\n"
+#                                          "분할매도 = []\n"
                                          "####################\n"
                                          "매수가 = \n"
                                          # "매수 = False\n"
                                          "")
-                self.QTE_stg_sell.setText("매도가 = \n"
-                                         # "매도 = False\n"
-                                         "")
+
+            self.QTE_stg_sell.setText("분할매도 = [] #분할매도 시 리스트 형식으로 비율을 저장할 것 예)[30,30,40] \n"
+                                      "####################\n"
+                                      "매도가 = 시장가 #분할매도 시 리스트 형식으로 저장할 것\n"
+                                      "")
             self.df_old = pd.DataFrame(columns=['ticker', '진입시간', '진입가', '주문수량',
                                                 '청산가', '청산시간', '상태', 'id', '현재봉시간'])
             # else:
@@ -549,9 +548,9 @@ class Window(QMainWindow):
             division_buy = self.QTE_stg_buy.toPlainText().split("\n", 4)[3]  # 셋줄 읽기 추출
             exec(division_buy, None, locals_dict_buy)
             division_buy = locals_dict_buy.get('분할매수')
-            division_sell = self.QTE_stg_buy.toPlainText().split("\n", 5)[4]  # 셋줄 읽기 추출
-            exec(division_sell, None, locals_dict_buy)
-            division_sell = locals_dict_buy.get('분할매도')
+            # division_sell = self.QTE_stg_buy.toPlainText().split("\n", 5)[4]  # 셋줄 읽기 추출
+            # exec(division_sell, None, locals_dict_buy)
+            # division_sell = locals_dict_buy.get('분할매도')
             direction = long
             leverage = 1
             # bong_detail = 분봉1
@@ -578,9 +577,9 @@ class Window(QMainWindow):
             division_buy = self.QTE_stg_buy.toPlainText().split("\n", 5)[4]  # 셋줄 읽기 추출
             exec(division_buy, None, locals_dict_buy)
             division_buy = locals_dict_buy.get('분할매수')
-            division_sell = self.QTE_stg_buy.toPlainText().split("\n", 6)[5]  # 셋줄 읽기 추출
-            exec(division_sell, None, locals_dict_buy)
-            division_sell = locals_dict_buy.get('분할매도')
+#             division_sell = self.QTE_stg_buy.toPlainText().split("\n", 6)[5]  # 셋줄 읽기 추출
+#             exec(division_sell, None, locals_dict_buy)
+#             division_sell = locals_dict_buy.get('분할매도')
             # bong_detail = 분봉1
             leverage = 1
             if type(object) == list or type(object) == dict :
@@ -610,15 +609,20 @@ class Window(QMainWindow):
             division_buy = self.QTE_stg_buy.toPlainText().split("\n", 6)[5]  # 셋줄 읽기 추출
             exec(division_buy, None, locals_dict_buy)
             division_buy = locals_dict_buy.get('분할매수')
-            division_sell = self.QTE_stg_buy.toPlainText().split("\n", 7)[6]  # 셋줄 읽기 추출
-            exec(division_sell, None, locals_dict_buy)
-            division_sell = locals_dict_buy.get('분할매도')
+#             division_sell = self.QTE_stg_buy.toPlainText().split("\n", 7)[6]  # 셋줄 읽기 추출
+#             exec(division_sell, None, locals_dict_buy)
+#             division_sell = locals_dict_buy.get('분할매도')
             if type(object) == dict:
                 ticker = ''
             else:
                 ticker = object
             trade_market = 'bybit'
 
+
+        locals_dict_sell = {}
+        division_sell = self.QTE_stg_sell.toPlainText().split("\n", 1)[0]  # 셋줄 읽기 추출
+        exec(division_sell, None, locals_dict_sell)
+        division_sell = locals_dict_sell.get('분할매도')
 
         if (stg_name in self.df_stg.index.tolist()) and stg_name != '':
             print(f'{trade_market} - {stg_name} 기존전략에 덮어쓰기 {bet= }')
@@ -925,10 +929,31 @@ class Window(QMainWindow):
     def effect_start(self, light):
         if light == True:
             self.QPB_start.setStyleSheet("background-color: #fa3232;")
-            self.QL_ror.setText('0')
-            self.df_stg
 
-            print(self.df_history)
+            today = datetime.now()
+            df_history = self.df_history.copy()
+            df_history['청산시간'] = pd.to_datetime(df_history['청산시간'], utc=True)
+            df_history = df_history[df_history['청산시간'].dt.date == today.date()]
+            win = len(df_history.loc[df_history['수익금'] > 0])
+            df_stg = self.df_stg.copy()
+            df = pd.concat([df_history,df_stg])
+
+            benefit_closed = df['수익금'].sum()
+            df['가중치'] = df['매입금액'] / df['매입금액'].sum()  # 비중 계산
+            가중평균 = (df['수익률'] * df['가중치']).sum()
+
+            # print(f"가중 평균 수익률: {가중평균:.2f}%  수익금: {benefit_closed}")
+            self.QL_ror.setText(f"{가중평균:.2f}%")
+            self.QL_benefit.setText(f"{benefit_closed:.1f}")
+            if len(df_history) == 0:
+                self.QL_win.setText(f"{0}%")
+            else:
+                self.QL_win.setText(f"{(win/len(df_history))*100}%")
+
+            # print(df_history)
+            # print(self.df_stg)
+            # quit()
+
         if light == False:
             self.QPB_start.setStyleSheet("background-color: #cccccc;")
 
@@ -1036,8 +1061,28 @@ class Window(QMainWindow):
             # df_history = df_history.append(df_closed, ignore_index=False)
             if not self.df_history.equals(df): # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위라래로 붙임
                 self.df_history = pd.concat([self.df_history, df])  # 데이터프레임끼리 위, 아래로 붙이기
-                self.df_history.to_sql('history', self.conn_stg, if_exists='replace')
-                self.df_history['전략명'] = self.df_history.index
+                try:
+                    self.df_history.to_sql('history', self.conn_stg, if_exists='replace')
+                    self.df_history['전략명'] = self.df_history.index
+                except:
+                    list_col = self.df_history.columns.tolist()
+                    print('tab_trade  qtable_open : ')
+                    print(f"{list_col= }")
+                    for i, col in enumerate(list_col):
+                        df_copy = self.df_history[[col]]
+                        self.df_history = self.df_history.drop(col, axis=1)
+
+                        try:
+                            self.df_history.to_sql('history', self.conn_stg, if_exists='replace')
+                            # time.sleep(1)
+                            print('qtable_open 에러----')
+                            print(f"{i= }")
+                            print(f"{col= }")
+                            print(f"{df_copy}")
+                            # print(f"{self.df_stg[col].dtype= }")
+                            quit()
+                        except:
+                            pass
         df_history = self.df_history[['market', '전략명', 'ticker', '수익률', '최고수익률', '최저수익률', '수익금',
                                       '누적수익금', '진입가', '청산가', '잔고','매입금액','청산금액','수수료', '진입수수료',
                                       '진입시간', '청산시간']]

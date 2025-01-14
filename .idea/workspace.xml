@@ -9,8 +9,9 @@
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/strategy.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/strategy.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -70,7 +71,7 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
 }</component>
-  <component name="RunManager" selected="Python.ex">
+  <component name="RunManager" selected="Python.tab_backtest">
     <configuration name="ATOM_trade_numpy" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -183,11 +184,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.ex" />
-        <item itemvalue="Python.tab_trade" />
-        <item itemvalue="Python.ATOM_trade_numpy" />
-        <item itemvalue="Python.KIS" />
         <item itemvalue="Python.tab_backtest" />
+        <item itemvalue="Python.ATOM_trade_numpy" />
+        <item itemvalue="Python.tab_trade" />
+        <item itemvalue="Python.ex" />
+        <item itemvalue="Python.KIS" />
       </list>
     </recent_temporary>
   </component>
@@ -327,7 +328,15 @@
       <option name="project" value="LOCAL" />
       <updated>1736322856917</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1736579746279</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1736579746279</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -348,7 +357,8 @@
     <MESSAGE value="trade numpy" />
     <MESSAGE value="home" />
     <MESSAGE value="company" />
-    <option name="LAST_COMMIT_MESSAGE" value="company" />
+    <MESSAGE value="HOME" />
+    <option name="LAST_COMMIT_MESSAGE" value="HOME" />
     <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
   </component>
 </project>

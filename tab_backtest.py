@@ -19,15 +19,15 @@ import tab_chart_table
 import time
 from datetime import datetime, timedelta
 import ccxt
-import talib
+# import talib
 from PyQt5.QtTest import *
 # import cal_krx
 import ATOM_backtest_numpy
 import ATOM_bt_thread_numpy
 import KIS
 from pprint import pprint
-import get_df
-import tab_trade
+# import get_df
+# import tab_trade
 import CYBOS_DB
 import common_def
 
@@ -229,9 +229,15 @@ class Window(QWidget):
         self.QCB_chart.setChecked(True)
         self.QCB_ticker = QComboBox()
         self.QCB_bong = QComboBox()
-        self.QCB_bong.addItems(self.dict_bong.keys())
+        li_bong = ['봉']
+        li_bong_keys = list(self.dict_bong.keys())
+        li_bong.extend(li_bong_keys)
+        self.QCB_bong.addItems(li_bong)
         self.QCB_bong_detail = QComboBox()
-        self.QCB_bong_detail.addItems(self.dict_bong.keys())
+        li_bong_detail = ['상세봉']
+        li_bong_keys = list(self.dict_bong.keys())
+        li_bong_detail.extend(li_bong_keys)
+        self.QCB_bong_detail.addItems(li_bong_detail)
         self.QLE_DB_ticker = QLineEdit()
         self.QPB_DB_save = QPushButton('DB 저장')
         self.QCB_stg_buy = QComboBox()
@@ -839,11 +845,11 @@ class Window(QWidget):
     def select_market(self,market):
         list_stg_buy = []
         list_stg_sell = []
+        conn_stg = sqlite3.connect('DB/strategy.db')
         if market == '국내주식':
             self.exchange = self.make_exchange_kis()
             self.conn_DB = sqlite3.connect('DB/DB_stock.db',check_same_thread=False)
             self.QLE_bet.setText('1000000')
-            conn_stg = sqlite3.connect('DB/stg_stock.db')
 
             market_name = 'krx'
             self.stocks_info = pd.read_sql(f"SELECT * FROM 'stocks_info'", self.conn_DB).set_index('종목코드')
@@ -851,14 +857,14 @@ class Window(QWidget):
             self.exchange = self.make_exchange_kis()
             self.conn_DB = sqlite3.connect('DB/DB_futopt.db',check_same_thread=False)
             self.QLE_bet.setText('10000000')
-            conn_stg = sqlite3.connect('DB/stg_futopt.db')
+            # conn_stg = sqlite3.connect('DB/stg_futopt.db')
 
             market_name = 'krx'
         elif market == '코인':
             self.exchange = self.make_exchange_bybit()
             self.conn_DB = sqlite3.connect('DB/DB_bybit.db',check_same_thread=False)
             self.QLE_bet.setText('1000000')
-            conn_stg = sqlite3.connect('DB/stg_bybit.db')
+#             conn_stg = sqlite3.connect('DB/stg_bybit.db')
 
             market_name = 'coin'
             # self.stocks_info = pd.DataFrame()

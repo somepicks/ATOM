@@ -737,6 +737,8 @@ class Trade_np(QThread):
             else:  # 현재 매수상태에 있는게 팔리면서 새로운 종목의 데이터를 필요료 할 수 있기 때문에 일단은 전부 불러와야됨
                 # 같은 전략에 동일한 종목을 매수할 수 있으므로 그것도 감안
                 dict_stg[stg]['검색대상'] = self.sorting_tickers(dict_stg[stg],obj)
+                global 검색대상
+                검색대상 = dict_stg[stg]['검색대상']
                 # print(f"{self.dict_sorting_obj= }")
                 # self.dict_sorting_obj[stg] = []
                 # print(f"{self.dict_sorting_obj= }")
@@ -1149,7 +1151,6 @@ class Trade_np(QThread):
                 초기자금 = self.df_trade.loc[stg, '초기자금']
                 매입금액 = self.df_trade.loc[stg, '매입금액']
                 print(f"전략폐기 elif 상태 == '매도주문' or: {stg} {매입금액= },  {누적수익금= }, {평가금액= }, {초기자금= }, {상태= }")
-                quit()
         elif 상태 == '매도':
             # 초기화
             상태 = '청산'
@@ -1767,7 +1768,8 @@ class Trade_np(QThread):
             # 누적수익금 = 0 # 누적수익금을 넣을 수 있는 방법을 생각해볼것
             # self.df_trade.loc[stg, '누적수익금'] = 누적수익금
         elif all(x in ['매수', '매도'] for x in 분할상태):
-            상태 = '분할매수'
+            # 상태 = '분할매수'
+            상태 = '매수'
             print(f"2 {상태= },   {분할상태= }")
         elif '대기' in 분할상태:
             상태 = '분할매수'
