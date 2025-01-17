@@ -2,19 +2,19 @@ import sys
 
 # import pyupbit
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QFontMetrics,QFont
-from PyQt5.QtCore import QThread,pyqtSlot,pyqtSignal,QObject
+from PyQt5.QtGui import QFontMetrics, QFont
+from PyQt5.QtCore import QThread, pyqtSlot, pyqtSignal, QObject
 import sqlite3
 import pandas as pd
 import numpy as np
 import ATOM_stg_numpy
 import requests
 import json
-#import ATOM_chart_numpy
-#import ATOM_chart
+# import ATOM_chart_numpy
+# import ATOM_chart
 import matplotlib.pyplot as plt
 import matplotlib
-from matplotlib.gridspec import  GridSpec
+from matplotlib.gridspec import GridSpec
 import tab_chart_table
 import time
 from datetime import datetime, timedelta
@@ -31,38 +31,40 @@ from pprint import pprint
 import CYBOS_DB
 import common_def
 
-pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
+pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
-pd.set_option('display.width',1500)
+pd.set_option('display.width', 1500)
 # pd.set_option('display.max_rows', None)  # 출력 옵션 설정: 모든 열의 데이터 유형을 출력
 pd.set_option("display.unicode.east_asian_width", True)
-pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
+pd.set_option('mode.chained_assignment', None)  # SettingWithCopyWarning 경고를 끈다
+
 
 class make_data(QThread):
     # 작업이 끝났을 때 신호를 발생시킨다.
     # finished = pyqtSignal()
-    val = pyqtSignal(pd.DataFrame,pd.DataFrame)
+    val = pyqtSignal(pd.DataFrame, pd.DataFrame)
+
     # val_df_detail = pyqtSignal(pd.DataFrame)
     # val_save = pyqtSignal(bool)
 
-    def __init__(self,parent,dict_info):
+    def __init__(self, parent, dict_info):
         super().__init__(parent)
 
-        self.dict_bong_stamp = {'1분봉': 1, '3분봉': 3, '5분봉': 5, '15분봉': 15, '30분봉': 30, '60분봉': 60, '4시간봉': 240, '일봉': 1440, '주봉': 10080}
+        self.dict_bong_stamp = {'1분봉': 1, '3분봉': 3, '5분봉': 5, '15분봉': 15, '30분봉': 30, '60분봉': 60, '4시간봉': 240,
+                                '일봉': 1440, '주봉': 10080}
         self.dict_bong = dict_info['dict_bong']
         self.market = dict_info['market']
         self.ticker = dict_info['ticker']
         self.bong = dict_info['bong']
         self.bong_detail = dict_info['bong_detail']
         self.conn_DB = dict_info['connect']
-        self.start_day = datetime.strptime(dict_info['start_day'],'%Y-%m-%d')
-        self.end_day = datetime.strptime(dict_info['end_day'],'%Y-%m-%d')
-
+        self.start_day = datetime.strptime(dict_info['start_day'], '%Y-%m-%d')
+        self.end_day = datetime.strptime(dict_info['end_day'], '%Y-%m-%d')
 
     def run(self):
         # 첫 번째 작업
         # 첫 번째 작업이 끝난 후 두 번째 작업을 진행
-        ticker_detail = self.ticker+'_'+self.dict_bong[self.bong_detail]
+        ticker_detail = self.ticker + '_' + self.dict_bong[self.bong_detail]
         if self.market == '코인':
             file = 'DB/DB_bybit.db'
         elif self.market == '국내주식':
@@ -70,27 +72,28 @@ class make_data(QThread):
         elif self.market == '국내선옵':
             file = 'DB/DB_futopt.db'
 
-        self.conn_DB = sqlite3.connect(file,check_same_thread=False)
+        self.conn_DB = sqlite3.connect(file, check_same_thread=False)
 
         df_detail = pd.read_sql(f"SELECT * FROM '{ticker_detail}'", self.conn_DB).set_index('날짜')
         df_detail.index = pd.to_datetime(df_detail.index)  # datime형태로 변환
 
-        df_detail = df_detail.loc[(df_detail.index >= self.start_day)&(df_detail.index <= self.end_day)]
+        df_detail = df_detail.loc[(df_detail.index >= self.start_day) & (df_detail.index <= self.end_day)]
 
         if self.market == '코인':
             df_detail.index = df_detail.index - pd.Timedelta(hours=9)
-            df, df_detail = common_def.detail_to_spread(df_detail,self.bong,self.bong_detail)
+            df, df_detail = common_def.detail_to_spread(df_detail, self.bong, self.bong_detail)
             df_detail.index = df_detail.index + pd.Timedelta(hours=9)
             df.index = df.index + pd.Timedelta(hours=9)
             for day in pd.date_range(start=df_detail.index[0], end=df_detail.index[-1]):
                 start_time = pd.Timestamp(day).replace(hour=9, minute=0, second=0)
-                end_time = start_time + pd.Timedelta(days=1) - pd.Timedelta(minutes=self.dict_bong_stamp[self.bong_detail])
+                end_time = start_time + pd.Timedelta(days=1) - pd.Timedelta(
+                    minutes=self.dict_bong_stamp[self.bong_detail])
                 df_detail.loc[start_time:end_time, '장시작시간'] = start_time
                 df_detail.loc[start_time:end_time, '장종료시간'] = end_time
         else:
             df_detail.index = df_detail.index - pd.Timedelta(minutes=self.dict_bong_stamp[self.bong_detail])
             # df_detail = df_detail[df_detail.index >= datetime.strptime("20200326","%Y%m%d")]
-            df, df_detail = common_def.detail_to_spread(df_detail,self.bong,self.bong_detail)
+            df, df_detail = common_def.detail_to_spread(df_detail, self.bong, self.bong_detail)
             df_detail = self.make_start_stop(df_detail, self.dict_bong_stamp[self.bong_detail])
 
         df_detail['현재시간'] = df_detail.index
@@ -120,8 +123,7 @@ class make_data(QThread):
         # return df,df_detail,save
         print('데이터프레임 생성완료')
 
-        self.val.emit(df,df_detail)  # 첫 번째 작업이 끝났음을 신호로 알림
-
+        self.val.emit(df, df_detail)  # 첫 번째 작업이 끝났음을 신호로 알림
 
     def make_start_stop(self, df_detail, detail_stamp):
         # detail 1분봉 누락분에 대해서 메꿀 수 있는 방법
@@ -158,15 +160,18 @@ class make_data(QThread):
         df_detail = pd.concat(dfs)
         ###
         return df_detail
+
+
 class Window(QWidget):
-    def __init__(self,chart_table):
+    def __init__(self, chart_table):
         super().__init__()
         self.chart_table = chart_table
         self.init_file()
-        self.dict_bong = {'1분봉': '1m', '3분봉': '3m','5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '60m', '4시간봉':'4h','일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
+        self.dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '60m',
+                          '4시간봉': '4h', '일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
         self.dict_bong_reverse = dict(zip(self.dict_bong.values(), self.dict_bong.keys()))
         self.set_UI()
-        self.QCB_market.activated[str].connect(lambda :self.select_market(self.QCB_market.currentText()))
+        self.QCB_market.activated[str].connect(lambda: self.select_market(self.QCB_market.currentText()))
         self.QPB_DB_save.clicked.connect(lambda: self.save_DB())
 
         # conn = sqlite3.connect('DB/bt.db')
@@ -178,13 +183,13 @@ class Window(QWidget):
         # self.QPB_DB_save.clicked.connect(lambda: self.test(df))
 
         self.QPB_stg_buy_save.clicked.connect(lambda: self.save_stg_buy())
-        self.QCB_stg_buy.activated[str].connect(lambda :self.selectedCombo_stg_buy())
+        self.QCB_stg_buy.activated[str].connect(lambda: self.selectedCombo_stg_buy())
         # self.QPB_start.clicked.connect(lambda: self.backtest())
         self.QPB_start.clicked.connect(self.do_backtest)
         self.QPB_stop.clicked.connect(self.on_stop)
         self.QPB_save_bt.clicked.connect(lambda: self.save_bt())
         self.QPB_stg_sell_save.clicked.connect(lambda: self.save_stg_sell())
-        self.QCB_stg_sell.activated[str].connect(lambda :self.selectedCombo_stg_sell())
+        self.QCB_stg_sell.activated[str].connect(lambda: self.selectedCombo_stg_sell())
         self.QCB_ticker.activated[str].connect(self.selectedCombo_ticker)
         self.QPB_stg_buy_del.clicked.connect(self.del_stg_buy)
         self.QPB_stg_sell_del.clicked.connect(self.del_stg_sell)
@@ -196,12 +201,8 @@ class Window(QWidget):
         # self.QCB_bong.setCurrentText('일봉')
         # self.QCB_bong_detail.setCurrentText('5분봉')
 
-
-
         self.QPB_stop.setEnabled(False)
         self.db_name = ''
-
-
 
         # 테스트용
         # self.QCB_ticker.addItems(['BTC'])
@@ -222,7 +223,7 @@ class Window(QWidget):
         # self.QCB_krx = QCheckBox('국내시장')
         # self.QCB_bybit = QCheckBox('바이비트')
         self.QCB_market = QComboBox()
-        self.QCB_market.addItems(['','코인','국내주식','국내선옵'])
+        self.QCB_market.addItems(['', '코인', '국내주식', '국내선옵'])
         # self.QCB_detail = QCheckBox('상세 백테')
         # self.QCB_detail.setChecked(True)
         self.QCB_chart = QCheckBox('차트보기')
@@ -268,7 +269,6 @@ class Window(QWidget):
         QTE_var_buy = QTextEdit()
         QTE_var_sell = QTextEdit()
 
-
         # self.QCB_krx.setFixedWidth(100)
         # self.QCB_bybit.setFixedWidth(100)
         self.QCB_market.setFixedWidth(100)
@@ -298,35 +298,34 @@ class Window(QWidget):
         self.QLE_bet.setFixedWidth(100)
         QGL.setSpacing(10)
 
-
         # QGL.addWidget(self.QCB_krx,0,0)
         # QGL.addWidget(self.QCB_bybit,0,1)
-        QGL.addWidget(self.QCB_market,0,0)
-        QGL.addWidget(self.QCB_ticker,0,1)
-        QGL.addWidget(self.QCB_bong,1,0)
-        QGL.addWidget(self.QCB_bong_detail,1,1)
-        QGL.addWidget(self.QLE_DB_ticker,2,0)
-        QGL.addWidget(self.QPB_DB_save,2,1)
-        QGL.addWidget(self.QCB_stg_buy,3,0)
-        QGL.addWidget(self.QLE_stg_buy,3,1)
+        QGL.addWidget(self.QCB_market, 0, 0)
+        QGL.addWidget(self.QCB_ticker, 0, 1)
+        QGL.addWidget(self.QCB_bong, 1, 0)
+        QGL.addWidget(self.QCB_bong_detail, 1, 1)
+        QGL.addWidget(self.QLE_DB_ticker, 2, 0)
+        QGL.addWidget(self.QPB_DB_save, 2, 1)
+        QGL.addWidget(self.QCB_stg_buy, 3, 0)
+        QGL.addWidget(self.QLE_stg_buy, 3, 1)
         # QGL.addWidget(self.QPB_stg_buy_save,4,0,1,2)
-        QGL.addWidget(self.QPB_stg_buy_save,4,0)
-        QGL.addWidget(self.QPB_stg_buy_del,4,1)
-        QGL.addWidget(QL_start,5,0)
-        QGL.addWidget(self.QLE_start,5,1)
-        QGL.addWidget(QL_end,6,0)
-        QGL.addWidget(self.QLE_end,6,1)
-        QGL.addWidget(QL_bet,7,0)
-        QGL.addWidget(self.QLE_bet,7,1)
-        QGL.addWidget(self.QPB_start,8,0)
-        QGL.addWidget(self.QPB_stop,8,1)
-        QGL.addWidget(self.QPB_save_bt,9,0)
-        QGL.addWidget(self.QCB_chart,9,1)
-        QGL.addWidget(self.QCB_stg_sell,10,0)
-        QGL.addWidget(self.QLE_stg_sell,10,1)
-        QGL.addWidget(self.QPB_stg_sell_save,11,0)
-        QGL.addWidget(self.QPB_stg_sell_del,11,1)
-        QGL.addWidget(self.QPB_bar,12,0,1,2)
+        QGL.addWidget(self.QPB_stg_buy_save, 4, 0)
+        QGL.addWidget(self.QPB_stg_buy_del, 4, 1)
+        QGL.addWidget(QL_start, 5, 0)
+        QGL.addWidget(self.QLE_start, 5, 1)
+        QGL.addWidget(QL_end, 6, 0)
+        QGL.addWidget(self.QLE_end, 6, 1)
+        QGL.addWidget(QL_bet, 7, 0)
+        QGL.addWidget(self.QLE_bet, 7, 1)
+        QGL.addWidget(self.QPB_start, 8, 0)
+        QGL.addWidget(self.QPB_stop, 8, 1)
+        QGL.addWidget(self.QPB_save_bt, 9, 0)
+        QGL.addWidget(self.QCB_chart, 9, 1)
+        QGL.addWidget(self.QCB_stg_sell, 10, 0)
+        QGL.addWidget(self.QLE_stg_sell, 10, 1)
+        QGL.addWidget(self.QPB_stg_sell_save, 11, 0)
+        QGL.addWidget(self.QPB_stg_sell_del, 11, 1)
+        QGL.addWidget(self.QPB_bar, 12, 0, 1, 2)
 
         # QHB_ varsQHBoxLayout()
 
@@ -334,7 +333,6 @@ class Window(QWidget):
         QVB_history.addWidget(self.QCB_history)
         QVB_history.addWidget(QT_history)
         QVB_history.addWidget(QT_history_detail)
-
 
         QHB_main = QHBoxLayout()
         QHB_main.addLayout(QVB_stg)
@@ -353,8 +351,8 @@ class Window(QWidget):
         QT_history.setStyleSheet(StyleSheet_Qtextedit)
         QT_history_detail.setStyleSheet(StyleSheet_Qtextedit)
         font = QFont('나눔고딕')
-        self.QTE_stg_buy.setTabStopWidth(QFontMetrics(font).width(' '*4))
-        self.QTE_stg_sell.setTabStopWidth(QFontMetrics(font).width(' '*4))
+        self.QTE_stg_buy.setTabStopWidth(QFontMetrics(font).width(' ' * 4))
+        self.QTE_stg_sell.setTabStopWidth(QFontMetrics(font).width(' ' * 4))
         self.highlighter_buy = common_def.PythonHighlighter(self.QTE_stg_buy.document())
         self.highlighter_sell = common_def.PythonHighlighter(self.QTE_stg_sell.document())
 
@@ -370,9 +368,9 @@ class Window(QWidget):
         ticker = self.QLE_DB_ticker.text()
         if market == '코인':
             import math
-            if not ticker == '': #티커가 명시되어 있을 경우
+            if not ticker == '':  # 티커가 명시되어 있을 경우
                 ticker = ticker + 'USDT'
-            else: #티커가 명시되어 있지 않을 경우 ticker 로딩에 표시되어있는 종목을 저장
+            else:  # 티커가 명시되어 있지 않을 경우 ticker 로딩에 표시되어있는 종목을 저장
                 raise
             # ticker_bong = self.QLE_DB_ticker.text()+'_'+dict_bong[self.QCB_bong.currentText()]
             # self.exchange = self.make_exchange_bybit()
@@ -383,8 +381,8 @@ class Window(QWidget):
             table_list = cursor.fetchall()
             table_list = np.concatenate(table_list).tolist()
             for bong in self.dict_bong.values():
-                print(self.QLE_DB_ticker.text()+'_'+bong)
-                ticker_bong = ticker+'_'+bong
+                print(self.QLE_DB_ticker.text() + '_' + bong)
+                ticker_bong = ticker + '_' + bong
                 if ticker_bong in table_list:
                     df_old = pd.read_sql(f"SELECT * FROM '{ticker_bong}'", conn).set_index('날짜')
                     df_old.index = pd.to_datetime(df_old.index)  # datime형태로 변환
@@ -398,7 +396,8 @@ class Window(QWidget):
                         i += 1
                         try:
                             # OHLCV 데이터를 조회합니다.
-                            ohlcv = self.exchange.fetch_ohlcv(symbol=ticker,timeframe=bong,since=start_time, limit=1000)
+                            ohlcv = self.exchange.fetch_ohlcv(symbol=ticker, timeframe=bong, since=start_time,
+                                                              limit=1000)
                             time.sleep(1)
                             # 다음 조회를 위해 마지막으로 조회된 데이터의 시간을 업데이트합니다.
                             if ohlcv:
@@ -431,29 +430,30 @@ class Window(QWidget):
                     df_new['날짜'] = df_new['날짜'].dt.tz_convert("Asia/Seoul")
                     df_new['날짜'] = df_new['날짜'].dt.tz_localize(None)
                     df_new.set_index('날짜', inplace=True)
-                    df_old.drop(index = df_old.index[-1],inplace=True)
-                    df = pd.concat([df_old,df_new])
+                    df_old.drop(index=df_old.index[-1], inplace=True)
+                    df = pd.concat([df_old, df_new])
                     df.to_sql(ticker_bong, conn, if_exists='replace')
 
                 else:
                     start_time = self.exchange.parse8601(f'2020-01-01T00:00:00Z')
                     end_time = self.exchange.milliseconds()  # 현재 시간
                     total_data = []
-                    i=0
+                    i = 0
                     while True:
                         i += 1
                         try:
                             # OHLCV 데이터를 조회합니다.
                             ohlcv = self.exchange.fetch_ohlcv(symbol=ticker, timeframe=bong,
-                                                         since=start_time, limit=1000)
+                                                              since=start_time, limit=1000)
 
                             time.sleep(1)
                             # 다음 조회를 위해 마지막으로 조회된 데이터의 시간을 업데이트합니다.
                             if ohlcv:
                                 start_time = ohlcv[-1][0] + 1  # 다음 조회는 이전 데이터의 다음 시간부터 시작
-                                print(f'{ticker_bong} DB 저장 중...start time - {datetime.fromtimestamp(math.trunc(start_time/1000))}[{i}]')
+                                print(
+                                    f'{ticker_bong} DB 저장 중...start time - {datetime.fromtimestamp(math.trunc(start_time / 1000))}[{i}]')
 
-                            # 조회된 데이터를 출력하거나 다른 작업을 수행할 수 있습니다.
+                                # 조회된 데이터를 출력하거나 다른 작업을 수행할 수 있습니다.
                                 total_data = total_data + ohlcv
                             else:
                                 break
@@ -499,7 +499,7 @@ class Window(QWidget):
             except:
                 list_table = []
             cursor.close()
- 
+
             # if not 'stocks_info' in list_table:
             #     if market == '국내주식':
             #         ticker = self.QCB_ticker.currentText()
@@ -508,15 +508,14 @@ class Window(QWidget):
 
             dict_ticker_reverse = dict(zip(self.dict_ticker.values(), self.dict_ticker.keys()))
             try:
-                ticker = dict_ticker_reverse[ticker] # dict_ticker에 종목이 있을 경우
-            except: # dict_ticker에 종목이 없을경우
+                ticker = dict_ticker_reverse[ticker]  # dict_ticker에 종목이 있을 경우
+            except:  # dict_ticker에 종목이 없을경우
                 if market == '국내주식':
                     print('종목명 확인 필요')
-                elif market == '국내선옵' and (ticker[:3]=='201' or ticker[:3]=='301'):
-                    ticker = ticker[:4]+'A'+ticker[-3:]   # A는 근월물, B는 차월물 차월물은 확인할 필요 없기 때문에 A로 통일
+                elif market == '국내선옵' and (ticker[:3] == '201' or ticker[:3] == '301'):
+                    ticker = ticker[:4] + 'A' + ticker[-3:]  # A는 근월물, B는 차월물 차월물은 확인할 필요 없기 때문에 A로 통일
 
             self.save_DB_CYBOS(market, ticker, list_table)
-
 
             # if market == '국내주식':
             #     stock_list = pd.read_html('http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13', header=0)[0]
@@ -548,11 +547,11 @@ class Window(QWidget):
             # df.to_sql(stock_code_name,conn,if_exists='replace')
             # print('저장 완료')
         else:
-            raise  print('데이터를 저장 할 시장을 선택해주세요.')
+            raise print('데이터를 저장 할 시장을 선택해주세요.')
 
         print('DB저장 완료')
 
-    def save_DB_CYBOS(self,market,ticker,list_table):
+    def save_DB_CYBOS(self, market, ticker, list_table):
         import win32com.client
         try:
             instCpCybos = win32com.client.Dispatch("CpUtil.CpCybos")
@@ -603,7 +602,6 @@ class Window(QWidget):
         df = round(df, 2)
         df.to_sql(ticker + '_' + self.dict_bong[bong_detail], self.conn_DB, if_exists='replace')
 
-
     def save_stg_buy(self):
         self.BTN_efect(self.QPB_stg_buy_save)
         conn = sqlite3.connect('DB/strategy.db')
@@ -614,37 +612,37 @@ class Window(QWidget):
         if self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵':
             if not table_list:
                 df = pd.DataFrame(columns=['전략코드'])
-                df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()],index=[self.QLE_stg_buy.text()])
-                df.to_sql('krx_buy',conn,if_exists='replace')
+                df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()], index=[self.QLE_stg_buy.text()])
+                df.to_sql('krx_buy', conn, if_exists='replace')
             else:
                 table_list = np.concatenate(table_list).tolist()
                 if 'krx_buy' in table_list:
                     df = pd.read_sql(f"SELECT * FROM 'krx_buy'", conn).set_index('index')
                     if self.QLE_stg_buy.text() == '':
-                        df.loc[self.QCB_stg_buy.currentText(),'전략코드'] = self.QTE_stg_buy.toPlainText()
+                        df.loc[self.QCB_stg_buy.currentText(), '전략코드'] = self.QTE_stg_buy.toPlainText()
                     elif not self.QLE_stg_buy.text() == '':
-                        df.loc[self.QLE_stg_buy.text(),'전략코드'] = self.QTE_stg_buy.toPlainText()
+                        df.loc[self.QLE_stg_buy.text(), '전략코드'] = self.QTE_stg_buy.toPlainText()
                 elif not 'krx_buy' in table_list:
                     df = pd.DataFrame(columns=['전략코드'])
-                    df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()],index=[self.QLE_stg_buy.text()])
-            df.to_sql('krx_buy',conn,if_exists='replace')
+                    df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()], index=[self.QLE_stg_buy.text()])
+            df.to_sql('krx_buy', conn, if_exists='replace')
         elif self.QCB_market.currentText() == '코인':
             if not table_list:
                 df = pd.DataFrame(columns=['전략코드'])
-                df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()],index=[self.QLE_stg_buy.text()])
-                df.to_sql('coin_buy',conn,if_exists='replace')
+                df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()], index=[self.QLE_stg_buy.text()])
+                df.to_sql('coin_buy', conn, if_exists='replace')
             else:
                 table_list = np.concatenate(table_list).tolist()
                 if 'coin_buy' in table_list:
                     df = pd.read_sql(f"SELECT * FROM 'coin_buy'", conn).set_index('index')
                     if self.QLE_stg_buy.text() == '':
-                        df.loc[self.QCB_stg_buy.currentText(),'전략코드'] = self.QTE_stg_buy.toPlainText()
+                        df.loc[self.QCB_stg_buy.currentText(), '전략코드'] = self.QTE_stg_buy.toPlainText()
                     elif not self.QLE_stg_buy.text() == '':
-                        df.loc[self.QLE_stg_buy.text(),'전략코드'] = self.QTE_stg_buy.toPlainText()
+                        df.loc[self.QLE_stg_buy.text(), '전략코드'] = self.QTE_stg_buy.toPlainText()
                 elif not 'coin_buy' in table_list:
                     df = pd.DataFrame(columns=['전략코드'])
-                    df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()],index=[self.QLE_stg_buy.text()])
-            df.to_sql('coin_buy',conn,if_exists='replace')
+                    df['전략코드'] = pd.Series([self.QTE_stg_buy.toPlainText()], index=[self.QLE_stg_buy.text()])
+            df.to_sql('coin_buy', conn, if_exists='replace')
         cursor.close()
         conn.close()
         self.QCB_stg_buy.clear()
@@ -664,8 +662,8 @@ class Window(QWidget):
         if self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵':
             if not table_list:
                 df = pd.DataFrame(columns=['전략코드'])
-                df['전략코드'] = pd.Series([self.QTE_stg_sell.toPlainText()],index=[self.QLE_stg_sell.text()])
-                df.to_sql('krx_sell',conn,if_exists='replace')
+                df['전략코드'] = pd.Series([self.QTE_stg_sell.toPlainText()], index=[self.QLE_stg_sell.text()])
+                df.to_sql('krx_sell', conn, if_exists='replace')
             else:
                 table_list = np.concatenate(table_list).tolist()
                 if 'krx_sell' in table_list:
@@ -681,8 +679,8 @@ class Window(QWidget):
         elif self.QCB_market.currentText() == '코인':
             if not table_list:
                 df = pd.DataFrame(columns=['전략코드'])
-                df['전략코드'] = pd.Series([self.QTE_stg_sell.toPlainText()],index=[self.QLE_stg_sell.text()])
-                df.to_sql('coin_sell',conn,if_exists='replace')
+                df['전략코드'] = pd.Series([self.QTE_stg_sell.toPlainText()], index=[self.QLE_stg_sell.text()])
+                df.to_sql('coin_sell', conn, if_exists='replace')
             else:
                 table_list = np.concatenate(table_list).tolist()
                 if 'coin_sell' in table_list:
@@ -701,9 +699,10 @@ class Window(QWidget):
         self.QCB_stg_sell.addItems(df.index.tolist())
         if self.QLE_stg_sell.text() != '':
             self.QCB_stg_sell.setCurrentText(self.QLE_stg_sell.text())
+
     def del_stg_buy(self):
         conn = sqlite3.connect('DB/strategy.db')
-        table = 'coin_buy' if self.QCB_market.currentText()=='코인' else 'krx_buy'
+        table = 'coin_buy' if self.QCB_market.currentText() == '코인' else 'krx_buy'
         if self.QCB_stg_buy.currentText() != '':
             df_stg = pd.read_sql(f"SELECT * FROM {table}", conn).set_index('index')
             df_stg.drop([f'{self.QCB_stg_buy.currentText()}'], inplace=True)
@@ -712,9 +711,10 @@ class Window(QWidget):
             df_stg.to_sql(table, conn, if_exists='replace')
             self.QLE_stg_buy.setText(self.QCB_stg_buy.currentText())
         conn.close()
+
     def del_stg_sell(self):
         conn = sqlite3.connect('DB/strategy.db')
-        table = 'coin_sell' if self.QCB_market.currentText()=='코인' else 'krx_sell'
+        table = 'coin_sell' if self.QCB_market.currentText() == '코인' else 'krx_sell'
         if self.QCB_stg_sell.currentText() != '':
             df_stg = pd.read_sql(f"SELECT * FROM {table}", conn).set_index('index')
             df_stg.drop([f'{self.QCB_stg_sell.currentText()}'], inplace=True)
@@ -723,6 +723,7 @@ class Window(QWidget):
             df_stg.to_sql(table, conn, if_exists='replace')
             self.QLE_stg_sell.setText(self.QCB_stg_sell.currentText())
         conn.close()
+
     def selectedCombo_stg_buy(self):
         conn = sqlite3.connect('DB/strategy.db')
         cursor = conn.cursor()
@@ -750,6 +751,7 @@ class Window(QWidget):
                 self.QLE_stg_buy.setText(self.QCB_stg_buy.currentText())
         cursor.close()
         conn.close()
+
     def selectedCombo_stg_sell(self):
         conn = sqlite3.connect('DB/strategy.db')
         cursor = conn.cursor()
@@ -775,6 +777,7 @@ class Window(QWidget):
                 self.QLE_stg_sell.setText(self.QCB_stg_sell.currentText())
         cursor.close()
         conn.close()
+
     def selectedCombo_ticker(self):
         ticker = self.QCB_ticker.currentText()
         self.QLE_DB_ticker.setText(ticker)
@@ -787,7 +790,7 @@ class Window(QWidget):
             except:
                 if market == '국내주식':
                     print('종목명 확인 필요')
-                elif market == '국내선옵' and (ticker[:3]=='201' or ticker[:3]=='301'):
+                elif market == '국내선옵' and (ticker[:3] == '201' or ticker[:3] == '301'):
                     ticker = ticker
 
         elif market == '코인':
@@ -795,10 +798,10 @@ class Window(QWidget):
         list_bong = [x[x.index('_') + 1:] for x in self.table_list_DB if
                      x[:x.index('_')] == ticker]  # 해당 ticker가 갖고있는 db를 리스트화 [1m,3m,5m...]
         list_standard_bong = [self.dict_bong_reverse[x] for x in list_bong]
-        list_standard_bong.insert(0,'봉')
+        list_standard_bong.insert(0, '봉')
 
         list_detail_bong = list(self.dict_bong.keys())
-        list_detail_bong.insert(0,'봉')
+        list_detail_bong.insert(0, '봉')
         self.QCB_bong_detail.clear()
         self.QCB_bong_detail.addItems(list_detail_bong)
 
@@ -841,30 +844,29 @@ class Window(QWidget):
             self.QCB_bong.setCurrentText('4시간봉')
             self.QCB_bong_detail.setCurrentText('5분봉')
 
-
-    def select_market(self,market):
+    def select_market(self, market):
         list_stg_buy = []
         list_stg_sell = []
         conn_stg = sqlite3.connect('DB/strategy.db')
         if market == '국내주식':
             self.exchange = self.make_exchange_kis()
-            self.conn_DB = sqlite3.connect('DB/DB_stock.db',check_same_thread=False)
+            self.conn_DB = sqlite3.connect('DB/DB_stock.db', check_same_thread=False)
             self.QLE_bet.setText('1000000')
 
             market_name = 'krx'
             self.stocks_info = pd.read_sql(f"SELECT * FROM 'stocks_info'", self.conn_DB).set_index('종목코드')
         elif market == '국내선옵':
             self.exchange = self.make_exchange_kis()
-            self.conn_DB = sqlite3.connect('DB/DB_futopt.db',check_same_thread=False)
+            self.conn_DB = sqlite3.connect('DB/DB_futopt.db', check_same_thread=False)
             self.QLE_bet.setText('10000000')
             # conn_stg = sqlite3.connect('DB/stg_futopt.db')
 
             market_name = 'krx'
         elif market == '코인':
             self.exchange = self.make_exchange_bybit()
-            self.conn_DB = sqlite3.connect('DB/DB_bybit.db',check_same_thread=False)
+            self.conn_DB = sqlite3.connect('DB/DB_bybit.db', check_same_thread=False)
             self.QLE_bet.setText('1000000')
-#             conn_stg = sqlite3.connect('DB/stg_bybit.db')
+            #             conn_stg = sqlite3.connect('DB/stg_bybit.db')
 
             market_name = 'coin'
             # self.stocks_info = pd.DataFrame()
@@ -882,16 +884,16 @@ class Window(QWidget):
         else:
             self.table_list_DB = np.concatenate(self.table_list_DB).tolist()
 
-        list_tickers = [x[:x.index('_')] for x in self.table_list_DB] # ticker 리스트화
+        list_tickers = [x[:x.index('_')] for x in self.table_list_DB]  # ticker 리스트화
         list_ticker = list(set(list_tickers))
         # print(list_ticker)
-        if market == '국내주식' :
+        if market == '국내주식':
             list_ticker.remove('stocks')
             self.dict_ticker = dict(zip(self.stocks_info.index.tolist(), self.stocks_info['종목명']))
             list_ticker = [self.dict_ticker[x] for x in list_ticker if x in self.stocks_info.index.tolist()]
         elif market == '국내선옵':
-            self.dict_ticker = {'10100':'코스피200선물',  '10500':'미니코스피200선물',  '10600':'코스닥150선물',  '17500':'미국달러선물',
-                            '16500':'3년국채선물',  '16700':'10년국채선물',  '18800':'금연결선물'}
+            self.dict_ticker = {'10100': '코스피200선물', '10500': '미니코스피200선물', '10600': '코스닥150선물', '17500': '미국달러선물',
+                                '16500': '3년국채선물', '16700': '10년국채선물', '18800': '금연결선물'}
             new_list_ticker = []
             for x in list_ticker:
                 if x in self.dict_ticker.keys():
@@ -916,7 +918,6 @@ class Window(QWidget):
         cursor_stg.close()
         conn_stg.close()
 
-
         list_ticker.insert(0, '전체')
         self.QCB_ticker.clear()
         self.QCB_ticker.addItems(list_ticker)
@@ -928,22 +929,24 @@ class Window(QWidget):
         self.QTE_stg_buy.clear()
         self.QTE_stg_sell.clear()
         if not self.QCB_stg_buy.currentText() == '':
-            self.QTE_stg_buy.setText(df_stg_buy.loc[self.QCB_stg_buy.currentText(),'전략코드'])
+            self.QTE_stg_buy.setText(df_stg_buy.loc[self.QCB_stg_buy.currentText(), '전략코드'])
         if not self.QCB_stg_sell.currentText() == '':
-            self.QTE_stg_sell.setText(df_stg_sell.loc[self.QCB_stg_sell.currentText(),'전략코드'])
+            self.QTE_stg_sell.setText(df_stg_sell.loc[self.QCB_stg_sell.currentText(), '전략코드'])
 
         return list_ticker
-    def compare_price(self,price,vars):
-        i_min = price.min() # 현재가.min
+
+    def compare_price(self, price, vars):
+        i_min = price.min()  # 현재가.min
         i_max = price.max()
         return price.apply(self.mapping, args=(i_min, i_max, vars.min(), vars.max()))
-    
-    def mapping(self,x, i_min, i_max, o_min, o_max):
+
+    def mapping(self, x, i_min, i_max, o_min, o_max):
         return (x - i_min) * (o_max - o_min) / (i_max - i_min) + o_min  # mapping()함수 정의.
 
-    def replace_tabs_with_spaces(self,text): #스페이스랑 탭 혼용 시 에러 방지용
+    def replace_tabs_with_spaces(self, text):  # 스페이스랑 탭 혼용 시 에러 방지용
         space_count = 4
         return text.replace('\t', ' ' * space_count)
+
     #
     # def make_start_stop(self, df_detail, detail_stamp):
     #     # detail 1분봉 누락분에 대해서 메꿀 수 있는 방법
@@ -1048,9 +1051,9 @@ class Window(QWidget):
         bong_detail = self.QCB_bong_detail.currentText()
 
         self.stg_buy = self.QTE_stg_buy.toPlainText()
-        self.stg_buy = self. replace_tabs_with_spaces(self.stg_buy)
+        self.stg_buy = self.replace_tabs_with_spaces(self.stg_buy)
         self.stg_sell = self.QTE_stg_sell.toPlainText()
-        self.stg_sell = self. replace_tabs_with_spaces(self.stg_sell)
+        self.stg_sell = self.replace_tabs_with_spaces(self.stg_sell)
         global long, short
         long = 'long'
         short = 'short'
@@ -1105,12 +1108,14 @@ class Window(QWidget):
                 print(market)
                 raise
 
-        self.dict_info = {'market': market, 'ticker': ticker,'bong': bong,'bong_detail': bong_detail, 'start_day': self.QLE_start.text(),
-                     'end_day': self.QLE_end.text(),'connect': self.conn_DB, 'table_list_DB':self.table_list_DB,
-                     'trade_market':self.trade_market, 'dict_bong':self.dict_bong, 'exchange':self.exchange,
-                     'stg_buy': self.stg_buy, 'stg_sell':self.stg_sell, 'bet':int(self.QLE_bet.text()),
-                     'dict_bong_reverse':self.dict_bong_reverse, 'division_buy':division_buy,'division_sell':division_sell,
-                     'direction':direction,'거래승수':거래승수,'증거금률':증거금률}
+        self.dict_info = {'market': market, 'ticker': ticker, 'bong': bong, 'bong_detail': bong_detail,
+                          'start_day': self.QLE_start.text(),
+                          'end_day': self.QLE_end.text(), 'connect': self.conn_DB, 'table_list_DB': self.table_list_DB,
+                          'trade_market': self.trade_market, 'dict_bong': self.dict_bong, 'exchange': self.exchange,
+                          'stg_buy': self.stg_buy, 'stg_sell': self.stg_sell, 'bet': int(self.QLE_bet.text()),
+                          'dict_bong_reverse': self.dict_bong_reverse, 'division_buy': division_buy,
+                          'division_sell': division_sell,
+                          'direction': direction, '거래승수': 거래승수, '증거금률': 증거금률}
 
         if self.db_name != f"{ticker}_{bong}_{bong_detail}_{self.QLE_start.text()}_{self.QLE_end.text()}":
             self.db_name = f"{ticker}_{bong}_{bong_detail}_{self.QLE_start.text()}_{self.QLE_end.text()}"
@@ -1124,7 +1129,7 @@ class Window(QWidget):
 
             # df, df_detail,save = self.make_df(self.dict_info)
 
-            self.thread_make = make_data(self,self.dict_info)
+            self.thread_make = make_data(self, self.dict_info)
             self.thread_make.start()
             self.thread_make.val.connect(self.run_backtest)
 
@@ -1140,7 +1145,7 @@ class Window(QWidget):
             df = self.df.copy()
             df_detail = self.df_detail.copy()
             # save =False
-            self.run_backtest(df,df_detail)
+            self.run_backtest(df, df_detail)
 
     def run_backtest(self, df, df_detail):
         print(self.stg_buy)
@@ -1149,7 +1154,7 @@ class Window(QWidget):
         for factor in df_detail.columns.tolist():
             if not factor in str(self.stg_buy + self.stg_sell):  # 실제 전략에 필요한 팩터만 남기고 데이터프레임에서 삭제
                 if not factor in ['상세시가', '상세고가', '상세저가', '상세종가', '시가', '고가', '저가', '종가', '종료시간',
-                                      '현재시간','장시작시간','장종료시간']: #삭제에서 제외
+                                  '현재시간', '장시작시간', '장종료시간']:  # 삭제에서 제외
                     df_detail.drop(factor, axis=1, inplace=True)
         print(df_detail)
 
@@ -1172,8 +1177,9 @@ class Window(QWidget):
             self.QPB_start.setEnabled(False)
         else:
             print(f"데이터 최대값 초과 : 백테스트 기간을 더 단축하세요   {sys.maxsize=}    {self.length_index=}")
-    def view_chart(self,df):
-        if (df['잔고'] == df.loc[df.index[0],'잔고']).all():
+
+    def view_chart(self, df):
+        if (df['잔고'] == df.loc[df.index[0], '잔고']).all():
             print('잔고 변함 없음 매수 0 회')
             QMessageBox.about(self, '알람', '잔고 변함 없음 매수 0 회')
 
@@ -1188,88 +1194,86 @@ class Window(QWidget):
             self.QLE_start.setText(start_day)
             list_columns = df.columns.tolist()
             if self.QCB_chart.isChecked() == True:
-                df_chart_table = self.chart_table.input(df,self.QCB_market.currentText())
-                self.chart_table.chart_show(self.QCB_market.currentText(),self.QCB_ticker.currentText())
+                df_chart_table = self.chart_table.input(df, self.QCB_market.currentText())
+                self.chart_table.chart_show(self.QCB_market.currentText(), self.QCB_ticker.currentText())
             self.result_chart(df)
             # df.to_sql('backtest', sqlite3.connect('DB/bt.db'), if_exists='replace')
 
-    def result_chart(self,df):
+    def result_chart(self, df):
 
         # df.index = df.index.astype(str).str[:10]
 
         # df['holding'] = np.log1p(df['holding'])
         df['ror'] = (df['종가'] - df['시가'][0]) / df['시가'][0]
         df['holding'] = int(self.QLE_bet.text()) + (df['ror'] * int(self.QLE_bet.text()))
-        df['holding'] = df['holding']/df['holding'][0]
+        df['holding'] = df['holding'] / df['holding'][0]
         amount = df['수익금'].sum()
         df['DD'] = df['strategy'] / df['strategy'].cummax() - 1
         df['MDD'] = df['DD'].cummin()
 
-        df['전략수익률'] = round(df['strategy'] / df['strategy'][0],2)
+        df['전략수익률'] = round(df['strategy'] / df['strategy'][0], 2)
         diff = df.index[-1] - df.index[0]
         N = diff.days / 365
         기간수익률 = df['전략수익률'][-1]
-        연복리수익률 = ((기간수익률 ** (1 / N)) - 1)*100
+        연복리수익률 = ((기간수익률 ** (1 / N)) - 1) * 100
         # df['index'] = self.compare_price(df['종가'], df['전략수익률'])
-        df['index'] = round(self.compare_price(df['종가'], df['전략수익률']),2)
+        df['index'] = round(self.compare_price(df['종가'], df['전략수익률']), 2)
         # df_benefit = df[['MDD','DD']]
         # df_benefit.to_sql('수익금',sqlite3.connect('DB/bt.db'), if_exists='replace')
         games = df['수익금'].count()
-        win = len(df.loc[df['수익금'] > 0]) #횟수
+        win = len(df.loc[df['수익금'] > 0])  # 횟수
         lose = len(df.loc[df['수익금'] < 0])
-        win_sum = df.loc[df['수익금'] > 0].수익금.sum() #금액
+        win_sum = df.loc[df['수익금'] > 0].수익금.sum()  # 금액
         loss_sum = df.loc[df['수익금'] < 0].수익금.sum()
-        avg_profit = win_sum/win
-        avg_loss = loss_sum/lose
-        pov = win/games*100
+        avg_profit = win_sum / win
+        avg_loss = loss_sum / lose
+        pov = win / games * 100
 
         grid = GridSpec(4, 1, wspace=0.3, hspace=0.5)
-        fig = plt.figure(figsize=(16,9))
+        fig = plt.figure(figsize=(16, 9))
 
         ax1 = fig.add_subplot(grid[0:3, 0:1])
         ax2 = fig.add_subplot(grid[3:4, 0:1], sharex=ax1)
 
-        ax1.plot(df.index,df['전략수익률'],label='전략수익률')
+        ax1.plot(df.index, df['전략수익률'], label='전략수익률')
         # ax1.plot(df['strategy'],label='strategy')
-        ax1.plot(df['index'],label=self.QCB_ticker.currentText())
-        ax1.plot(df['holding'],label='holding')
+        ax1.plot(df['index'], label=self.QCB_ticker.currentText())
+        ax1.plot(df['holding'], label='holding')
         ax1.legend(loc='upper left', ncol=3, shadow=True)
         ax1.set_ylabel(f'{self.QCB_ticker.currentText()}')
 
-
-        ax2.plot(df.DD, c='y', lw=1,label='DD')
+        ax2.plot(df.DD, c='y', lw=1, label='DD')
         ax2.hlines(df.DD.mean(), df.index.min(), df.index.max(), color='g', ls='--')
-        ax2.plot(df.MDD, c='r', lw=1,label='MDD')
+        ax2.plot(df.MDD, c='r', lw=1, label='MDD')
         ax2.legend(loc=1, ncol=3, shadow=True)
         ax2.set_ylabel('Drawdown')
 
-        self.배팅금액 = format(int(self.QLE_bet.text()),',')
-        self.수익금 = format(round(amount),',')
-        self.수익률 = round(amount/int(self.QLE_bet.text())*100)
-        self.연복리수익률 = round(연복리수익률,1)
+        self.배팅금액 = format(int(self.QLE_bet.text()), ',')
+        self.수익금 = format(round(amount), ',')
+        self.수익률 = round(amount / int(self.QLE_bet.text()) * 100)
+        self.연복리수익률 = round(연복리수익률, 1)
         self.거래횟수 = games
         idx_day = df.index.astype(str).str[:10]
         거래일 = len(df.groupby(idx_day).size().index)
-        self.일평균거래횟수 = round(games/거래일,1)
-        self.승률 = round(pov,1)
-        self.손익비 = round(avg_profit/abs(avg_loss),1)
+        self.일평균거래횟수 = round(games / 거래일, 1)
+        self.승률 = round(pov, 1)
+        self.손익비 = round(avg_profit / abs(avg_loss), 1)
         self.MDD = df['MDD'][-1].round(1)
 
-
         try:
-            plt.title(f"종목명: {self.QCB_ticker.currentText()},  배팅금액{self.배팅금액},  매매기간: {self.QLE_start.text()+'~'+self.QLE_end.text()},  "
-                      f"봉: {self.QCB_bong.currentText()},  총 수익금: {self.수익금},  수익률: {self.수익률} %, 연복리수익률(CAGR): {self.연복리수익률},\n"
-                      f"거래횟수: {self.거래횟수},  일평균 거래횟수: {self.일평균거래횟수},  거래일: {거래일}  승률: {self.승률}%,  손익비: {self.손익비}%, "
-                      f"MDD: {self.MDD},  TradingEdge: {round(pov*avg_profit-(1-pov)*avg_loss)},  P&L ration: {round((1-pov)/pov,1)} ")
+            plt.title(
+                f"종목명: {self.QCB_ticker.currentText()},  배팅금액{self.배팅금액},  매매기간: {self.QLE_start.text() + '~' + self.QLE_end.text()},  "
+                f"봉: {self.QCB_bong.currentText()},  총 수익금: {self.수익금},  수익률: {self.수익률} %, 연복리수익률(CAGR): {self.연복리수익률},\n"
+                f"거래횟수: {self.거래횟수},  일평균 거래횟수: {self.일평균거래횟수},  거래일: {거래일}  승률: {self.승률}%,  손익비: {self.손익비}%, "
+                f"MDD: {self.MDD},  TradingEdge: {round(pov * avg_profit - (1 - pov) * avg_loss)},  P&L ration: {round((1 - pov) / pov, 1)} ")
         except:
             df_nan = df.loc[np.isnan(df['strategy'])]
-            plt.title(f"배팅금액{format(int(self.QLE_bet.text()),',')}  총 수익금: 청산  거래횟수: {games}  승률: {round(pov,1)}%,  "
+            plt.title(f"배팅금액{format(int(self.QLE_bet.text()), ',')}  총 수익금: 청산  거래횟수: {games}  승률: {round(pov, 1)}%,  "
                       # f"청산일: {df_nan.index[0]}"
                       f"")
         plt.legend()
         plt.show()
         self.plt = plt
-
 
     def progress_loading(self, val):
         self.QPB_bar.setValue(val)
@@ -1281,19 +1285,18 @@ class Window(QWidget):
         self.QPB_stop.setEnabled(False)
         self.QPB_bar.setValue(0)
 
-
     def save_bt(self):
         self.BTN_efect(self.QPB_save_bt)
-        path = 'DB/images/'+str(datetime.now().strftime('%Y-%m-%d_%H%M'))+'.png'
-        plt.savefig(path,dpi=200,facecolor='#eeeeee', edgecolor='blue', bbox_inches='tight')
-        data = {'ticker':self.QCB_ticker.currentText(), '배팅금액':self.배팅금액, '수익금':self.수익금, '수익률':self.수익률,
-                '연복리수익률':self.연복리수익률, '거래횟수':self.거래횟수,'일평균거래횟수':self.일평균거래횟수, '승률':self.승률,
-                '손익비':self.손익비,'MDD' :self.MDD, '매매기간':self.QLE_start.text() + '~' + self.QLE_end.text(),
-                '봉':self.QCB_bong.currentText(), '매수전략':self.QTE_stg_buy.toPlainText(),
-                '매도전략':self.QTE_stg_sell.toPlainText()}
+        path = 'DB/images/' + str(datetime.now().strftime('%Y-%m-%d_%H%M')) + '.png'
+        plt.savefig(path, dpi=200, facecolor='#eeeeee', edgecolor='blue', bbox_inches='tight')
+        data = {'ticker': self.QCB_ticker.currentText(), '배팅금액': self.배팅금액, '수익금': self.수익금, '수익률': self.수익률,
+                '연복리수익률': self.연복리수익률, '거래횟수': self.거래횟수, '일평균거래횟수': self.일평균거래횟수, '승률': self.승률,
+                '손익비': self.손익비, 'MDD': self.MDD, '매매기간': self.QLE_start.text() + '~' + self.QLE_end.text(),
+                '봉': self.QCB_bong.currentText(), '매수전략': self.QTE_stg_buy.toPlainText(),
+                '매도전략': self.QTE_stg_sell.toPlainText()}
         df = pd.DataFrame(data=data, index=[str(datetime.now().strftime('%Y-%m-%d_%H%M'))])
-                          # columns=['ticker', '배팅금액', '수익금', '수익률', '연복리수익률', '거래횟수',
-                          #          '일평균거래횟수', '승률', '손익비', 'MDD', '매매기간', '봉','매수전략', '매도전략'])
+        # columns=['ticker', '배팅금액', '수익금', '수익률', '연복리수익률', '거래횟수',
+        #          '일평균거래횟수', '승률', '손익비', 'MDD', '매매기간', '봉','매수전략', '매도전략'])
         # df = pd.DataFrame(data, index=[datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
         #                   columns=['ticker', '배팅금액', '수익금', '수익률', '연복리수익률', '거래횟수',
         #                            '일평균거래횟수', '승률', '손익비', 'MDD', '매매기간', '봉','매수전략', '매도전략'])
@@ -1316,7 +1319,7 @@ class Window(QWidget):
         conn.close()
         print('백테스트 데이터 저장 완료')
 
-    def make_candle(self,df):
+    def make_candle(self, df):
         matplotlib.rcParams['font.family'] = 'NanumGothic'
         matplotlib.rcParams['axes.unicode_minus'] = False
         matplotlib.rcParams['font.size'] = 12
@@ -1327,7 +1330,7 @@ class Window(QWidget):
         low = df['저가']
         close = df['종가']
         volume = df['거래량']
-        df['Change'] = (df['종가']-df['종가'].shift(1))/df['종가'].shift(1)
+        df['Change'] = (df['종가'] - df['종가'].shift(1)) / df['종가'].shift(1)
         change = df['Change']
 
         from matplotlib import gridspec
@@ -1348,9 +1351,7 @@ class Window(QWidget):
         plt.subplots_adjust(wspace=0, hspace=0)  # 구획(subplot) 간의 간격을 없앤다.
         plt.show()
 
-
         cmap = list(map(lambda x: 'orange' if x > 0 else 'c', change))
-
 
         from matplotlib import gridspec
 
@@ -1378,8 +1379,8 @@ class Window(QWidget):
         conn = sqlite3.connect('DB/setting.db')
         df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
         conn.close()
-        api = df.loc['BYBIT_api','value']
-        secret = df.loc['BYBIT_secret','value']
+        api = df.loc['BYBIT_api', 'value']
+        secret = df.loc['BYBIT_secret', 'value']
         exchange = ccxt.bybit(config={
             'apiKey': api,
             'secret': secret,
@@ -1388,18 +1389,21 @@ class Window(QWidget):
                 'position_mode': True,
             }, })
         return exchange
+
     def make_exchange_kis(self):
-        key= 'test'
-        secret= 'test'
+        key = 'test'
+        secret = 'test'
         acc_no = "01-01"
         market = '주식'
         mock = True
-        exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market,mock=mock)
+        exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
         return exchange
-    def BTN_efect(self,QPB):
+
+    def BTN_efect(self, QPB):
         QPB.setEnabled(False)
         QTest.qWait(250)
         QPB.setEnabled(True)
+
     def init_file(self):
         import os
         stg_file = ['DB/DB_stock.db', 'DB/DB_bybit.db', 'DB/DB_futopt.db']
@@ -1410,15 +1414,15 @@ class Window(QWidget):
         if not os.path.isfile(file):
             sqlite3.connect(file)
             conn = sqlite3.connect(file)
-            list_stg = ['coin_buy','coin_sell','krx_buy','krx_sell']
+            list_stg = ['coin_buy', 'coin_sell', 'krx_buy', 'krx_sell']
             for stg in list_stg:
                 df = pd.DataFrame(columns=['전략코드'])
                 df.to_sql(stg, conn, if_exists='replace')
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = Window(tab_chart_table.Window())
-    window.setGeometry(2000,800,700,600) # x,y,width,height
+    window.setGeometry(2000, 800, 700, 600)  # x,y,width,height
     window.show()
     sys.exit(app.exec_())

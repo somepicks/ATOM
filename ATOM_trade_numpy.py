@@ -499,7 +499,8 @@ def moving_average(np_arry, w):
 class Trade_np(QThread):
     qt_open = pyqtSignal(pd.DataFrame)
     qt_closed = pyqtSignal(pd.DataFrame)
-    val_light = pyqtSignal(bool)
+    # val_sum = pyqtSignal(pd.DataFrame)
+    val_light = pyqtSignal(bool,pd.DataFrame)
     # val_instock = pyqtSignal(pd.DataFrame)
 
 
@@ -615,9 +616,9 @@ class Trade_np(QThread):
             self.cond.wakeAll()
         elif not self._status:
             self.bool_light = False
-            self.val_light.emit(self.bool_light)
+            self.val_light.emit(self.bool_light,self.df_trade)
     def active_light(self):
-        self.val_light.emit(self.bool_light)
+        self.val_light.emit(self.bool_light,self.df_trade)
         self.bool_light = not self.bool_light
     @property
     def status(self):
@@ -828,8 +829,8 @@ class Trade_np(QThread):
                 ticker = dict_stg[stg]['종목코드']
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False)
                 df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
-                print(f"{df= }")
-                print(f"{df.loc[df.index[-1],'종가']= }")
+                # print(f"{df= }")
+                # print(f"{df.loc[df.index[-1],'종가']= }")
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 # if not np.isnan():
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
@@ -2558,6 +2559,10 @@ class Trade_np(QThread):
                 list_sorting = df.index.tolist()
             else:
                 print(obj)
+                raise
+            if '' in list_sorting:
+                print(f"{key= }   {value= }   {upper= }   {lower= }")
+                print(df)
                 raise
         return list_sorting
 

@@ -926,7 +926,7 @@ class Window(QMainWindow):
             self.chart_thread.stop()
             self.chart_thread = None
 
-    def effect_start(self, light):
+    def effect_start(self, light, df_trade):
         if light == True:
             self.QPB_start.setStyleSheet("background-color: #fa3232;")
 
@@ -935,20 +935,20 @@ class Window(QMainWindow):
             df_history['청산시간'] = pd.to_datetime(df_history['청산시간'], utc=True)
             df_history = df_history[df_history['청산시간'].dt.date == today.date()]
             win = len(df_history.loc[df_history['수익금'] > 0])
-            df_stg = self.df_stg.copy()
-            df = pd.concat([df_history,df_stg])
-
+            # df_compare = self.df_compare.copy()
+            df_trade = df_trade[df_trade['상태'] != '대기']
+            df = pd.concat([df_history,df_trade])
             benefit_closed = df['수익금'].sum()
             df['가중치'] = df['매입금액'] / df['매입금액'].sum()  # 비중 계산
             가중평균 = (df['수익률'] * df['가중치']).sum()
 
             # print(f"가중 평균 수익률: {가중평균:.2f}%  수익금: {benefit_closed}")
-            self.QL_ror.setText(f"{가중평균:.2f}%")
-            self.QL_benefit.setText(f"{benefit_closed:.1f}")
+            self.QL_ror.setText(f"{가중평균:,.2f}%")
+            self.QL_benefit.setText(f"{benefit_closed:,.1f}")
             if len(df_history) == 0:
                 self.QL_win.setText(f"{0}%")
             else:
-                self.QL_win.setText(f"{(win/len(df_history))*100}%")
+                self.QL_win.setText(f"{(win/len(df_history))*100:,.1f}%")
 
             # print(df_history)
             # print(self.df_stg)
@@ -988,8 +988,8 @@ class Window(QMainWindow):
         # self.timer.stop()
 
     def qtable_open(self, df):
-        df_compare = df[['ticker', '진입시간', '청산가', '청산시간', '상태', '분할상태', '현재봉시간','매입금액', '잔고', '분할보유수량']]
-        if not self.df_old.equals(df_compare):
+        self.df_compare = df[['ticker', '진입시간', '청산가', '청산시간', '상태', '분할상태', '현재봉시간','매입금액', '잔고', '분할보유수량']]
+        if not self.df_old.equals(self.df_compare):
             self.df_stg = df.combine_first(self.df_stg)
             self.df_stg.sort_values('table', inplace=True)
 
@@ -1018,7 +1018,7 @@ class Window(QMainWindow):
                         quit()
                     except:
                         pass
-            self.df_old = df_compare.copy()
+            self.df_old = self.df_compare.copy()
 
         # df['전략명'] = df.index
 

@@ -4,14 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="ROOM">
+    <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
       <change beforePath="$PROJECT_DIR$/.idea/ATOM.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ATOM.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/stg_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -37,7 +38,7 @@
   <component name="GithubPullRequestsUISettings"><![CDATA[{
   "selectedUrlAndAccountId": {
     "url": "https://github.com/somepicks/ATOM.git",
-    "accountId": "1c7324b2-7ceb-4aca-bb89-64f574ea4eaf"
+    "accountId": "6cb44d87-eab8-4176-b355-a8e8d4b675fe"
   }
 }]]></component>
   <component name="MarkdownSettingsMigration">
@@ -54,23 +55,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.ATOM.executor&quot;: &quot;Run&quot;,
-    &quot;Python.ATOM_trade_numpy.executor&quot;: &quot;Run&quot;,
-    &quot;Python.KIS.executor&quot;: &quot;Run&quot;,
-    &quot;Python.common_def.executor&quot;: &quot;Run&quot;,
-    &quot;Python.ex.executor&quot;: &quot;Run&quot;,
-    &quot;Python.tab_backtest.executor&quot;: &quot;Run&quot;,
-    &quot;Python.tab_trade.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/python_project/ATOM&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.ATOM.executor": "Run",
+    "Python.ATOM_trade_numpy.executor": "Run",
+    "Python.KIS.executor": "Run",
+    "Python.common_def.executor": "Run",
+    "Python.ex.executor": "Run",
+    "Python.tab_backtest.executor": "Run",
+    "Python.tab_trade.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/python_project/ATOM",
+    "settings.editor.selected.configurable": "editor.preferences.fonts.default"
   }
-}</component>
-  <component name="RunManager" selected="Python.tab_trade">
+}]]></component>
+  <component name="RunManager" selected="Python.ex">
     <configuration name="ATOM_trade_numpy" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -183,9 +184,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.ex" />
         <item itemvalue="Python.tab_trade" />
         <item itemvalue="Python.ATOM_trade_numpy" />
-        <item itemvalue="Python.ex" />
         <item itemvalue="Python.tab_backtest" />
         <item itemvalue="Python.KIS" />
       </list>
@@ -194,7 +195,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-495700d161d3-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.22562.220" />
+        <option value="bundled-python-sdk-fb887030ada0-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.21565.199" />
       </set>
     </attachedChunks>
   </component>
@@ -327,7 +328,15 @@
       <option name="project" value="LOCAL" />
       <updated>1736322856917</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1736579746279</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1736579746279</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -348,7 +357,8 @@
     <MESSAGE value="trade numpy" />
     <MESSAGE value="home" />
     <MESSAGE value="company" />
-    <option name="LAST_COMMIT_MESSAGE" value="company" />
+    <MESSAGE value="HOME" />
+    <option name="LAST_COMMIT_MESSAGE" value="HOME" />
     <option name="GROUP_MULTIFILE_MERGE_BY_DIRECTORY" value="true" />
   </component>
 </project>
