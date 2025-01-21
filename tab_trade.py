@@ -17,7 +17,7 @@ import numpy as np
 import chart_real
 # from collections import deque
 import time
-# from pprint import pprint
+from pprint import pprint
 # import multiprocessing as mp
 # import tab_chart_table
 # import color as cl
