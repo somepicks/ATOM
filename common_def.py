@@ -372,6 +372,25 @@ def datetime_to_str(date_time):
 def datetime_to_int_time(date_time):
     return int(datetime.datetime.strftime((date_time), "%H%M%S"))
 
+
+def purple(text):
+    return f'\033[38;2;215;95;215m{text}\033[0m'
+def red(text):
+    return f'\033[31m{text}\033[0m'
+def fie(text):
+    return f'\033[91m{text}\033[0m'
+def blue(text):
+    return f'\033[34m{text}\033[0m'
+def cyan(text):
+    return f'\033[36m{text}\033[0m'
+def yellow(text):
+    return f'\033[33m{text}\033[0m'
+def green(text):
+    return f'\033[32m{text}\033[0m'
+
+
+
+
 class PythonHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
         super(PythonHighlighter, self).__init__(parent)
@@ -409,12 +428,13 @@ class PythonHighlighter(QSyntaxHighlighter):
             Pattern = QRegExp(f"\\b{keyword}\\b")
             self.highlightingRules.append((Pattern, greenFormat))
 
-        grayFormat = QTextCharFormat()
-        grayFormat.setForeground(QColor("gray"))
-        keywords_gray = ["#"]
+        self.grayFormat = QTextCharFormat()
+        self.grayFormat.setForeground(QColor("gray"))
+        self.grayFormat.setFontItalic(True)  # 기울임꼴
+        keywords_gray = [r"#.*"]
         for keyword in keywords_gray:
             Pattern = QRegExp(f"\\b{keyword}\\b")
-            self.highlightingRules.append((Pattern, grayFormat))
+            self.highlightingRules.append((Pattern, self.grayFormat))
 
         pinkFormat = QTextCharFormat()
         pinkFormat.setForeground(QColor("pink"))
@@ -430,12 +450,12 @@ class PythonHighlighter(QSyntaxHighlighter):
             Pattern = QRegExp(f"\\b{keyword}\\b")
             self.highlightingRules.append((Pattern, darkCyanFormat))
 
-        darkGrayFormat = QTextCharFormat()
-        darkGrayFormat.setForeground(QColor("darkGray"))
-        keywords_gray = ["#"]
-        for keyword in keywords_gray:
-            Pattern = QRegExp(f"\\b{keyword}\\b")
-            self.highlightingRules.append((Pattern, darkGrayFormat))
+        # darkGrayFormat = QTextCharFormat()
+        # darkGrayFormat.setForeground(QColor("darkGray"))
+        # keywords_gray = ["#"]
+        # for keyword in keywords_gray:
+        #     Pattern = QRegExp(f"\\b{keyword}\\b")
+        #     self.highlightingRules.append((Pattern, darkGrayFormat))
 
     def highlightBlock(self, text):
         for pattern, format in self.highlightingRules:
@@ -462,7 +482,13 @@ class PythonHighlighter(QSyntaxHighlighter):
                     format = QTextCharFormat()
                     # format.setForeground(color)
                     self.setFormat(i, 1, format)
-        ################################ 괄호
+        ################################ 주석처리
+        comment_pattern = QRegExp(r"#.*")
+        index = comment_pattern.indexIn(text)
+        while index >= 0:
+            length = comment_pattern.matchedLength()
+            self.setFormat(index, length, self.grayFormat)
+            index = comment_pattern.indexIn(text, index + length)
         self.setCurrentBlockState(0)
 
 

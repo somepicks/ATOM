@@ -296,7 +296,6 @@ bybit = ccxt.bybit({
 # tickers = bybit.fetch_tickers()
 # df = bybit_set_tickers(tickers)
 # print(df['quoteVolume'])
-
 st = '1~2'
 print(st[st.index('~')+1:])
 print(st[:st.index('~')])
@@ -306,15 +305,15 @@ if di:
 print('===================')
 마디가 = [0.04,0.09,0.16,0.29,0.39,0.46,0.57,0.75,0.89,1.07,1.51,1.8,2.16,2.59,3.07,3.52,4.34,5.13]
 # print(f"{마디가= }")
-진입가 = 0.01
-익절가 = [x for x in 마디가 if 진입가 * 1.1 < x ]
-# print(f"{익절가= }")
-# print(f"{익절가[1]= }")
+진입가 = 0.5
+익절가 = [x for x in 마디가 if 진입가 < x ]
+print(f"{익절가= }")
+print(f"{익절가[2]= }")
+print()
 # 손절가 = max([x for x in 마디가 if 진입가 * 0.9 > x ])
 # print(f"{손절가= }")
 # print(f"{익절가[1]= }")
-benefit_closed = 10354896.13546
-print(f"{benefit_closed:,.1f}")
+
 quit()
 values = [['2', 2, 3], ['4', 5, 6], ['1', 8, 9]]
 index = ['one', 'two', 'three']

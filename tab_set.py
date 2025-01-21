@@ -227,7 +227,7 @@ class Window(QWidget):
         QVB_main.addLayout(QHB_CYBOS)
         QVB_main.addWidget(QLabel('바이비트: 실전'))
         QVB_main.addLayout(QHB_BYBIT)
-        QVB_main.addWidget(QLabel('바이비트: 실전'))
+        QVB_main.addWidget(QLabel('바이비트: 모의'))
         QVB_main.addLayout(QHB_BYBIT_mock)
         QVB_main.addWidget(QLabel('텔레그램'))
         QVB_main.addLayout(QHB_TELE)

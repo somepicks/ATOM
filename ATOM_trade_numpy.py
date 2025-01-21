@@ -856,7 +856,7 @@ class Trade_np(QThread):
                 if check_time == True:
                     dict_stg[stg]['검색대상'] = self.sorting_tickers(stg,obj)
                 if dict_stg[stg]['검색대상']:
-                    print(f"{stg=}    {dict_stg[stg]['검색대상']= }  {상태= }   {type(dict_stg[stg]['검색대상'])= }")
+                    # print(f"{stg=}    {dict_stg[stg]['검색대상']= }  {상태= }   {type(dict_stg[stg]['검색대상'])= }")
                     for i, ticker in enumerate(dict_stg[stg]['검색대상']):
                         if ticker != '':
                             ticker = dict_stg[stg]['종목코드']
@@ -871,7 +871,7 @@ class Trade_np(QThread):
                             # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
                             df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
                             데이터길이 = df.loc[df.index[-1], '데이터길이']
-                            print(f"{stg= }   {ticker= }   {데이터길이= }")
+                            # print(f"{stg= }   {ticker= }   {데이터길이= }")
                             idx_bong = df['데이터길이'].tolist().index(데이터길이)
 
                             if 캔들종료시간 < 현재시간 and common_def.str_to_datetime(bong_time) < df.index[idx_bong]:  # 현재시간은 finish보다 앞서도라도 증권사에서 보내주는 봉 시간은 조금 느릴 수 있기 때문에 조건 2개 확인
@@ -1757,7 +1757,7 @@ class Trade_np(QThread):
         self.df_trade.loc[stg, '수익률'] = 수익률
         self.df_trade.loc[stg, '최고수익률'] = np.where(수익률 > self.df_trade.loc[stg, '최고수익률'],수익률, self.df_trade.loc[stg, '최고수익률'])
         self.df_trade.loc[stg, '최저수익률'] = np.where(수익률 < self.df_trade.loc[stg, '최저수익률'],수익률, self.df_trade.loc[stg, '최저수익률'])
-        print(f"chegyeol_sell_on_scale - end {stg=} {상태= }   {분할상태= }    {분할보유수량= }    {sum(분할보유수량)= }     {현재가= }   {잔고= }    {sum(분할진입수수료)=}   {남은청산수수료= }   {수익률=},   {수익금= }   {매입금액= }     {증거금률= }  {sum(분할진입수수료)= } ")
+        print(f"chegyeol_sell_on_scale - end {stg=} {상태= }   {분할상태= }    {분할보유수량= }    {sum(분할보유수량)= }     {현재가= }    {sum(분할진입수수료)=}   {남은청산수수료= }   {수익률=},   {수익금= }   {매입금액= }     {증거금률= }  {sum(분할진입수수료)= } ")
         if '매도주문' in 분할상태 or '시장가매도' in 분할상태 or '부분매도' in 분할상태 :
             if all(x in ['매도주문', '시장가매도', '매수'] for x in 분할상태): #상태가 '매도주문', '시장가매도', '대기'로만 되어있을 경우
                 상태 = '분할매도주문'

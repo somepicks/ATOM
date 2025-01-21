@@ -631,7 +631,7 @@ class backtest_np(QThread):
                     # if 현재시간 == datetime(2024,7,2,15,20,0):
                     #     print(f"{현재시간= } | {시가= }, {시가N(2)= }")
                     #     quit()
-                    if not 매수 == False:  # 매수 일 경우 None을 반환하기 때문에(매수신호 떳을 때)
+                    if (not 매수 == False) and (not 매수 == None):  # 매수 일 경우 None을 반환하기 때문에(매수신호 떳을 때)
                         # print(f"{현재시간}  {구간최고시가N(10, 1)} <= {종가N(1)}")
                         상태 = '매수주문'
                         진입주문가 = locals_dict_buy.get('매수가')
@@ -1001,12 +1001,14 @@ class backtest_np(QThread):
         if type(price_in) == dict:
             hoga_price = list(price_in.keys())[0]
             hoga_rate = price_in[hoga_price]
-            if self.trade_market == 'bybit':
-                price_out = float(self.exchange.price_to_precision(self.ticker, hoga_price + (hoga_price * hoga_rate / 100)))
-            elif self.trade_market == 'KOSPI' or self.trade_market == 'KOSDAQ' or self.trade_market == 'ETF' or self.trade_market == 'ETF':
-                price_out = self.exchange.hogaPriceReturn(self.trade_market,self.ticker, hoga_price, hoga_rate)
-            elif self.trade_market == '선물' or self.trade_market == '옵션':
-                price_out = self.exchange.hogaPriceReturn(self.trade_market,self.ticker, hoga_price, hoga_rate)
+            try:
+                if self.trade_market == 'bybit':
+                    price_out = float(self.exchange.price_to_precision(self.ticker, hoga_price + (hoga_price * hoga_rate / 100)))
+                elif self.trade_market == 'KOSPI' or self.trade_market == 'KOSDAQ' or self.trade_market == 'ETF' or self.trade_market == 'ETF':
+                    price_out = self.exchange.hogaPriceReturn(self.trade_market,self.ticker, hoga_price, hoga_rate)
+                elif self.trade_market == '선물' or self.trade_market == '옵션':
+                    price_out = self.exchange.hogaPriceReturn(self.trade_market,self.ticker, hoga_price, hoga_rate)
+            except: f"{self.ticker= }   {hoga_price= }  {hoga_rate= }    "
         elif price_in == 시장가 :  # 슬리피지 반영
             if self.trade_market == 'bybit' or self.trade_market == '선물' or self.trade_market == '옵션':
                 if self.direction == 'long' and side == '매수주문': 가격 = 시가 + (slippage / 100 * 시가)
@@ -1056,15 +1058,28 @@ class backtest_np(QThread):
                 상태 = '종료'
         else:
             # print(f"{잔고} * ({매수} / 100) * {레버리지}")
-            배팅금액 = 잔고 * (매수 / 100) * self.레버리지
-            매수수량 = (100 - (self.fee_market * self.레버리지)) / 100 * 배팅금액 / 매수가
-            매수수량 = float(self.exchange.amount_to_precision(self.ticker, 매수수량))
-            매수금액 = round(매수수량 * 매수가,4)
-            매수수수료 = round(매수금액 * self.fee_market / 100, 4)
-            잔고 = round(잔고 - (매수금액 / self.레버리지) - 매수수수료, 4)
-            자산 = round(잔고 + (매수금액 / self.레버리지),4)
-            최고수익률 = 0
-            최저수익률 = 0
+            if 매수 == None:
+                raise f'{매수= }'
+            try:
+                배팅금액 = 잔고 * (매수 / 100) * self.레버리지
+                매수수량 = (100 - (self.fee_market * self.레버리지)) / 100 * 배팅금액 / 매수가
+                매수수량 = float(self.exchange.amount_to_precision(self.ticker, 매수수량))
+                매수금액 = round(매수수량 * 매수가,4)
+                매수수수료 = round(매수금액 * self.fee_market / 100, 4)
+                잔고 = round(잔고 - (매수금액 / self.레버리지) - 매수수수료, 4)
+                자산 = round(잔고 + (매수금액 / self.레버리지),4)
+                최고수익률 = 0
+                최저수익률 = 0
+            except:
+                print(f"{잔고= }")
+                print(f"{매수= }")
+                print(f"{self.레버리지= }")
+                배팅금액 = 잔고 * (매수 / 100) * self.레버리지
+                print(f"{배팅금액= }")
+                print(f"{(100 - (self.fee_market * self.레버리지))= }")
+                print(f"{self.fee_market= }")
+                print(f"{매수가= }")
+                print(f"{매수수량= }")
 
         self.buy[row_tik] = 매수가
         self.wallet[row_tik] = 잔고
@@ -1844,29 +1859,29 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    # market = '코인'
-    # ticker = 'BTC'
-    market = '국내주식'
-    ticker = '122630'
+    market = '코인'
+    ticker = 'BTC'
+    # market = '국내주식'
+    # ticker = '122630'
     # market = '국내선옵'
     # ticker = '201VA355'
     # ticker = '코스피200선물'
 
     bong = '일봉'
-    bong_detail = '5분봉'
+    bong_detail = '1분봉'
     min = min_QCB(True)
 
-    frdate = '2010-01-01'
+    frdate = '2024-11-01'
     todate = datetime.datetime.now().strftime('%Y-%m-%d')
     # frdate = '2022-06-28'
     # todate = '2024-01-03'
     long = 'long'
     conn = sqlite3.connect('DB/strategy.db')
-    locals_dict_buy = {}
+
     if market == '코인':
         bet = 100
         df_stg = pd.read_sql(f"SELECT * FROM 'coin_buy'", conn).set_index('index')  # 머니탑 테이블 갖고오기
-        stg_buy_text = df_stg.loc['매수','전략코드']
+        stg_buy_text = df_stg.loc['볼밴','전략코드']
         df_stg = pd.read_sql(f"SELECT * FROM 'coin_sell'", conn).set_index('index')  # 머니탑 테이블 갖고오기
         conn.close()
         stg_sell_text = df_stg.loc['매도','전략코드']
@@ -1874,13 +1889,8 @@ if __name__ == '__main__':
         exchange,exchange_pybit = common_def.make_exchange_bybit(False)
         stocks_info = pd.DataFrame()
         trade_market = 'bybit'
-        증거금률 = stg_buy_text.split("\n", 3)[2]  # 첫줄 읽기 추출
-        exec(증거금률, None, locals_dict_buy)
-        증거금률 = locals_dict_buy.get('레버리지')
-        direction = stg_buy_text.split("\n", 4)[3]  # 첫줄 읽기 추출
-        exec(direction, None, locals_dict_buy)
-        direction = locals_dict_buy.get('방향')
         거래승수 = 1
+
 
     elif market == '국내주식' or market == '국내선옵':
         bet = 1_000_000
@@ -1911,12 +1921,44 @@ if __name__ == '__main__':
         stocks_info = pd.DataFrame()
         stg_buy_text = ''
         stg_sell_text = ''
-    print(stg_buy_text)
-    print(stg_sell_text)
-    print('============' * 5)
 
     stg_buy = replace_tabs_with_spaces(stg_buy_text)
     stg_sell = replace_tabs_with_spaces(stg_sell_text)
+    print(stg_buy)
+    print(stg_sell)
+    print('============' * 5)
+    locals_dict_buy = {}
+    locals_dict_sell = {}
+    object = stg_buy.split("\n", 1)[0]  # 첫줄 읽기 추출
+    exec(object, None, locals_dict_buy)
+    object = locals_dict_buy.get('진입대상')
+    bong = stg_buy.split("\n", 2)[1]  # 둘줄 읽기 추출
+    exec(bong, None, locals_dict_buy)
+    bong = locals_dict_buy.get('봉')
+    bet = stg_buy.split("\n", 4)[3]
+    exec(bet, None, locals_dict_buy)
+    bet = locals_dict_buy.get('초기자금')
+    if market == '코인':
+        direction = stg_buy.split("\n", 3)[2]  # 첫줄 읽기 추출
+        exec(direction, None, locals_dict_buy)
+        direction = locals_dict_buy.get('방향')
+        증거금률 = stg_buy.split("\n", 5)[4]  # 첫줄 읽기 추출
+        exec(증거금률, None, locals_dict_buy)
+        증거금률 = locals_dict_buy.get('레버리지')
+        division_buy = stg_buy.split("\n", 6)[5]  # 첫줄 읽기 추출
+        exec(division_buy, None, locals_dict_buy)
+        division_buy = locals_dict_buy.get('분할매수')
+    else:
+        direction = stg_buy.split("\n", 4)[3]  # 첫줄 읽기 추출
+        exec(direction, None, locals_dict_buy)
+        direction = locals_dict_buy.get('방향')
+        division_buy = stg_buy.split("\n", 5)[4]  # 첫줄 읽기 추출
+        exec(division_buy, None, locals_dict_buy)
+        division_buy = locals_dict_buy.get('분할매수')
+
+    division_sell = stg_sell.split("\n", 1)[0]  # 첫줄 읽기 추출
+    exec(division_sell, None, locals_dict_sell)
+    division_sell = locals_dict_sell.get('분할매도')
 
     dict_bong_stamp = {'1분봉': 1, '3분봉': 3, '5분봉': 5, '15분봉': 15, '30분봉': 30, '60분봉': 60, '4시간봉': 240, '일봉': 1440,
                        '주봉': 10080}
@@ -1926,18 +1968,21 @@ if __name__ == '__main__':
 
     st = time.time()
 
-    division_buy = stg_buy_text.split("\n", 1)[0]  # 첫줄 읽기 추출
-    exec(division_buy, None, locals_dict_buy)
-    division_buy = locals_dict_buy.get('분할매수')
-    division_sell = stg_buy_text.split("\n", 2)[1]  # 첫줄 읽기 추출
-    exec(division_sell, None, locals_dict_buy)
-    division_sell = locals_dict_buy.get('분할매도')
+    bong = list(bong.keys())[0]
+    if type(object) == dict:
+        ticker = list(object.keys())[0]
+    else:
+        # if object in self.table_list_DB:
+        ticker = object
+        # raise Exception (f'ticker 확인 필요 {object= }   {self.table_list_DB= } ')
+
 
     dict_info = {'market': market, 'ticker': ticker, 'bong': bong, 'bong_detail': bong_detail, 'bet': bet,
                  'start_day': frdate, 'end_day': todate, 'connect': conn_DB, 'dict_bong': dict_bong,'stg_buy': stg_buy,'stg_sell': stg_sell,
                  'dict_bong_reverse': dict_bong_reverse, 'trade_market':trade_market, 'exchange':exchange,
                  'division_buy': division_buy, 'division_sell': division_sell, 'direction':direction,'거래승수':거래승수,
                  '증거금률':증거금률}
+    pprint(dict_info)
 
 
     # df, df_detail, save = get_df_multi(dict_info)

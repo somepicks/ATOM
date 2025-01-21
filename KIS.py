@@ -904,8 +904,11 @@ class KoreaInvestment:
                 "FID_COND_MRKT_CLS_CODE": "",
                 "FID_MRKT_CLS_CODE1": "PO"
                 }
-
-            res = requests.get(url, headers=headers, params=params)
+            try:
+                res = requests.get(url, headers=headers, params=params)
+            except requests:
+                res.json()['msg1'] = 'display_opt 에러'
+                i += 1
             if res.json()['msg1'] == '정상처리 되었습니다.':
                 # pprint(res.json())
                 df_call = pd.DataFrame(res.json()['output1'])
@@ -949,18 +952,17 @@ class KoreaInvestment:
                                  '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
                 df_put.set_index(df_put['종목코드'], inplace=True)
                 break
+
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
                 print(f'display_opt   {res.json()}')
                 QTest.qWait(1000)
             else:
-                # time.sleep(1)
-                # QTest.qWait(1000)
-                # i += 1
-                # if i == 10:
                 pprint(res.json())
-                print('display_opt 조회할 수 없음')
-                df_call = pd.DataFrame()
-                df_put = pd.DataFrame()
+                if i == 10:
+                    print('display_opt 조회할 수 없음')
+                    df_call = pd.DataFrame()
+                    df_put = pd.DataFrame()
+                    break
         return df_call, df_put
     def display_opt_weekly(self,today):
         """국내선물옵션기본시세/국내옵션전광판_콜풋"""
