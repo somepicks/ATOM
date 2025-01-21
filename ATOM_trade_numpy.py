@@ -1711,21 +1711,10 @@ class Trade_np(QThread):
             # 세부상태 = 분할상태[num]
             if 세부상태 == '매도주문' or 세부상태 == '시장가매도' or 세부상태 == '부분매도' :
                 잔고 = self.df_trade.loc[stg, '잔고']
-                # self.df_trade.loc[stg, '주문수량'] = 분할주문수량[num]
-                # self.df_trade.loc[stg, '청산금액'] = 분할청산금액[num]
-                # self.df_trade.loc[stg, '진입수수료'] = 분할진입수수료[num]
-                # self.df_trade.loc[stg, 'id'] = 분할id[num]
-                # self.df_trade.loc[stg, '청산가'] = 분할청산가[num]
-
                 분할매입금액 = 분할보유수량[num] * self.df_trade.loc[stg, '진입가'] * 거래승수
                 분할상태[num], 누적수익금, 분할보유수량[num], 분할평가금액[num], 분할청산금액[num] = \
                     self.chegyeol_sell(stg, ticker, 방향, 세부상태, 분할보유수량[num], 잔고, 현재가, 현재시간, 분할매입금액,
                                        분할주문수량[num],분할청산금액[num],분할진입수수료[num],분할id[num],분할청산가[num])
-
-                # 분할상태[num] = 분할상태[num]
-                # 분할보유수량[num] = 분할보유수량[num]
-                # 분할평가금액[num] = 분할평가금액[num]
-                # 분할청산금액[num] = 분할청산금액[num]
                 print(f"if 세부상태 == '매도주문' or 세부상태 == '시장가매도' or 세부상태 == '부분매도' "
                       f"{num= }  {세부상태= }  {분할상태[num]= }   {분할매입금액= }   ={분할보유수량[num]= }   {분할보유수량[num]= } * {self.df_trade.loc[stg, '진입가']= } * {거래승수= }")
                 if 분할상태[num] == '매도':
