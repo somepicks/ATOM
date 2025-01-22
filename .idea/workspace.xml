@@ -6,21 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ATOM_backtest_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_backtest_numpy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/DB_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/chart_table.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/chart_table.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/setting.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/setting.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/strategy.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/strategy.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chart_real.py" beforeDir="false" afterPath="$PROJECT_DIR$/chart_real.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex_pyqt.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_pyqt.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_set.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_set.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,7 +76,7 @@
   }
 }</component>
   <component name="RunManager" selected="Python.tab_trade">
-    <configuration name="ATOM_backtest_numpy" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="ATOM" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -97,7 +89,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ATOM_backtest_numpy.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ATOM.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -106,7 +98,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="common_def" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="ATOM_trade_numpy" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -119,7 +111,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/common_def.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ATOM_trade_numpy.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -128,7 +120,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="ex_pyqt" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="ex" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -141,7 +133,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ex_pyqt.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ex.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -197,10 +189,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.tab_trade" />
+        <item itemvalue="Python.ATOM_trade_numpy" />
+        <item itemvalue="Python.ATOM" />
+        <item itemvalue="Python.ex" />
         <item itemvalue="Python.tab_backtest" />
-        <item itemvalue="Python.common_def" />
-        <item itemvalue="Python.ex_pyqt" />
-        <item itemvalue="Python.ATOM_backtest_numpy" />
       </list>
     </recent_temporary>
   </component>
@@ -348,7 +340,15 @@
       <option name="project" value="LOCAL" />
       <updated>1736579746279</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1737421606184</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1737421606184</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

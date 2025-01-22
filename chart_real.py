@@ -183,7 +183,7 @@ class Graph(QThread):
                 else:
                     df = common_def.get_kis_ohlcv(self.market,ohlcv)
                     if ticker_full_name.count('_') == 2:  # 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-                        df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+                        df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
                     else:  # 비교대상의 경우 'BTC_5분봉'
                         df = common_def.detail_to_compare(df, bong, ticker_full_name)
             return df
@@ -205,7 +205,7 @@ class Graph(QThread):
                 globals()[ticker_full_name] = ohlcv
             df = common_def.get_kis_ohlcv(self.market,ohlcv)
             if ticker_full_name.count('_') == 2:  # 진입대상인지 비교대상인지 확인 - 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-                df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+                df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
             else:  # 비교대상의 경우 'BTC_5분봉'
                 df = common_def.detail_to_compare(df, bong, ticker_full_name)
             return df
@@ -229,7 +229,7 @@ class Graph(QThread):
             df.set_index('날짜', inplace=True)
             df.index = df.index - pd.Timedelta(hours=9)
             if ticker_full_name.count('_') == 2: # 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-                df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+                df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
             else: # 비교대상의 경우 'BTC_5분봉'
                 df = common_def.detail_to_compare(df, bong, ticker_full_name)
             df.index = df.index + pd.Timedelta(hours=9)
