@@ -38,10 +38,10 @@ pip-delete-this-directory.txt
 
 .env
 token.dat
-DB_bybit.db
-DB_futopt.db
-DB_stock.db
-setting.db
+DB/DB_bybit.db
+DB/DB_futopt.db
+DB/DB_stock.db
+
 
 # Unit test / coverage reports
 htmlcov/
