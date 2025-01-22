@@ -859,7 +859,7 @@ class Trade_np(QThread):
                     # print(f"{stg=}    {dict_stg[stg]['검색대상']= }  {상태= }   {type(dict_stg[stg]['검색대상'])= }")
                     for i, ticker in enumerate(dict_stg[stg]['검색대상']):
                         if ticker != '':
-                            ticker = dict_stg[stg]['종목코드']
+                            dict_stg[stg]['종목코드'] = ticker
                             상태 = self.df_trade.loc[stg, '상태']
                             bong_time = self.df_trade.loc[stg, '현재봉시간']
                             배팅금액 = self.df_trade.loc[stg, '배팅금액']
@@ -890,14 +890,13 @@ class Trade_np(QThread):
                                 if self.df_trade.loc[stg,'상태'] != '대기':
                                     break
             self.active_light()
-        return one_minute, dict_stg
         # print(self.df_trade[['현재봉시간','캔들종료시간']])
-        # quit()
+        return one_minute, dict_stg
 
     # def loop_trade(self, ticker, stg, df_detail, bong, bong_detail, 상태, current_time, candle_endtime, jang_endtime,data_length,배팅금액,enter_time):
     def loop_trade(self, df_detail, dict_stg_stg, 상태, 배팅금액, data_length):
         global np_tik_ar, list_columns, np_tik_idx, np_tik_length
-        global 매수가, 매도가, 시장가, 레버리지, 매수, 매도
+        global 매수가, 매도가, 시장가, 레버리지, 매수, 매도, 재진입금지
         global 수익률, 최고수익률, 최저수익률
         global 상세시가, 상세고가, 상세저가, 상세종가
         global market, stg, 종목코드, 전략명
@@ -945,6 +944,7 @@ class Trade_np(QThread):
             globals()[f'매수{i}호가'] = f'매수{i}호가'
         매수 = False
         매도 = False
+        재진입금지 = False
 
         현재가 = df_detail.loc[df_detail.index[-1],'상세종가']
         최저수익률 = self.df_trade.loc[stg, '최저수익률']
@@ -976,34 +976,35 @@ class Trade_np(QThread):
         for col in list_columns:  # 연산을 위해 컬럼의 값을 행별로 돌아가며 변수로 선언
             globals()[f'{col}'] = np_tik_ar[-1, list_columns.index(f'{col}')]
         if 상태 == '대기' or 상태 == '분할매수대기': # 미 보유 시 진입 주문
-            stg_buy = self.df_trade.loc[stg,'진입전략']
-            locals_dict_buy = {}
-            exec(stg_buy, None, locals_dict_buy) #전략연산
+            if self.df_trade.loc[stg, '매도전환'] != "재진입금지":
+                stg_buy = self.df_trade.loc[stg,'진입전략']
+                locals_dict_buy = {}
+                exec(stg_buy, None, locals_dict_buy) #전략연산
 
-            매수 = locals_dict_buy.get('매수')
+                매수 = locals_dict_buy.get('매수')
 
-            if 매수 != False and 매수 != None :  # 매수 주문
-                매수가 = locals_dict_buy.get('매수가')
-                self.df_trade.loc[stg, 'ticker'] = 종목코드
-                self.df_trade.loc[stg, '현재가'] = 현재가
-                if type(매수가) == list and type(매수) == list: # 분할매수일 경우
-                    상태 = self.buy_on_scale(stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태)
-                    # print(f"{상태= }")
-                    if 상태 == '분할매수대기':
-                        누적수익음 = self.cal_ror(stg, 현재가, 방향)  # 나중에 balance_account랑 합쳐야 됨
-                else:
-                    상태 = '매수주문'
-                    self.df_trade.loc[stg, '분할상태'] = json.dumps(분할상태, ensure_ascii=False)
-                    상태, 수량, 진입가, 수수료, id = self.order_buy(stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태) #시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
-                self.df_trade.loc[stg, '상태'] = 상태
-                self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(현재시간)
-                list_enter_sig = json.loads(self.df_trade.loc[stg, '진입신호시간'])
-                list_enter_sig.append(common_def.datetime_to_str(현재시간))
-                # list_enter_sig = [x for x in list_enter_sig if x] #리스트에 빈값""이 있으면 없애기
-                self.df_trade.loc[stg, '진입신호시간'] = json.dumps(list_enter_sig,ensure_ascii=False)
-                # print(self.df_trade)
-            elif self.df_trade.loc[stg, 'ticker'] != '':
-                self.df_trade.loc[stg, '현재가'] = 현재가
+                if 매수 != False and 매수 != None :  # 매수 주문
+                    매수가 = locals_dict_buy.get('매수가')
+                    self.df_trade.loc[stg, 'ticker'] = 종목코드
+                    self.df_trade.loc[stg, '현재가'] = 현재가
+                    if type(매수가) == list and type(매수) == list: # 분할매수일 경우
+                        상태 = self.buy_on_scale(stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태)
+                        # print(f"{상태= }")
+                        if 상태 == '분할매수대기':
+                            누적수익음 = self.cal_ror(stg, 현재가, 방향)  # 나중에 balance_account랑 합쳐야 됨
+                    else:
+                        상태 = '매수주문'
+                        self.df_trade.loc[stg, '분할상태'] = json.dumps(분할상태, ensure_ascii=False)
+                        상태, 수량, 진입가, 수수료, id = self.order_buy(stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태) #시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
+                    self.df_trade.loc[stg, '상태'] = 상태
+                    self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(현재시간)
+                    list_enter_sig = json.loads(self.df_trade.loc[stg, '진입신호시간'])
+                    list_enter_sig.append(common_def.datetime_to_str(현재시간))
+                    # list_enter_sig = [x for x in list_enter_sig if x] #리스트에 빈값""이 있으면 없애기
+                    self.df_trade.loc[stg, '진입신호시간'] = json.dumps(list_enter_sig,ensure_ascii=False)
+                    # print(self.df_trade)
+                elif self.df_trade.loc[stg, 'ticker'] != '':
+                    self.df_trade.loc[stg, '현재가'] = 현재가
         elif 상태 == '매수주문' or 상태 == '부분매수' or 상태 == '시장가매수' or 상태 == '매수취소' or \
                상태 == '분할매수주문' or 상태 == '분할부분매수' or 상태 == '분할매수취소': # 진입 주문 시
             self.df_trade.loc[stg, '현재가'] = 현재가
@@ -1068,7 +1069,12 @@ class Trade_np(QThread):
             매도 = locals_dict_sell.get('매도')
             if 매도 == True or type(매도)==list:  # 청산 주문
                 매도가 = locals_dict_sell.get('매도가')
-                print(f"if 매도 == True or type(매도)==list: {stg= }    {종목코드= }   {분할상태= }   {매도=}    {매도가= }   {type(매도가)= }")
+                재진입금지 = locals_dict_sell.get('재진입금지')
+                print(f"{재진입금지= }")
+                if 재진입금지 == True:
+                    print('재진입금지')
+                    self.df_trade.loc[stg, '매도전환'] = "재진입금지"
+                print(f"if 매도 == True or type(매도)==list: {stg= }    {종목코드= }   {분할상태= }   {매도=}    {매도가= }   {type(매도가)= }     {self.df_trade.loc[stg, '매도전환']= }")
                 if type(매도가) == list: # 분할매도일 경우
                     상태 = self.sell_on_scale(stg, 매도, 매도가, 방향) #시장가 매도 일 경우 '매수'를 받기 때문에 반환받아야됨
                 else:
@@ -1126,6 +1132,9 @@ class Trade_np(QThread):
             # 기존의 지정가주문을 취소한 후 처리해야하며 백테스트에서는 이부분이 반영이 되어있는지도 확인 필요.
             # 매수에서는 이럴경우 어떡게 되어있는지도 확인 필요
             if 매도 == True :
+                재진입금지 = locals_dict_sell.get('재진입금지')
+                if 재진입금지 == True:
+                    self.df_trade.loc[stg, '매도전환'] = "재진입금지"
                 if 매도가 == 시장가 and 상태 != '시장가매도' and 상태 != '매도': # 지정가로 매도주문이 나간상태인데 손절라인에 걸려서 시장가 매도 주문이 나가야할 경우
                     print(f'{stg= }, {종목코드= } | 잔량 시장가 매도 - {datetime.datetime.now()}')
                     주문수량 = self.df_trade.loc[stg, '주문수량']
@@ -1183,7 +1192,8 @@ class Trade_np(QThread):
             self.df_trade.loc[stg, '수수료'] = 0
             self.df_trade.loc[stg, '진입수수료'] = 0
             self.df_trade.loc[stg, '현재가'] = 0
-            self.df_trade.loc[stg, '매도전환'] = 'False'
+            if self.df_trade.loc[stg, '매도전환'] != '재진입금지':
+                self.df_trade.loc[stg, '매도전환'] = 'False'
             self.df_trade.loc[stg, '배팅금액'] = self.df_trade.loc[stg, '잔고']
 
             분할매수 = json.loads(self.df_trade.loc[stg, '분할매수'])
@@ -2853,8 +2863,8 @@ if __name__ == "__main__":
     simul = simul_QCB()
 
     # market = '국내주식'
-    market = '국내선옵'
-    # market = '코인'
+    # market = '국내선옵'
+    market = '코인'
     list_tickers = []
     if market == '국내주식':
         conn_stg = sqlite3.connect('DB/stg_stock.db')
