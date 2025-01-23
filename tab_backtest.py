@@ -851,10 +851,10 @@ class Window(QWidget):
             self.table_list_DB = np.concatenate(self.table_list_DB).tolist()
 
         list_ticker = []
-        for x in self.table_list_DB:
-            if '_' in x:
-                x = x[:x.index('_')]
-            list_ticker.append(x)
+        # for x in self.table_list_DB:
+        #     if '_' in x:
+        #         x = x[:x.index('_')]
+        #     list_ticker.append(x)
         # list_tickers = [x[:x.index('_')] for x in self.table_list_DB if '_' in x]  # ticker 리스트화
         # list_ticker = list(set(list_tickers))
         if market == '국내주식':
@@ -862,17 +862,21 @@ class Window(QWidget):
             self.dict_ticker = dict(zip(self.stocks_info.index.tolist(), self.stocks_info['종목명']))
             list_ticker = [self.dict_ticker[x] for x in list_ticker if x in self.stocks_info.index.tolist()]
         elif market == '국내선옵':
-            self.dict_ticker = {'10100': '코스피200선물', '10500': '미니코스피200선물', '10600': '코스닥150선물', '17500': '미국달러선물',
-                                '16500': '3년국채선물', '16700': '10년국채선물', '18800': '금연결선물'}
-            new_list_ticker = []
-            for x in list_ticker:
-                if x in self.dict_ticker.keys():
-                    new_list_ticker.append(self.dict_ticker[x])
-                else:
-                    new_list_ticker.append(x)
+            global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리
+            콜옵션 = '콜옵션'
+            콜옵션_위클리 = '콜옵션_위클리'
+            풋옵션 = '풋옵션'
+            풋옵션_위클리 = '풋옵션_위클리'
+            self.dict_ticker = {'코스피200선물':'10100', '미니코스피200선물':'10500', '코스닥150선물':'10600', {콜옵션:""}:'',{콜옵션_위클리:""}:'', {풋옵션:""}:'',{풋옵션_위클리:""}:'' }
+            # new_list_ticker = []
+            # for x in list_ticker:
+            #     if x in self.dict_ticker.keys():
+            #         new_list_ticker.append(self.dict_ticker[x])
+            #     else:
+            #         new_list_ticker.append(x)
             # list_ticker = [self.dict_ticker[x] for x in list_ticker if x in self.dict_ticker.keys()]
-            list_ticker = new_list_ticker
-            # print(list_ticker)
+
+            list_ticker = list(self.dict_ticker.keys())
         cursor_stg = conn_stg.cursor()
         cursor_stg.execute("SELECT name FROM sqlite_master WHERE type='table';")
         table_list = cursor_stg.fetchall()

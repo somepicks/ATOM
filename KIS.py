@@ -218,7 +218,8 @@ class KoreaInvestmentWS(Process):
     async def ws_client(self):
         """_summary_
         """
-        uri = "ws://ops.koreainvestment.com:21000"
+        # uri = "ws://ops.koreainvestment.com:21000"
+        uri = "ws://ops.koreainvestment.com:31000"
 
         approval_key = self.get_approval()
 
@@ -3392,7 +3393,7 @@ if __name__ == "__main__":
 
         market = trade_type[2:]
         exchange = KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
-        return exchange
+        return exchange, key, secret
     def nth_weekday(the_date, nth_week, week_day):
         temp = the_date.replace(day=1)
         adj = (week_day - temp.weekday()) % 7
@@ -3409,100 +3410,35 @@ if __name__ == "__main__":
         elif mydate > thismonth_duedate :
             nextmonth_duedate = nth_weekday(mydate+relativedelta(months=1),2, 3)
             return nextmonth_duedate
-    ex_kis = make_exchange_kis('모의선옵')
-    df_trend = pd.DataFrame()
 
-    li = [x for x in range(45, 60)]
-    i=0
-    today = datetime.datetime.now()
-    # df_c_weekly, df_p_weekly, COND_MRKT = ex_kis.display_opt_weekly(today)
-    dict_chegyeol = ex_kis.fetch_closed_order(side='buy',ticker='301W02292',id='4572')
-    pprint(dict_chegyeol)
+    def make_exchange_kis_WS(key, secret):
+        # 실시간주식 체결가
+        broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNT0", "H0STASP0"], tr_key_list=["005930", "000660"], user_id="somepick")
+        broker_ws.start()
+        while True:
+           data_ = broker_ws.get()
+           if data_[0] == '체결':
+               print(data_[1])
+           elif data_[0] == '호가':
+               print(data_[1])
+           elif data_[0] == '체잔':
+               print(data_[1])
 
-    # frgn, prsn, orgn = ex_kis.investor_trend_time('선물')
-    # print(f"외인: {frgn}, 개인: {prsn}, 기관: {orgn}")
-    # today = datetime.datetime(2025,2,24)
-    # res = ex_kis.check_holiday_domestic_stock(today.strftime("%Y%m%d"))
-    # pprint(res)
-    # output = res['output']
-    # list_close_day = [x['bass_dt'] for x in output if x['opnd_yn']=='N'] #개장일
-    # list_duple_day = [x['bass_dt'] for x in output if x['opnd_yn']=='N' and (x['wday_dvsn_cd']=='02' or x['wday_dvsn_cd']=='05') ] #옵션만기일(월,목)과 휴일이 겹치는날
-    # print(list_close_day)
-    # print(list_duple_day)
-    # dt = datetime.datetime.now().isocalendar()
-    # ex_kis.display_opt_weekly(today)
+        print('==============')
+        quit()
+        # 실시간주식호가
+        broker_ws = KoreaInvestmentWS(api_key= key, api_secret=secret, tr_id_list=["H0STASP0"], tr_key_list=["005930"])
+        broker_ws.start()
+        for i in range(3):
+           data = broker_ws.get()
+           print(data)
 
-    # res = ex.create_limit_buy_order(symbol='309D5W350',price=5,quantity=5,side='buy')
-    # pprint(res)
-    # df1,df2 = ex.display_opt_weekly_thur()
-    # print(df1)
-    # res = ex.fetch_closed_order(side='buy',ticker=ticker,id='1693')
+        # 실시간주식체결통보
+        broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNI0"], user_id="somepick")
+        broker_ws.start()
+        for i in range(3):
+           data = broker_ws.get()
+           print(data)
 
-    # print(ex.display_opt_weekly_thur())
-    # df = ex.create_limit_sell_order(symbol=ticker, price=int(매도가), quantity=int(수량),side='sell')
-    # res = ex.fetch_open_
-    # pprint(res)
-    # print(ex.fetch_ohlcv('308430'))
-    # pprint(ex.fetch_ohlcv(symbol='122630'))
-    # call,put = ex.display_opt_weekly_mon()
-
-    # def make_exchange_kis_WS(trade_type):
-    #     conn = sqlite3.connect('DB/setting.db')
-    #     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
-    #     conn.close()
-    #     if trade_type == '실전주식':
-    #         key = df.loc['KIS_stock_api', 'value']
-    #         secret = df.loc['KIS_stock_secret', 'value']
-    #         acc_no = df.loc['KIS_stock_account', 'value']
-    #         mock = False
-    #         # broker = mojito.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no)
-    #     elif trade_type == '모의주식':
-    #         key = df.loc['KIS_stock_mock_api', 'value']
-    #         secret = df.loc['KIS_stock_mock_secret', 'value']
-    #         acc_no = df.loc['KIS_stock_mock_account', 'value']
-    #         mock = True
-    #     elif trade_type == '실전선옵':
-    #         key = df.loc['KIS_futopt_api', 'value']
-    #         secret = df.loc['KIS_futopt_secret', 'value']
-    #         acc_no = df.loc['KIS_futopt_account', 'value']
-    #         mock = False
-    #     elif trade_type == '모의선옵' or trade_type == '모의해외선옵':
-    #         key = df.loc['KIS_futopt_mock_api', 'value']
-    #         secret = df.loc['KIS_futopt_mock_secret', 'value']
-    #         acc_no = df.loc['KIS_futopt_mock_account', 'value']
-    #         mock = True
-    #
-    #     # 실시간주식 체결가
-    #     broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNT0", "H0STASP0"], tr_key_list=["005930", "000660"], user_id="somepick")
-    #     broker_ws.start()
-    #     while True:
-    #        data_ = broker_ws.get()
-    #        if data_[0] == '체결':
-    #            print(data_[1])
-    #        elif data_[0] == '호가':
-    #            print(data_[1])
-    #        elif data_[0] == '체잔':
-    #            print(data_[1])
-    #
-    #
-    #     # 실시간주식호가
-    #     broker_ws = KoreaInvestmentWS(api_key= key, api_secret=secret, tr_id_list=["H0STASP0"], tr_key_list=["005930"])
-    #     broker_ws.start()
-    #     for i in range(3):
-    #        data = broker_ws.get()
-    #        print(data)
-    #
-    #     # 실시간주식체결통보
-    #     broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNI0"], user_id="somepick")
-    #     broker_ws.start()
-    #     for i in range(3):
-    #        data = broker_ws.get()
-    #        print(data)
-    #
-    # import pprint
-    # broker = KoreaInvestment(key, secret, exchange="나스닥")
-    # resp_ohlcv = broker.fetch_ohlcv("TSLA", '1d', to="")
-    # print(len(resp_ohlcv['output2']))
-    # pprint.pprint(resp_ohlcv['output2'][0])
-    # pprint.pprint(resp_ohlcv['output2'][-1])
-####
+    exchange, key,secret = make_exchange_kis('모의선옵')
+    make_exchange_kis_WS(key,secret)
