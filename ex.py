@@ -309,10 +309,20 @@ print('===================')
 익절가 = [x for x in 마디가 if 진입가 < x ]
 print(f"{익절가= }")
 print(f"{익절가[2]= }")
+
+
+import asynn
+
 print()
 # 손절가 = max([x for x in 마디가 if 진입가 * 0.9 > x ])
 # print(f"{손절가= }")
 # print(f"{익절가[1]= }")
+
+
+my_list = [1, 2, 3, 4, 5]
+
+for i,item in enumerate(reversed(my_list)):
+    print(i,item)
 
 quit()
 values = [['2', 2, 3], ['4', 5, 6], ['1', 8, 9]]
