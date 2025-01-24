@@ -2579,6 +2579,7 @@ class Trade_np(QThread):
                     self.df_trade.loc[stg, '매도전환'] = 'True'
                 else:
                     상태 = '대기'
+                    self.df_trade.loc[stg, '매도전환'] = 'False'
                 print(f"1 {stg= }, {ticker= } | {self.df_trade.loc[stg, '상태']} → {상태= }")
                 self.df_trade.loc[stg, '상태'] = 상태
             elif 상태 == '매도주문' or ('매수' in 분할상태) or ('매도주문' in 분할상태):

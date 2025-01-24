@@ -8,12 +8,8 @@
       <change beforePath="$PROJECT_DIR$/.idea/ATOM.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ATOM.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/DB_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_bybit.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/chart_table.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/chart_table.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
