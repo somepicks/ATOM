@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
+import datetime
 import pandas as pd
 # from pandas import to_numeric
 from PyQt5.QtWidgets import QMainWindow, QGridLayout, QLineEdit, QLabel, QPushButton, QWidget, QVBoxLayout, \
@@ -46,10 +47,10 @@ class Window(QMainWindow):
         super().__init__()
         self.dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m','15분봉': '15m', '30분봉': '30m', '60분봉': '60m','4시간봉': '4h', '일봉': 'd'}
         # self.dict_bong_stamp = {'1분봉': 60, '3분봉': 180, '5분봉': 300, '30분봉': 1800, '4시간봉': 14400, '일봉': 86400}
-        self.dict_bong_time_datetime = {'1분봉': timedelta(minutes=1), '3분봉': timedelta(minutes=3),
-                                        '5분봉': timedelta(minutes=5), '15분봉': timedelta(minutes=15),
-                                        '30분봉': timedelta(minutes=30),'60분봉': timedelta(minutes=60),
-                                        '4시간봉': timedelta(minutes=240), '일봉': timedelta(days=1)}
+        self.dict_bong_time_datetime = {'1분봉': datetime.timedelta(minutes=1), '3분봉': datetime.timedelta(minutes=3),
+                                        '5분봉': datetime.timedelta(minutes=5), '15분봉': datetime.timedelta(minutes=15),
+                                        '30분봉': datetime.timedelta(minutes=30),'60분봉': datetime.timedelta(minutes=60),
+                                        '4시간봉': datetime.timedelta(minutes=240), '일봉': datetime.timedelta(days=1)}
         self.set_UI()
         self.init_file()
         # self.time_acync()
@@ -251,7 +252,7 @@ class Window(QMainWindow):
 
     def init_file(self):
         import os
-        stg_file = ['DB/stg_stock.db', 'DB/stg_bybit.db', 'DB/stg_futopt.db']
+        list_db_file = ['DB/stg_stock.db', 'DB/stg_bybit.db', 'DB/stg_futopt.db']
         # index = ['전략명']
         # dict_data = {'market': '', '진입대상': '', 'ticker': '', '봉': '', '방향': '', '배팅금액': 0, '매입금액': 0, '레버리지': 0, '진입전략': '',
         #              '청산전략': '',  '현재가': 0, '진입가': 0, '주문수량': 0, '진입시간': '', '청산가': 0, '청산시간': '', '수익률': 0,
@@ -265,14 +266,26 @@ class Window(QMainWindow):
                   # '상세봉',
                   '분할청산가', '분할주문수량', '분할보유수량', '분할매입금액', '분할청산금액', '분할진입수수료', '분할id',
                   '분할평가금액','분할진입시간','분할청산시간','매도전환','진입신호시간','청산신호시간']
-        for market in stg_file:
-            if not os.path.isfile(market):  # stg_file.db 파일이 없으면
-                conn = sqlite3.connect(market)
+        for db_file in list_db_file:
+            if not os.path.isfile(db_file):  # stg_file.db 파일이 없으면
+                conn = sqlite3.connect(db_file)
                 df = pd.DataFrame(columns=li_col)
                 # df.drop(index=0, inplace=True)  # 최초 데이터 생성 시 '전략명'이라는 인덱스가 생기며 이를 삭제
                 df.to_sql('stg', conn, if_exists='replace')
                 df.to_sql('history', conn, if_exists='replace')
                 conn.close()
+            else:
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                list_table = np.concatenate(cursor.fetchall()).tolist()
+                cursor.close()
+                if not 'stg' in list_table:
+                    df = pd.DataFrame(columns=li_col)
+                    df.to_sql('stg', conn, if_exists='replace')
+                if not 'history' in list_table:
+                    df = pd.DataFrame(columns=li_col)
+                    df.to_sql('history', conn, if_exists='replace')
 
                 #
                 # index = ['종목코드']
@@ -296,16 +309,17 @@ class Window(QMainWindow):
         df_f = common_def.convert_column_types(df_f)
         #
         현재가 = df_f.loc[df_f.index[0], '현재가']
-        today = datetime.now()
+        # today = datetime.datetime.now().date()
+        today = datetime.datetime.today()
         QTest.qWait(500)
         # expiry_date = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
-        df_c, df_p = self.ex_kis.display_opt(today)
+        df_c, df_p, past_date, expiry_date = self.ex_kis.display_opt(today)
         df_c = common_def.convert_column_types(df_c)
         df_p = common_def.convert_column_types(df_p)
         # print(1)
         QTest.qWait(500)
         # expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
-        df_c_weekly, df_p_weekly,self.COND_MRKT = self.ex_kis.display_opt_weekly(today)
+        df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
         df_c_weekly = common_def.convert_column_types(df_c_weekly)
         df_p_weekly = common_def.convert_column_types(df_p_weekly)
         # df_c_thur, df_p_thur = self.ex_kis.display_opt_weekly_thur()
@@ -398,7 +412,7 @@ class Window(QMainWindow):
             self.QTE_stg_sell.clear()
             stg_file = 'DB/stg_futopt.db'
             # ex = common_def.make_exchange_kis('실전주식') #모의투자는 휴장일정보를 지원하지 않음
-            # today = datetime.today()
+            # today = datetime.datetime.today()
             # res = ex.check_holiday_domestic_stock(today.strftime("%Y%m%d"))
             # output = res['output']
             # self.list_close_day = [x['bass_dt'] for x in output if x['opnd_yn'] == 'N']  # 개장일
@@ -930,7 +944,7 @@ class Window(QMainWindow):
         if light == True:
             self.QPB_start.setStyleSheet("background-color: #fa3232;")
 
-            today = datetime.now()
+            today = datetime.datetime.now()
             df_history = self.df_history.copy()
             df_history['청산시간'] = pd.to_datetime(df_history['청산시간'], utc=True)
             df_history = df_history[df_history['청산시간'].dt.date == today.date()]
@@ -1086,10 +1100,12 @@ class Window(QMainWindow):
         df_history = self.df_history[['market', '전략명', 'ticker', '수익률', '최고수익률', '최저수익률', '수익금',
                                       '누적수익금', '진입가', '청산가', '잔고','매입금액','청산금액','수수료', '진입수수료',
                                       '진입시간', '청산시간']]
-        df_history = df_history[df_history['청산시간'].str[:10]==datetime.now().date().strftime('%Y-%m-%d')] #오늘 청산한 전략만
+        df_history = df_history[df_history['청산시간'].str[:10]==datetime.datetime.now().date().strftime('%Y-%m-%d')] #오늘 청산한 전략만
         df_history['진입가'] = df_history['진입가'].apply(lambda int_num : "{:,}".format(int_num))
         df_history['청산가'] = df_history['청산가'].apply(lambda int_num : "{:,}".format(int_num))
         df_history['수익금'] = df_history['수익금'].apply(lambda int_num : "{:,}".format(int_num))
+        #nan 값을 0으로 대체
+        # df_history['누적수익금'] = df_history['누적수익금'].fillna(0).apply(lambda x: "{:,}".format(int(x)))
         df_history['누적수익금'] = df_history['누적수익금'].apply(lambda int_num : "{:,}".format(int_num))
         df_history['수수료'] = df_history['수수료'].apply(lambda int_num : "{:,}".format(int_num))
         df_history['매입금액'] = df_history['매입금액'].apply(lambda int_num : "{:,}".format(int_num))
@@ -1203,7 +1219,7 @@ class Window(QMainWindow):
         ticker_full_name = ticker+'_chart'
         if bong_since == '기간(일)':
             bong_since = 1
-        date_old = datetime.now().date() - timedelta(days=int(bong_since))
+        date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
         stamp_date_old = common_def.datetime_to_stamp(date_old)
         ohlcv = []
         if market == '코인' :
@@ -1240,7 +1256,7 @@ class Window(QMainWindow):
         ticker_full_name = ticker+'_chart'
         if bong_since == '기간(일)':
             bong_since = 1
-        date_old = datetime.now().date() - timedelta(days=int(bong_since))
+        date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
         stamp_date_old = common_def.datetime_to_stamp(date_old)
         ohlcv = []
         if market == '코인' :
@@ -1350,21 +1366,21 @@ class Window(QMainWindow):
 
 
 
-    def stamp_to_int(self, stamp_time):
-        dt = datetime.fromtimestamp(stamp_time)
-        dt = dt.strftime('%Y%m%d%H%M')
-        return int(dt)
-
-    def int_to_stamp(self, int_time):
-        dt = datetime.strptime(str(int_time), '%Y%m%d%H%M')
-        return int(dt.timestamp())
-
-    def int_to_datetime(self, int_time):
-        int_time = datetime.strptime(str(int_time), '%Y%m%d%H%M')
-
-    def stamp_to_datetime(self, stamp_time):
-        int_time = self.stamp_to_int(stamp_time)
-        return datetime.strptime(str(int_time), '%Y%m%d%H%M')
+    # def stamp_to_int(self, stamp_time):
+    #     dt = datetime.datetime.fromtimestamp(stamp_time)
+    #     dt = dt.strftime('%Y%m%d%H%M')
+    #     return int(dt)
+    #
+    # def int_to_stamp(self, int_time):
+    #     dt = datetime.datetime.strptime(str(int_time), '%Y%m%d%H%M')
+    #     return int(dt.timestamp())
+    #
+    # def int_to_datetime(self, int_time):
+    #     int_time = datetime.datetime.strptime(str(int_time), '%Y%m%d%H%M')
+    #
+    # def stamp_to_datetime(self, stamp_time):
+    #     int_time = self.stamp_to_int(stamp_time)
+    #     return datetime.datetime.strptime(str(int_time), '%Y%m%d%H%M')
     # def current_hoga_table(self):
     #     self.QL_hoga.setText(f"<span style='color:red'>{list(self.list_betting_hoga_short)}</span>"
     #                          f"<span style='color:crimson'>{self.che_short}</span>"
