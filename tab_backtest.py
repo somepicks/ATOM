@@ -61,7 +61,7 @@ class make_data(QThread):
         self.val_range = dict_info['val_range']
         self.bong = dict_info['bong']
         self.bong_detail = dict_info['bong_detail']
-        self.conn_DB = dict_info['connect']
+        # self.conn_DB = dict_info['connect']
         self.start_day = datetime.datetime.strptime(dict_info['start_day'], '%Y-%m-%d')
         self.end_day = datetime.datetime.strptime(dict_info['end_day'], '%Y-%m-%d')
 
@@ -113,16 +113,18 @@ class make_data(QThread):
             cursor = self.conn_DB.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             list_table = np.concatenate(cursor.fetchall()).tolist()
-            list_ticker = [ticker for ticker in list_table if ticker[:ticker.index('_')+1] == self.ticker]
+            list_ticker = []
 
             if self.market == '코인':
                 pass
             elif self.market == '국내선옵':
-                for ticker in list_ticker:
-                    df_detail = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn_DB).set_index('날짜')
-            print(self.ticker)
-            print(self.val_range)
-            quit()
+                for ticker in list_table:
+                    if ticker[:len(self.ticker)] == self.ticker:
+                        if ticker[len(self.ticker)+1:].isdigit():
+                            list_ticker.append(ticker)
+            for ticker in list_ticker:
+                df = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn_DB).set_index('날짜')
+                print(df)
 
         # save = True
         df['매수가'] = np.nan
@@ -1563,38 +1565,41 @@ class Window(QWidget):
 
 
 if __name__ == '__main__':
-    # market = '국내선옵'
-    # ticker = 'ticker'
-    # val_range = 'val_range'
-    # bong = 'bong'
-    # bong_detail = 'bong_detail'
-    # QLE_start = 'QLE_start'
-    # QLE_end = 'QLE_end'
-    # conn_DB = 'conn_DB'
-    # trade_market = 'trade_market'
-    # dict_bong = 'dict_bong'
-    # exchange = 'exchange'
-    # stg_buy = 'stg_buy'
-    # stg_sell = 'stg_sell'
-    # bet = 'bet'
-    # dict_bong_reverse = 'dict_bong_reverse'
-    # division_buy = 'division_buy'
-    # division_sell = 'division_sell'
-    # direction = 'direction'
-    # 거래승수 = '거래승수'
-    # 증거금률 = '증거금률'
-    # dict_info = {'market': market, 'ticker': ticker, 'val_range': val_range, 'bong': bong,
-    # 'bong_detail': bong_detail,
-    # 'start_day': QLE_start,
-    # 'end_day': QLE_end, 'connect': conn_DB,
-    # 'trade_market': trade_market, 'dict_bong': dict_bong, 'exchange': exchange,
-    # 'stg_buy': stg_buy, 'stg_sell': stg_sell, 'bet': bet,
-    # 'dict_bong_reverse': dict_bong_reverse, 'division_buy': division_buy,
-    # 'division_sell': division_sell,
-    # 'direction': direction, '거래승수': 거래승수, '증거금률': 증거금률}
-    #
-    # make_data(None,dict_info=dict_info)
+    market = '국내선옵'
+    ticker = '콜옵션_위클리'
+    val_range = '1~2'
+    bong = '5분봉'
+    bong_detail = '1분봉'
+    QLE_start = '2025-01-02'
+    QLE_end = '2025-02-03'
+    conn_DB = sqlite3.connect('DB/DB_futopt.db', check_same_thread=False)
+    trade_market = '옵션'
+    dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '60m',
+                          '4시간봉': '4h', '일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
+    exchange = 'exchange'
+    stg_buy = 'stg_buy'
+    stg_sell = 'stg_sell'
+    bet = 'bet'
+    dict_bong_reverse = 'dict_bong_reverse'
+    division_buy = 'division_buy'
+    division_sell = 'division_sell'
+    direction = 'direction'
+    거래승수 = '거래승수'
+    증거금률 = '증거금률'
+    dict_info = {'market': market, 'ticker': ticker, 'val_range': val_range, 'bong': bong,
+    'bong_detail': bong_detail,
+    'start_day': QLE_start,
+    'end_day': QLE_end, 'connect': conn_DB,
+    'trade_market': trade_market, 'dict_bong': dict_bong, 'exchange': exchange,
+    'stg_buy': stg_buy, 'stg_sell': stg_sell, 'bet': bet,
+    'dict_bong_reverse': dict_bong_reverse, 'division_buy': division_buy,
+    'division_sell': division_sell,
+    'direction': direction, '거래승수': 거래승수, '증거금률': 증거금률}
 
+    thread_make = make_data(None,dict_info=dict_info)
+    thread_make.run()
+    # thread_make.start()
+    quit()
 
 
 

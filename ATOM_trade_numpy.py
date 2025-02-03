@@ -2469,7 +2469,8 @@ class Trade_np(QThread):
     def sorting_make_df(self, dict_stg):
         # list_cntg_hour = [item['진입대상'] for item in dict_stg]  # 딕셔너리의 시간을 리스트로 변환
         # print(list_cntg_hour)
-        today = datetime.datetime.now().replace(second=0, microsecond=0)
+        # today = datetime.datetime.now().replace(second=0, microsecond=0)
+        today = datetime.datetime.today()
         li_obj_type = []
         for val in dict_stg.values():
             if type(val['진입대상']) == dict:
@@ -2496,7 +2497,7 @@ class Trade_np(QThread):
                 if '콜옵션' in li_obj_type or '풋옵션' in li_obj_type:  # 옵션_월물
                     # print('콜풋')
                     QTest.qWait(500)
-                    df_c, df_p = self.ex_kis.display_opt(today)
+                    df_c, df_p, past_date, expiry_date = self.ex_kis.display_opt(today)
                     self.df_c = common_def.convert_column_types(df_c)
                     self.df_p = common_def.convert_column_types(df_p)
 #                     print(self.df_c)
@@ -2504,7 +2505,7 @@ class Trade_np(QThread):
                 if '콜옵션_위클리' in li_obj_type or '풋옵션_위클리' in li_obj_type: #옵션_주간
 #                     print('위클리')
                     QTest.qWait(500)
-                    df_c_weekly, df_p_weekly,cond_mrkt = self.ex_kis.display_opt_weekly(today)
+                    df_c_weekly, df_p_weekly,cond_mrkt, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
                     self.df_c_weekly = common_def.convert_column_types(df_c_weekly)
                     self.df_p_weekly = common_def.convert_column_types(df_p_weekly)
                 # if week == 4 or week == 5 or week == 6 or week == 0: #위클리 월요일일 경우
@@ -2879,14 +2880,15 @@ if __name__ == "__main__":
             return df
         conn_stg = sqlite3.connect('DB/stg_futopt.db')
         ex_kis = common_def.make_exchange_kis('모의선옵')
-        date=datetime.datetime.now().replace(second=0, microsecond=0)
+        # date = datetime.datetime.now().replace(second=0, microsecond=0)
+        date = datetime.datetime.today()
 
         df_f = ex_kis.display_fut()
         df_f = convert_column_types(df_f)
         현재가 = df_f.loc[df_f.index[0], '현재가']
         time.sleep(1)
 
-        df_c,df_p = ex_kis.display_opt(date)
+        df_c,df_p, past_date, expiry_date = ex_kis.display_opt(date)
         df_c = convert_column_types(df_c)
         df_p = convert_column_types(df_p)
         df_c = df_c[df_c['행사가'] > 현재가 - 25]
@@ -2896,7 +2898,7 @@ if __name__ == "__main__":
         df_p = df_p[df_p['행사가'] < 현재가 + 25]
         df_p['종목명'] = '풋옵션'
         time.sleep(1)
-        df_c_w,df_p_w,COND_MRKT = ex_kis.display_opt_weekly(date)
+        df_c_w,df_p_w,COND_MRKT, past_date, expiry_date = ex_kis.display_opt_weekly(date)
         df_c_w = convert_column_types(df_c_w)
         df_p_w = convert_column_types(df_p_w)
         df_f.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
