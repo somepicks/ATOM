@@ -112,10 +112,31 @@ def get_kis_ohlcv(market, ohlcv):
         df = df[['stck_oprc', 'stck_hgpr', 'stck_lwpr', 'stck_prpr', 'cntg_vol', 'acml_tr_pbmn']]
         df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
         df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
+        df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
+
+        # 날짜 변경 여부 확인
+        df['날짜변경'] = df.index.to_series().dt.date != df.index.to_series().shift(-1).dt.date
+
+        # 날짜 변경 시 누적거래대금 값 유지
+        df.loc[df['날짜변경'], '거래대금'] = df['누적거래대금']
+
+        # 날짜변경 컬럼 제거 (선택 사항)
+        df.drop(columns=['날짜변경'], inplace=True)
     elif market == '국내선옵':
         df = df[['futs_oprc', 'futs_hgpr', 'futs_lwpr', 'futs_prpr', 'cntg_vol', 'acml_tr_pbmn']]
         df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
         df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
+        df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
+
+        # 날짜 변경 여부 확인
+        df['날짜변경'] = df.index.to_series().dt.date != df.index.to_series().shift(-1).dt.date
+
+        # 날짜 변경 시 누적거래대금 값 유지
+        df.loc[df['날짜변경'], '거래대금'] = df['누적거래대금']
+
+        # 날짜변경 컬럼 제거 (선택 사항)
+        df.drop(columns=['날짜변경'], inplace=True)
+
     df.index.name = "날짜"
     df = df[::-1]  # 거꾸로 뒤집기
     return df

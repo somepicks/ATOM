@@ -9,10 +9,13 @@ import time
 from base64 import b64decode
 from multiprocessing import Process, Queue
 import datetime
+from time import strftime
+
 import requests
 import zipfile
 import os
 import pandas as pd
+from dateutil.utils import today
 from pandas import to_numeric
 # from datetime import datetime, timedelta, date
 import websockets
@@ -23,8 +26,7 @@ import math
 import numpy as np
 from PyQt5 import QtTest
 from PyQt5.QtTest import *
-# from dateutil.relativedelta import relativedelta
-
+from dateutil.relativedelta import relativedelta
 import common_def
 
 # from user_agent import generate_user_agent, generate_navigator
@@ -474,7 +476,7 @@ class KoreaInvestment:
             data = pickle.load(f)
             self.access_token = f'Bearer {data["access_token"]}'
 
-    def check_holiday_domestic_stock(self,day:str):
+    def check_holiday_domestic_stock(self,day:str): # 'YYYYMMDD'
         """국내주식 업종/기타/국내휴장일조회[국내주식-040] """
         path = "uapi/domestic-stock/v1/quotations/chk-holiday"
         url = f"{self.base_url}/{path}"
@@ -491,7 +493,13 @@ class KoreaInvestment:
             "CTX_AREA_FK": ''
         }
         resp = requests.get(url, headers=headers, params=params)
-        return resp.json()
+        if resp.json()['msg1'] == '조회가 계속됩니다..다음버튼을 Click 하십시오.                                   ':
+            df = pd.DataFrame(resp.json()['output'])
+            df.rename(
+                columns={'wday_dvsn_cd': '요일', 'bzdy_yn': '금융기관업무일', 'tr_day_yn': '입출금가능일',
+                         'opnd_yn': '개장일', 'sttl_day_yn': '지불일'}, inplace=True)
+            df.index = df['bass_dt']
+            return df
 
 
     def issue_hashkey(self, data: dict):
@@ -678,6 +686,8 @@ class KoreaInvestment:
             output = self._fetch_futopt_today_1m_ohlcv(symbol=symbol,to=to, day=day, fake_tick=False)  # to = 현재시간
             if output['msg1'] == '정상처리 되었습니다.':
                 output = output['output2']
+                # print(output)
+                # print('============')
                 if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
                     ohlcv.extend(output)
                     if to == '084400': # 8시 44분은 조회가 안되기 때문에 다음날로 넘어가야됨
@@ -695,19 +705,20 @@ class KoreaInvestment:
                         to = dt.strftime("%H%M%S")
 
                     list_bsop_dates = [item['stck_bsop_date'] for item in ohlcv]  # 딕셔너리의 날짜를 리스트로 변환
-                    if len(set(list_bsop_dates)) > limit:
+                    # print(f"{len(list(set(list_bsop_dates)))= }     {list(set(list_bsop_dates))= }")
+                    if len(list(set(list_bsop_dates))) > limit:
                         ohlcv = ohlcv[:list_bsop_dates.index(list_bsop_dates[-1])]
                         break
                     # time.sleep(0.5)
-                    QTest.qWait(500)
                 else:
                     break
             else:
                 # time.sleep(0.5)
-                QTest.qWait(500)
+                print('fetch_futopt_1m_ohlcv 조회에러')
                 if i > 10:
                     print('fetch_futopt_1m_ohlcv 조회에러')
                     raise
+            QTest.qWait(800)
         day = ''
         for i,data in enumerate(ohlcv):
             if day != data['stck_bsop_date']:
@@ -890,11 +901,24 @@ class KoreaInvestment:
             }
         expiry_date = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
         if today > expiry_date:
-            expiry_month = today+datetime.timedelta(days=25)
-            expiry_month = expiry_month.strftime("%Y%m")
-        else:
-            expiry_month = today.strftime("%Y%m")
+            past_date = expiry_date
+            # 현재 날짜 가져오기
+            today = datetime.datetime.today()
+            # 다음 달 계산
+            expiry_month = today + relativedelta(months=1)
 
+            expiry_date = self.nth_weekday(expiry_month, 2, 3)
+            # expiry_date = expiry_date.strftime("%Y%m%d")
+            # 연도와 월을 문자열로 변환
+            expiry_month = expiry_month.strftime("%Y%m")
+
+
+        else:
+            # expiry_date = expiry_date.strftime("%Y%m%d")
+            past_month = today - relativedelta(months=1)
+            past_date = self.nth_weekday(past_month, 2, 3)
+
+            expiry_month = today.strftime("%Y%m")
         i = 0
         while True:
             params = {
@@ -905,18 +929,14 @@ class KoreaInvestment:
                 "FID_COND_MRKT_CLS_CODE": "",
                 "FID_MRKT_CLS_CODE1": "PO"
                 }
+            i += 1
             try:
                 res = requests.get(url, headers=headers, params=params)
             except requests:
                 res.json()['msg1'] = 'display_opt 에러'
-                i += 1
-            if res.json()['msg1'] == '정상처리 되었습니다.':
-                # pprint(res.json())
+            if res.json()['msg1'] == '정상처리 되었습니다.' and res.json()['output1']:
                 df_call = pd.DataFrame(res.json()['output1'])
                 df_put = pd.DataFrame(res.json()['output2'])
-                # if df_call.empty:
-                #     today = today + datetime.timedelta(days=25)
-                # else:
                 df_call.rename(
                     columns={'acpr': '행사가',
                              'unch_prpr': '환산현재가',
@@ -953,18 +973,17 @@ class KoreaInvestment:
                                  '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
                 df_put.set_index(df_put['종목코드'], inplace=True)
                 break
-
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
                 print(f'display_opt   {res.json()}')
                 QTest.qWait(1000)
             else:
                 pprint(res.json())
-                if i == 10:
-                    print('display_opt 조회할 수 없음')
+                if i > 10:
+                    print(f'display_opt 조회할 수 없음 {i}')
                     df_call = pd.DataFrame()
                     df_put = pd.DataFrame()
                     break
-        return df_call, df_put
+        return df_call, df_put, past_date, expiry_date
     def display_opt_weekly(self,today):
         """국내선물옵션기본시세/국내옵션전광판_콜풋"""
         path = "uapi/domestic-futureoption/v1/quotations/display-board-callput"
@@ -985,21 +1004,33 @@ class KoreaInvestment:
            "custtype": "P",
            "hashkey": hashkey
             }
-        # 월: 0, 화: 1 ~ 일: 6
+        # isoweekday 월: 0, 화: 1 ~ 일: 6
         dict_yoil = {'월':0,'화':1,'수':2,'목':3,'금':4,'토':5,'일':6}
         yoil = datetime.datetime.weekday(today)
+        # print(f"{yoil=}")
 
-        first_day_of_month = today.replace(day=1)
-        first_day_weekday = first_day_of_month.isoweekday()  # 0 = 월요일, 6 = 일요일, 월요일 기준으로 하고싶으면 isoweekday() 대신에 weekday()로 변경
+        first_day_of_month = today.replace(day=1) #이번달 1일
+#         print(f"{first_day_of_month=}")
+        first_day_weekday = first_day_of_month.isoweekday()  # isoweekday 0 = 일요일, 6 = 토요일, 월요일 기준으로 하고싶으면 isoweekday() 대신에 weekday()로 변경
+#         print(f"{first_day_weekday=}")
 
         # 이번 달 시작 주를 보정하여 몇 주차인지 계산
         adjusted_day = today.day + first_day_weekday
+#         print(f"{today.day=}")
+#         print(f"{adjusted_day=}")
         number_of_week = (adjusted_day - 1) // 7
+#         print(f"{number_of_week=}")
         if yoil == dict_yoil['월'] or yoil == dict_yoil['금'] or yoil == dict_yoil['토'] or yoil == dict_yoil['일']: #위클리 월요일일 경우
             COND_MRKT = "WKM" #위클리(월)
-            if yoil == dict_yoil['금'] or yoil == dict_yoil['토']:
+            if yoil == dict_yoil['금'] or yoil == dict_yoil['토']: #일요일은 추가하면 안됨
                 number_of_week += 1
             expiry_date_week = datetime.datetime.strftime(today,'%Y%m')+'0'+str(number_of_week)
+            # week_day = 0
+#             print(f"{number_of_week=}")
+#             print(f"{expiry_date_week= }")
+            expiry_date = self.nth_weekday(today,number_of_week,dict_yoil['월'])
+            past_date = self.nth_weekday(today,number_of_week-1,dict_yoil['목'])
+            print(past_date)
         else:
             # first_day_of_month = datetime.datetime.today().replace(day=1,second=0, microsecond=0)
             first_day_of_month = today.replace(day=1,second=0, microsecond=0)
@@ -1012,10 +1043,15 @@ class KoreaInvestment:
 
             # 오늘이 두 번째 주의 목요일인지 확인
             thursday_week = second_thursday.date()-datetime.timedelta(days=2)
+            week_day = 3
 
-            if thursday_week < today.date() and today.date() <= second_thursday.date() :  # 만기주 일 경우
-                df_call, df_put = self.display_opt(today)
-                return df_call, df_put, '만기주'
+            if thursday_week < today.date() and today.date() <= second_thursday.date() :  # 월물만기주 일 경우
+                # df_call, df_put = self.display_opt(today)
+                df_call = pd.DataFrame()
+                df_put = pd.DataFrame()
+                expiry_date = self.nth_weekday(today, number_of_week , dict_yoil['목'])
+                past_date = self.nth_weekday(today, number_of_week, dict_yoil['월'])
+                return df_call, df_put, '만기주', past_date, expiry_date
                 # COND_MRKT = "" #몬슬리(목)
                 # expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
 
@@ -1023,10 +1059,14 @@ class KoreaInvestment:
                 number_of_week += 1
                 expiry_date_week = datetime.datetime.strftime(today,'%Y%m')+'0'+str(number_of_week)
                 COND_MRKT = "WKI" #위클리(목)
+                expiry_date = self.nth_weekday(today, number_of_week -1 , dict_yoil['목'])
+                past_date = self.nth_weekday(today, number_of_week-1, dict_yoil['월'])
             else:
                 raise
 
-
+        # print(f"{expiry_date_week=}")
+        # print(f"{number_of_week=}")
+        # quit()
         while True:
             params = {
                 "FID_COND_MRKT_DIV_CODE": "O",
@@ -1085,13 +1125,14 @@ class KoreaInvestment:
                 print(f'display_opt_weekly   {res.json()}')
                 QTest.qWait(500)
             elif res.json()['msg1'] == '정상처리 되었습니다.' and not res.json()['output1'] and not res.json()['output2']:
+                print('asdf')
                 df_call = pd.DataFrame()
                 df_put = pd.DataFrame()
-                return  df_call, df_put, COND_MRKT
+                return  df_call, df_put, COND_MRKT, past_date, expiry_date
             else:
                 pprint(res.json())
                 raise
-        return df_call, df_put, COND_MRKT
+        return df_call, df_put, COND_MRKT, past_date, expiry_date
 
 
     def display_fut(self):
@@ -3332,9 +3373,11 @@ class KoreaInvestment:
         adj = (week_day - temp.weekday()) % 7
         temp += datetime.timedelta(days=adj)
         temp += datetime.timedelta(weeks=nth_week-1)
+        # temp = temp.replace(hour=15, minute=30, second=0, microsecond=0)
+        # temp = temp.replace(hour=15, minute=30, second=0, microsecond=0)
+        # return temp.date()
         return temp
     def get_recent_due(self,mydate:datetime)->datetime:
-        from dateutil.relativedelta import relativedelta
         # get 2nd thursday of the same month
         thismonth_duedate = self.nth_weekday(mydate, 2, 3)
         # in case today already passed the duedate (10/15) -> get nextmonth_duedate
@@ -3399,9 +3442,9 @@ if __name__ == "__main__":
         adj = (week_day - temp.weekday()) % 7
         temp += datetime.timedelta(days=adj)
         temp += datetime.timedelta(weeks=nth_week-1)
+        # temp = temp.replace(hour=15, minute=45, second=0, microsecond=0)
         return temp
     def get_recent_due(mydate:datetime)->datetime:
-        from dateutil.relativedelta import relativedelta
         # get 2nd thursday of the same month
         thismonth_duedate = nth_weekday(mydate, 2, 3)
         # in case today already passed the duedate (10/15) -> get nextmonth_duedate
@@ -3441,4 +3484,52 @@ if __name__ == "__main__":
            print(data)
 
     exchange, key,secret = make_exchange_kis('모의선옵')
-    make_exchange_kis_WS(key,secret)
+    # make_exchange_kis_WS(key,secret)
+    # today = datetime.datetime(2024,12,10)
+    today = datetime.datetime.now().date()
+    # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
+    # df_call, df_put, cond, past_date, expiry_date = exchange.display_opt_weekly(today)
+
+    ohlcv = exchange.fetch_futopt_1m_ohlcv('201W02490', 25)
+    df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
+
+
+    df.to_sql('bt1',sqlite3.connect('DB/bt.db'),if_exists='replace')
+    quit()
+    now = datetime.datetime.now().replace(second=0,microsecond=0)
+    df = df.drop(df.loc[df.index == now].index)
+
+
+    #
+    quit()
+    # list_ticker = df_call.종목코드.tolist()
+    # ticker = '콜옵션'
+    # list_ticker = [ticker+'_' + x[-3:] for x in list_ticker]
+
+    print(df_put)
+    print(list_ticker)
+    # today = today.strftime('%Y%m%d')
+    # print(today)
+    df_holiday = exchange.check_holiday_domestic_stock(today.strftime('%Y%m%d'))
+    print(df_holiday)
+    print(f"{today= }")
+    print(f"{type(today)= }")
+    expiry_date = exchange.nth_weekday(today,2,3)
+    print(expiry_date)
+
+    print(expiry_date)
+    while df_holiday.loc[str(expiry_date),'개장일'] == 'N':
+        expiry_date -= 1
+    print(expiry_date)
+    print(d_day.days)
+    # while
+    ticker = '201W02352'
+    ohlcv = exchange.fetch_futopt_1m_ohlcv(ticker,d_day.days)
+    df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
+    print(df)
+    df = df[df.index > past_date+datetime.timedelta(days=1)]
+    df['만기일'] = expiry_date
+    print(df)
+
+    conn_DB = sqlite3.connect('DB/bt.db')
+    df.to_sql(ticker, conn_DB, if_exists='replace')

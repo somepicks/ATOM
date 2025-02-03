@@ -21,7 +21,7 @@ class db_down():
                      '30분봉': ['m', 30, '30m'], '60분봉': ['m', 60, '60m'], '일봉': ['D', 1, 'd'], '주봉': ['W', 1, 'W'],
                      '월봉': ['M', 1, 'M']}
         # self.get_candle(instChart, market, ticker, bong, start_day, end_day)
-    def get_candle(self,instChart,market, ticker, bong, start_day, end_day):
+    def get_candle(self,instChart, market, ticker, bong, start_day, end_day):
         df_amount = pd.DataFrame()
         exist_end_day = end_day
         while True:
@@ -223,115 +223,119 @@ class db_down():
         return stock_list
 
 if __name__ == '__main__':
-    instCpCybos = win32com.client.Dispatch("CpUtil.CpCybos")
+    def connect_cybos(market, ticker):
+        instCpCybos = win32com.client.Dispatch("CpUtil.CpCybos")
 
-    if instCpCybos.IsConnect == 1:
-        print(instCpCybos.IsConnect)
-        print('대신증권 연결')
-    else:
-        print(instCpCybos.IsConnect)
-        raise '연결 실패 코드가 맞는지 32비트로 실행 되었는지 관리자 권한으로 실행했는지 확인 필요'
+        if instCpCybos.IsConnect == 1:
+            print(instCpCybos.IsConnect)
+            print('대신증권 연결')
+        else:
+            print(instCpCybos.IsConnect)
+            raise '연결 실패 코드가 맞는지 32비트로 실행 되었는지 관리자 권한으로 실행했는지 확인 필요'
+        # 봉이 변경될 때 마다 instChart를 새로 갱신해줘야됨
+        if market == '국내주식':
+            instChart = win32com.client.Dispatch("CpSysDib.StockChart")  # 주식 데이터 연결
+            conn_DB = sqlite3.connect('DB/DB_stock.db')
+            ticker = 'A'+ticker
+        else:
+            instChart = win32com.client.Dispatch("CpSysDib.FutOptChart")  # 선물/옵션 데이터 연결
+            conn_DB = sqlite3.connect('DB/DB_futopt.db')
+
+        return instChart, conn_DB, ticker
+
+    def get_futopt_codes():
+        instCpCybos = win32com.client.Dispatch("CpUtil.CpOptionCode")
+        opt_num = instCpCybos.GetCount() # 옵션 전체 갯수
+        for i in range(opt_num):
+            옵션코드 = instCpCybos.GetData(0,i)
+            옵션이름 = instCpCybos.GetData(1,i)
+            구분 = instCpCybos.GetData(2,i)
+            행사월 = instCpCybos.GetData(3,i)
+            행사가 = instCpCybos.GetData(4,i)
+            print(f"{옵션코드= }, {옵션이름= }, {구분= }, {행사월= }, {행사가= },  {i}")
+        print('=================')
+        print(instCpCybos.CodeToName ('201VA355'))
 
 
 
-    instCpCybos = win32com.client.Dispatch("CpUtil.CpOptionCode")
-    opt_num = instCpCybos.GetCount() # 옵션 전체 갯수
-    for i in range(opt_num):
-        옵션코드 = instCpCybos.GetData(0,i)
-        옵션이름 = instCpCybos.GetData(1,i)
-        구분 = instCpCybos.GetData(2,i)
-        행사월 = instCpCybos.GetData(3,i)
-        행사가 = instCpCybos.GetData(4,i)
-        print(f"{i}, {옵션코드= }, {옵션이름= }, {구분= }, {행사월= }, {행사가= }")
+    # dict_bong = {
+    #     '1분봉': ['m', 1, '1m'],
+    #     '3분봉': ['m', 3, '3m'],
+    #     '5분봉': ['m', 5, '5m'],
+    #     '15분봉': ['m', 15, '15m'],
+    #     '30분봉': ['m', 30, '30m'],
+    #     '60분봉': ['m', 60, '60m'],
+    #     '일봉': ['D', 1, 'd'],
+    #     '주봉': ['W', 1, 'W'],
+    #     '월봉': ['M', 1, 'M']}
 
-    print(instCpCybos.CodeToName ('201VA355'))
 
-    quit()
-    conn = sqlite3.connect('DB/DB_krx.db')
-    cursor = conn.cursor()
+    market = '국내선옵'
+    # ticker = '122630'  # 코덱스레버리지
+    # ticker = '전체'
+    # ticker = 'A005930' #삼성전자
+    # ticker = '201W2200'
+    ticker = '201V2352'
+    bong = '1분봉'
+    start_day = 20100101
+    end_day = datetime.now().strftime("%Y%m%d")
+    instChart, conn_DB, ticker = connect_cybos(market, ticker)
+
+    cursor = conn_DB.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
     try:
         table_list = np.concatenate(cursor.fetchall()).tolist()
     except:
         table_list = []
 
-    dict_bong = {
-        '1분봉': ['m', 1, '1m'], '3분봉': ['m', 3, '3m'], '5분봉': ['m', 5, '5m'],
-        '15분봉': ['m', 15, '15m'],
-                 '30분봉': ['m', 30, '30m'], '60분봉': ['m', 60, '60m'], '일봉': ['D', 1, 'd'], '주봉': ['W', 1, 'W'], '월봉': ['M', 1, 'M']}
-    start_day = 20100101
-    end_day = datetime.now().strftime("%Y%m%d")
-
-    # market = '국내주식'
-    # ticker = '122630'  # 코덱스레버리지
-    # ticker = '전체'
-    # ticker = 'A005930' #삼성전자
-
-    market = '국내선옵'
-    dict_ticker = {'코스피200선물': '10100', '미니코스피200선물':'10500','코스닥150선물':'10600','미국달러선물':'17500',
-                   '3년국채선물': '16500','10년국채선물': '16700', '금연결선물': '18800'}
-    # 종목코드
-    ticker = '10100'
-    # KODEX WTI 원유선물: A261220
-    # KODEX 미국S & P500: A219480
-    # KODEX 미국나스닥100선물: A304940
-    # KODEX 중국본토csi300: A283580
+    # market = '국내선옵'
+    # dict_ticker = {'코스피200선물': '10100', '미니코스피200선물':'10500','코스닥150선물':'10600','미국달러선물':'17500',
+    #                '3년국채선물': '16500','10년국채선물': '16700', '금연결선물': '18800'}
+    # ticker = '10100'
+    # # KODEX WTI 원유선물: A261220
+    # # KODEX 미국S & P500: A219480
+    # # KODEX 미국나스닥100선물: A304940
+    # # KODEX 중국본토csi300: A283580
     # ticker = '10100'  #선물
 
 
-    df_krx_market = get_stock_market_types()
-    if ticker == '전체':
-        list_tickers = df_krx_market.index.tolist()
-    else:
-        list_tickers = [ticker]
+    # for bong in dict_bong.keys():
+    df_old = pd.DataFrame()
+    print(f"{ticker=} : {bong=} 저장..")
 
-    for ticker in list_tickers:
-        for bong in dict_bong.keys():
-            df_old = pd.DataFrame()
-            print(f"{ticker} {bong} 저장..")
-            #봉이 변경될 때 마다 instChart를 새로 갱신해줘야됨
-            if market == '국내주식':
-                instChart = win32com.client.Dispatch("CpSysDib.StockChart")  # 주식 데이터 연결
-                # table_list = [x[:6] for x in table_list] #앞에 6자리만 잘라서 리스트로 다시 저장
-                ticker_name = 'A'+ticker
-            elif market == '국내선옵':
-                instChart = win32com.client.Dispatch("CpSysDib.FutOptChart")  # 선물/옵션 데이터 연결
-                ticker_name = ticker
-            else:
-                instChart = ''
-                ticker_name = 'A'+ticker
+    if ticker in table_list:
+        df_old = pd.read_sql(f"SELECT * FROM '{ticker}'", conn_DB).set_index('날짜')
+        df_old.index = pd.to_datetime(df_old.index)  # datime형태로 변환
+        start_day = df_old.index[-1].date() #인덱스의 마지막요소 추출
+        start_day = datetime.strftime(start_day,'%Y%m%d')
+        start_day = int(start_day)
 
-            if ticker+'_'+dict_bong[bong][2] in table_list:
-                df_old = pd.read_sql(f"SELECT * FROM '{ticker + '_' + dict_bong[bong][2]}'", conn).set_index('날짜')
-                df_old.index = pd.to_datetime(df_old.index)  # datime형태로 변환
-                start_day = df_old.index[-1].date() #인덱스의 마지막요소 추출
-                start_day = datetime.strftime(start_day,'%Y%m%d')
-                start_day = int(start_day)
+    db_down = db_down()
+    df = db_down.get_candle(instChart,market, ticker, bong, start_day, end_day)
+    if bong == '일봉' or bong == '주봉' or bong == '월봉':
+        df.drop(df.index[0],inplace=True) #가장 최근행은 아직 갱신중일 수 있으므로 삭제
+    df = df[::-1]  # 거꾸로 뒤집기
+    df = pd.concat([df_old, df])
+    df = df.loc[~df.index.duplicated(keep='last')]  # 중복인덱스 제거
 
-            df = get_candle(instChart,market, ticker_name, bong, start_day, end_day,dict_bong)
-            if bong == '일봉' or bong == '주봉' or bong == '월봉':
-                df.drop(df.index[0],inplace=True) #가장 최근행은 아직 갱신중일 수 있으므로 삭제
-            df = df[::-1]  # 거꾸로 뒤집기
-            df = pd.concat([df_old, df])
-            df = df.loc[~df.index.duplicated(keep='last')]  # 중복인덱스 제거
-
-            df = round(df, 2)
-            df.to_sql(ticker+'_'+dict_bong[bong][2], conn, if_exists='replace')
+    df = round(df, 2)
+    df.to_sql(ticker, conn_DB, if_exists='replace')
+    print(df)
     print('저장 완료')
     #데이터누락 발생 분으로 확인할 것
-    if 'ticker_info' in table_list:
-        df_krx_market_old = pd.read_sql(f"SELECT * FROM 'ticker_info'", conn).set_index('종목코드')
-    elif not 'ticker_info' in table_list:
-        df_krx_market_old = pd.DataFrame()
-    df_krx_market = pd.concat([df_krx_market_old, df_krx_market])
-    df_krx_market = df_krx_market.loc[~df_krx_market.index.duplicated(keep='last')]  # 중복인덱스 제거
-
-    df_stock_info = get_stock_info()
-    df_stock_info = pd.merge(df_krx_market, df_stock_info, left_index=True, right_index=True, how='left')
-    df_fund = stock.get_market_fundamental(datetime.now().strftime("%Y%m%d"))
-    df_stock_info = pd.merge(df_stock_info, df_fund, left_index=True, right_index=True, how='left')
-    print(df_stock_info)
-    df_stock_info.to_sql('stocks_info',sqlite3.connect('DB/DB_krx.db'),if_exists='replace')
+    # if 'ticker_info' in table_list:
+    #     df_krx_market_old = pd.read_sql(f"SELECT * FROM 'ticker_info'", conn).set_index('종목코드')
+    # elif not 'ticker_info' in table_list:
+    #     df_krx_market_old = pd.DataFrame()
+    # df_krx_market = pd.concat([df_krx_market_old, df_krx_market])
+    # df_krx_market = df_krx_market.loc[~df_krx_market.index.duplicated(keep='last')]  # 중복인덱스 제거
+    #
+    # df_stock_info = get_stock_info()
+    # df_stock_info = pd.merge(df_krx_market, df_stock_info, left_index=True, right_index=True, how='left')
+    # df_fund = stock.get_market_fundamental(datetime.now().strftime("%Y%m%d"))
+    # df_stock_info = pd.merge(df_stock_info, df_fund, left_index=True, right_index=True, how='left')
+    # print(df_stock_info)
+    # df_stock_info.to_sql('stocks_info',sqlite3.connect('DB/DB_krx.db'),if_exists='replace')
 
 
     # df.index = pd.to_datetime(df.index)  # datime형태로 변환

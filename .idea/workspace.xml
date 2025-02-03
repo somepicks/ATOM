@@ -4,16 +4,23 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="ROOM">
+    <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
+      <change afterPath="$PROJECT_DIR$/TA_Lib-0.4.25-cp311-cp311-win_amd64.whl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/TA_Lib-0.4.28-cp311-cp311-win_amd64.whl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/ATOM.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ATOM.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CYBOS_DB.py" beforeDir="false" afterPath="$PROJECT_DIR$/CYBOS_DB.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/DB_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_bybit.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/chart_table.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/chart_table.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/DB_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_futopt.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/bt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/bt.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/strategy.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/strategy.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,7 +46,7 @@
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/somepicks/ATOM.git&quot;,
-    &quot;accountId&quot;: &quot;1c7324b2-7ceb-4aca-bb89-64f574ea4eaf&quot;
+    &quot;accountId&quot;: &quot;63b20623-1cea-4aea-8e55-1f55bea3e0a9&quot;
   }
 }</component>
   <component name="MarkdownSettingsMigration">
@@ -60,6 +67,7 @@
   &quot;keyToString&quot;: {
     &quot;Python.ATOM.executor&quot;: &quot;Run&quot;,
     &quot;Python.ATOM_trade_numpy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.CYBOS_DB.executor&quot;: &quot;Run&quot;,
     &quot;Python.KIS.executor&quot;: &quot;Run&quot;,
     &quot;Python.common_def.executor&quot;: &quot;Run&quot;,
     &quot;Python.ex.executor&quot;: &quot;Run&quot;,
@@ -72,29 +80,7 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
 }</component>
-  <component name="RunManager" selected="Python.tab_trade">
-    <configuration name="ATOM_trade_numpy" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="ATOM" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ATOM_trade_numpy.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.tab_backtest">
     <configuration name="KIS" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -109,6 +95,28 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/KIS.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="common_def" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="ATOM" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/common_def.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -185,10 +193,10 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.tab_trade" />
         <item itemvalue="Python.tab_backtest" />
         <item itemvalue="Python.KIS" />
-        <item itemvalue="Python.ATOM_trade_numpy" />
+        <item itemvalue="Python.common_def" />
+        <item itemvalue="Python.tab_trade" />
         <item itemvalue="Python.ex" />
       </list>
     </recent_temporary>

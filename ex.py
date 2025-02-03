@@ -302,6 +302,21 @@ print(st[:st.index('~')])
 di = {'수급동향': False,'asdf': True}
 if di:
     print('asdf')
+
+print(type(datetime.datetime.now().date()))
+
+conn = sqlite3.connect('DB/DB_futopt.db')
+ticker_symbol = '콜옵션_355'
+df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn).set_index('날짜')
+print(df_exist.dtypes)
+print(df_exist)
+df_exist.index = pd.to_datetime(df_exist.index)
+print(df_exist)
+for i in range(10):
+    if i ==5:
+        continue
+    print(i)
+quit()
 print('===================')
 마디가 = [0.04,0.09,0.16,0.29,0.39,0.46,0.57,0.75,0.89,1.07,1.51,1.8,2.16,2.59,3.07,3.52,4.34,5.13]
 # print(f"{마디가= }")
@@ -309,10 +324,19 @@ print('===================')
 익절가 = [x for x in 마디가 if 진입가 < x ]
 print(f"{익절가= }")
 print(f"{익절가[2]= }")
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
+# 현재 날짜 가져오기
+today = datetime.today()
 
-import asynn
+# 지난달의 첫째 날 계산
+first_day_of_last_month = today.replace(day=1) - relativedelta(months=1)
 
+# 지난달의 일수 구하기
+days_in_last_month = (today.replace(day=1) - first_day_of_last_month).days
+
+print(f"{first_day_of_last_month.year}년 {first_day_of_last_month.month}월의 일수: {days_in_last_month}일")
 print()
 # 손절가 = max([x for x in 마디가 if 진입가 * 0.9 > x ])
 # print(f"{손절가= }")
