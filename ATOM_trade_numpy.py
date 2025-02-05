@@ -2495,16 +2495,16 @@ class Trade_np(QThread):
             elif self.market == '국내선옵':
                 if '콜옵션' in li_obj_type or '풋옵션' in li_obj_type:  # 옵션_월물
                     # print('콜풋')
-                    QTest.qWait(500)
-                    df_c, df_p = self.ex_kis.display_opt(today)
+                    QTest.qWait(800)
+                    df_c, df_p, past_date, expiry_date = self.ex_kis.display_opt(today)
                     self.df_c = common_def.convert_column_types(df_c)
                     self.df_p = common_def.convert_column_types(df_p)
 #                     print(self.df_c)
 #                     print(self.df_p)
                 if '콜옵션_위클리' in li_obj_type or '풋옵션_위클리' in li_obj_type: #옵션_주간
 #                     print('위클리')
-                    QTest.qWait(500)
-                    df_c_weekly, df_p_weekly,cond_mrkt = self.ex_kis.display_opt_weekly(today)
+                    QTest.qWait(800)
+                    df_c_weekly, df_p_weekly,cond_mrkt, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
                     self.df_c_weekly = common_def.convert_column_types(df_c_weekly)
                     self.df_p_weekly = common_def.convert_column_types(df_p_weekly)
                 # if week == 4 or week == 5 or week == 6 or week == 0: #위클리 월요일일 경우

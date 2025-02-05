@@ -1010,7 +1010,8 @@ class KoreaInvestment:
         # print(f"{yoil=}")
 
         first_day_of_month = today.replace(day=1) #이번달 1일
-#         print(f"{first_day_of_month=}")
+        print(f"{first_day_of_month=}")
+        print(f"{type(first_day_of_month)=}")
         first_day_weekday = first_day_of_month.isoweekday()  # isoweekday 0 = 일요일, 6 = 토요일, 월요일 기준으로 하고싶으면 isoweekday() 대신에 weekday()로 변경
 #         print(f"{first_day_weekday=}")
 
@@ -1030,11 +1031,29 @@ class KoreaInvestment:
 #             print(f"{expiry_date_week= }")
             expiry_date = self.nth_weekday(today,number_of_week,dict_yoil['월'])
             past_date = self.nth_weekday(today,number_of_week-1,dict_yoil['목'])
-            print(past_date)
         else:
-            # first_day_of_month = datetime.datetime.today().replace(day=1,second=0, microsecond=0)
-            first_day_of_month = today.replace(day=1,second=0, microsecond=0)
+            # 오늘 날짜를 기준으로 다가오는 목요일 찾기
+            days_until_thursday = (3 - today.weekday()) % 7  # 3은 목요일
+            upcoming_thursday = today + datetime.timedelta(days=days_until_thursday)
 
+            # 다가오는 목요일이 이번 달인지 다음 달인지 확인
+            if upcoming_thursday.month == today.month:
+                target_month = today.month
+                target_year = today.year
+            else:
+                target_month = upcoming_thursday.month
+                target_year = upcoming_thursday.year
+
+            # 해당 월의 모든 목요일 찾기
+            thursdays = [first_day_of_month + datetime.timedelta(days=i) for i in range(31)
+                         if (first_day_of_month + datetime.timedelta(days=i)).month == target_month and
+                         (first_day_of_month + datetime.timedelta(days=i)).weekday() == 3]
+
+            # 다가오는 목요일이 몇 번째 목요일인지 찾기
+            thursday_index = thursdays.index(upcoming_thursday) + 1
+
+            # 결과를 YYMMWW 형태로 출력 (연도 두 자리, 월 두 자리, 목요일 순서)
+            expiry_date_week = f"{str(target_year)}{target_month:02}{'0'}{thursday_index}"
             # 첫 번째 주의 목요일 찾기
             first_week_start = first_day_of_month - datetime.timedelta(days=first_day_of_month.weekday())  # 첫 주의 월요일
 
@@ -1042,10 +1061,9 @@ class KoreaInvestment:
             second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
 
             # 오늘이 두 번째 주의 목요일인지 확인
-            thursday_week = second_thursday.date()-datetime.timedelta(days=2)
-            week_day = 3
+            thursday_week = second_thursday-datetime.timedelta(days=2)
 
-            if thursday_week < today.date() and today.date() <= second_thursday.date() :  # 월물만기주 일 경우
+            if thursday_week < today and today <= second_thursday :  # 월물만기주 일 경우
                 # df_call, df_put = self.display_opt(today)
                 df_call = pd.DataFrame()
                 df_put = pd.DataFrame()
@@ -1057,7 +1075,7 @@ class KoreaInvestment:
 
             elif yoil == dict_yoil['화'] or yoil == dict_yoil['수'] or yoil == dict_yoil['목']:
                 number_of_week += 1
-                expiry_date_week = datetime.datetime.strftime(today,'%Y%m')+'0'+str(number_of_week)
+                # expiry_date_week = datetime.datetime.strftime(today,'%Y%m')+'0'+str(number_of_week)
                 COND_MRKT = "WKI" #위클리(목)
                 expiry_date = self.nth_weekday(today, number_of_week -1 , dict_yoil['목'])
                 past_date = self.nth_weekday(today, number_of_week-1, dict_yoil['월'])
@@ -1073,6 +1091,7 @@ class KoreaInvestment:
                 "FID_COND_SCR_DIV_CODE": "20503",
                 "FID_MRKT_CLS_CODE": 'CO',
                 "FID_MTRT_CNT": expiry_date_week[2:], #2024의 경우 앞에 20은 제외
+                # "FID_MTRT_CNT": '250201', #2024의 경우 앞에 20은 제외
                 "FID_COND_MRKT_CLS_CODE": COND_MRKT,
                 "FID_MRKT_CLS_CODE1": "PO"
                 }
@@ -1125,7 +1144,6 @@ class KoreaInvestment:
                 print(f'display_opt_weekly   {res.json()}')
                 QTest.qWait(500)
             elif res.json()['msg1'] == '정상처리 되었습니다.' and not res.json()['output1'] and not res.json()['output2']:
-                print('asdf')
                 df_call = pd.DataFrame()
                 df_put = pd.DataFrame()
                 return  df_call, df_put, COND_MRKT, past_date, expiry_date
@@ -3488,8 +3506,8 @@ if __name__ == "__main__":
     # today = datetime.datetime(2024,12,10)
     today = datetime.datetime.now().date()
     # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
-    # df_call, df_put, cond, past_date, expiry_date = exchange.display_opt_weekly(today)
-
+    df_call, df_put, cond, past_date, expiry_date = exchange.display_opt_weekly(today)
+    quit()
     ohlcv = exchange.fetch_futopt_1m_ohlcv('201W02490', 25)
     df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
 

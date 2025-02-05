@@ -110,18 +110,39 @@ class make_data(QThread):
                 df_detail.ffill(inplace=True)
 
         else:
+            upper = float(self.val_range[self.val_range.index('~') + 1:])
+            lower = float(self.val_range[:self.val_range.index('~')])
+            print(f"{upper= }")
+            print(f"{lower= }")
+
             cursor = self.conn_DB.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             list_table = np.concatenate(cursor.fetchall()).tolist()
-            list_ticker = [ticker for ticker in list_table if ticker[:ticker.index('_')+1] == self.ticker]
+            list_ticker = []
 
             if self.market == '코인':
                 pass
             elif self.market == '국내선옵':
-                for ticker in list_ticker:
-                    df_detail = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn_DB).set_index('날짜')
-            print(self.ticker)
-            print(self.val_range)
+                for ticker in list_table:
+                    if ticker[:len(self.ticker)] == self.ticker:
+                        if ticker[len(self.ticker)+1:].isdigit():
+                            list_ticker.append(ticker)
+            dict_df = {}
+            for ticker in list_ticker:
+                print(ticker)
+                df_detail = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn_DB).set_index('날짜')
+                df_detail.index = pd.to_datetime(df_detail.index)  # datime형태로 변환
+
+                df_detail = df_detail.loc[(df_detail.index >= self.start_day) & (df_detail.index <= self.end_day+datetime.timedelta(days=1))] # end_day의 0시로 인식해서 해당일은 포함 안하기 때문에 +1일을 해줌
+                if not df_detail.empty:
+                    print(df_detail)
+                    if self.market == '코인':
+                        df_detail.index = df_detail.index - pd.Timedelta(hours=9)
+                    else:
+                        df_detail.index = df_detail.index - pd.Timedelta(minutes=self.dict_bong_stamp[self.bong_detail])
+                        df, df_detail = common_def.detail_to_spread(df_detail, self.bong, self.bong_detail, False)
+                        df_detail = self.make_start_stop(df_detail, self.dict_bong_stamp[self.bong_detail])
+                    df_detail['현재시간'] = df_detail.index
             quit()
 
         # save = True
@@ -552,16 +573,17 @@ class Window(QWidget):
                 past_date = datetime.datetime.combine(past_date, datetime.time(15, 45, 0))  # 12:30:45 추가
                 for symbol in list_ticker:
                     ticker_symbol = ticker + '_' + symbol[-3:]
-                    if not symbol in list_table:
+                    if not ticker_symbol in list_table:
                         ohlcv = self.exchange.fetch_futopt_1m_ohlcv(symbol,d_day.days)
                         df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
                         # df = df[df.index > past_date + datetime.timedelta(days=1)]
                         df = df[df.index > past_date]
+                        print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_date= }")
 
                     else:
                         df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", self.conn_DB).set_index('날짜')
                         df_exist.index = pd.to_datetime(df_exist.index)
-                        df_exist.drop(df_exist.index[-1], inplace=True)
+                        # df_exist.drop(df_exist.index[-1], inplace=True)
                         final_time = df_exist.index[-1]
                         d_day = today - final_time.date()
                         ohlcv = self.exchange.fetch_futopt_1m_ohlcv(symbol, d_day.days)
@@ -570,6 +592,7 @@ class Window(QWidget):
                         if df.empty:
                             continue
                         df = pd.concat([df_exist, df])
+                        print(f"{symbol= }   {ticker_symbol= }   {final_time.date()= }   {d_day.days= }    {expiry_date= }    {past_date= }   {df.index[-1]= }")
 
                     #데이터가 없을경우 해당하는 행 삭제
                     now = datetime.datetime.now().replace(second=0, microsecond=0)
@@ -577,9 +600,8 @@ class Window(QWidget):
 
                     df['만기일'] = expiry_date
                     if not df.empty:
-                        print(f"{symbol= }   {d_day.days= }    {expiry_date= }    {past_date= }   {df.index[-1]= }")
                         df.to_sql(ticker_symbol, self.conn_DB, if_exists='replace')
-                    # quit()
+
 
         else:
             raise print('데이터를 저장 할 시장을 선택해주세요.')
@@ -1563,38 +1585,42 @@ class Window(QWidget):
 
 
 if __name__ == '__main__':
-    # market = '국내선옵'
-    # ticker = 'ticker'
-    # val_range = 'val_range'
-    # bong = 'bong'
-    # bong_detail = 'bong_detail'
-    # QLE_start = 'QLE_start'
-    # QLE_end = 'QLE_end'
-    # conn_DB = 'conn_DB'
-    # trade_market = 'trade_market'
-    # dict_bong = 'dict_bong'
-    # exchange = 'exchange'
-    # stg_buy = 'stg_buy'
-    # stg_sell = 'stg_sell'
-    # bet = 'bet'
-    # dict_bong_reverse = 'dict_bong_reverse'
-    # division_buy = 'division_buy'
-    # division_sell = 'division_sell'
-    # direction = 'direction'
-    # 거래승수 = '거래승수'
-    # 증거금률 = '증거금률'
-    # dict_info = {'market': market, 'ticker': ticker, 'val_range': val_range, 'bong': bong,
-    # 'bong_detail': bong_detail,
-    # 'start_day': QLE_start,
-    # 'end_day': QLE_end, 'connect': conn_DB,
-    # 'trade_market': trade_market, 'dict_bong': dict_bong, 'exchange': exchange,
-    # 'stg_buy': stg_buy, 'stg_sell': stg_sell, 'bet': bet,
-    # 'dict_bong_reverse': dict_bong_reverse, 'division_buy': division_buy,
-    # 'division_sell': division_sell,
-    # 'direction': direction, '거래승수': 거래승수, '증거금률': 증거금률}
-    #
-    # make_data(None,dict_info=dict_info)
-
+    market = '국내선옵'
+    ticker = '콜옵션_위클리'
+    val_range = '1~2'
+    bong = '5분봉'
+    bong_detail = '1분봉'
+    QLE_start = '2025-01-20'
+    QLE_end = '2025-02-03'
+    conn_DB = sqlite3.connect('DB/DB_futopt.db', check_same_thread=False)
+    trade_market = '옵션'
+    dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '60m',
+                          '4시간봉': '4h', '일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
+    exchange = 'exchange'
+    stg_buy = 'stg_buy'
+    stg_sell = 'stg_sell'
+    bet = 'bet'
+    dict_bong_reverse = 'dict_bong_reverse'
+    division_buy = 'division_buy'
+    division_sell = 'division_sell'
+    direction = 'direction'
+    거래승수 = '거래승수'
+    증거금률 = '증거금률'
+    dict_info = {'market': market, 'ticker': ticker, 'val_range': val_range, 'bong': bong,
+    'bong_detail': bong_detail,
+    'start_day': QLE_start,
+    'end_day': QLE_end, 'connect': conn_DB,
+    'trade_market': trade_market, 'dict_bong': dict_bong, 'exchange': exchange,
+    'stg_buy': stg_buy, 'stg_sell': stg_sell, 'bet': bet,
+    'dict_bong_reverse': dict_bong_reverse, 'division_buy': division_buy,
+    'division_sell': division_sell,
+    'direction': direction, '거래승수': 거래승수, '증거금률': 증거금률}
+    print(datetime.datetime.strptime(dict_info['end_day'], '%Y-%m-%d')+datetime.timedelta(days=1))
+    quit()
+    thread_make = make_data(None,dict_info=dict_info)
+    thread_make.run()
+    # thread_make.start()
+    quit()
 
 
 

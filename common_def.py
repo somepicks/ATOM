@@ -189,14 +189,14 @@ def detail_to_spread(df_min, bong, bong_detail, compare):
         df_4h = resample_df(df_min, bong, '240min', '4시간봉',compare)
     df_daily = resample_df(df_min, bong, 'D', '일봉',compare)
     df_weekly = resample_df(df_min, bong, 'W', '주봉',compare)
-    df_monthly = resample_df(df_min, bong, 'ME', '월봉',compare)
+    # df_monthly = resample_df(df_min, bong, 'ME', '월봉',compare)
 
     df_daily['date'] = df_daily.index.date
     df_weekly['week'] = df_weekly.index.to_period('W').astype(str)
-    df_monthly['month'] = df_monthly.index.to_period('M').astype(str)
+    # df_monthly['month'] = df_monthly.index.to_period('M').astype(str)
     df_min['date'] = df_min.index.date
     df_min['week'] = df_min.index.to_period('W').astype(str)
-    df_min['month'] = df_min.index.to_period('M').astype(str)
+    # df_min['month'] = df_min.index.to_period('M').astype(str)
 
     if detail_unit < dict_bong_stamp['3분봉']:
         df_min = pd.merge(df_min, df_1min, left_index=True, right_index=True, how='left')
@@ -214,7 +214,7 @@ def detail_to_spread(df_min, bong, bong_detail, compare):
         df_min = pd.merge(df_min, df_4h, left_index=True, right_index=True, how='left')
     df_combined = df_min.merge(df_daily, on='date',how='left', suffixes=('', '_daily'))
     df_combined = df_combined.merge(df_weekly, on='week',how='left', suffixes=('', '_weekly'))
-    df_combined = df_combined.merge(df_monthly, on='month',how='left', suffixes=('', '_monthly'))
+    # df_combined = df_combined.merge(df_monthly, on='month',how='left', suffixes=('', '_monthly'))
 
     # df_combined.fillna(method='ffill', inplace=True)
     df_combined.ffill(inplace=True)
@@ -223,7 +223,7 @@ def detail_to_spread(df_min, bong, bong_detail, compare):
     df_combined.index.rename('날짜', inplace=True)  # 인덱스명 변경
     df_combined.drop('date', axis=1, inplace=True)
     df_combined.drop('week', axis=1, inplace=True)
-    df_combined.drop('month', axis=1, inplace=True)
+    # df_combined.drop('month', axis=1, inplace=True)
     list_col = df_combined.columns.tolist()
     # 시가 ~ 데이터프레임 열까지 갖고오기
     if bong == '1분봉':
@@ -244,8 +244,8 @@ def detail_to_spread(df_min, bong, bong_detail, compare):
         df = df_daily
     elif bong == '주봉':
         df = df_weekly
-    elif bong == '월봉':
-        df = df_monthly
+    # elif bong == '월봉':
+    #     df = df_monthly
     else:
         df = pd.DataFrame()
     return df,df_combined

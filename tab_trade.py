@@ -953,9 +953,12 @@ class Window(QMainWindow):
             df_trade = df_trade[df_trade['상태'] != '대기']
             df = pd.concat([df_history,df_trade])
             benefit_closed = df['수익금'].sum()
-            df['가중치'] = df['매입금액'] / df['매입금액'].sum()  # 비중 계산
-            가중평균 = (df['수익률'] * df['가중치']).sum()
-
+            try:
+                df['가중치'] = df['매입금액'] / df['매입금액'].sum()  # 비중 계산
+                가중평균 = (df['수익률'] * df['가중치']).sum()
+            except:
+                print(f"error: {df['매입금액']= }    {df['매입금액'].sum()= }")
+                가중평균 = 0
             # print(f"가중 평균 수익률: {가중평균:.2f}%  수익금: {benefit_closed}")
             self.QL_ror.setText(f"{가중평균:,.2f}%")
             self.QL_benefit.setText(f"{benefit_closed:,.1f}")
