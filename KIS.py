@@ -1017,10 +1017,7 @@ class KoreaInvestment:
 
         # 이번 달 시작 주를 보정하여 몇 주차인지 계산
         adjusted_day = today.day + first_day_weekday
-#         print(f"{today.day=}")
-#         print(f"{adjusted_day=}")
         number_of_week = (adjusted_day - 1) // 7
-#         print(f"{number_of_week=}")
         if yoil == dict_yoil['월'] or yoil == dict_yoil['금'] or yoil == dict_yoil['토'] or yoil == dict_yoil['일']: #위클리 월요일일 경우
             COND_MRKT = "WKM" #위클리(월)
             if yoil == dict_yoil['금'] or yoil == dict_yoil['토']: #일요일은 추가하면 안됨
@@ -1054,16 +1051,17 @@ class KoreaInvestment:
 
             # 결과를 YYMMWW 형태로 출력 (연도 두 자리, 월 두 자리, 목요일 순서)
             expiry_date_week = f"{str(target_year)}{target_month:02}{'0'}{thursday_index}"
-            # 첫 번째 주의 목요일 찾기
-            first_week_start = first_day_of_month - datetime.timedelta(days=first_day_of_month.weekday())  # 첫 주의 월요일
 
-            second_week_start = first_week_start + datetime.timedelta(weeks=1)  # 두 번째 주의 월요일
-            second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
+            # month_expiry_date = self.nth_weekday(today,2,3)
+            # 첫 번째 주의 목요일 찾기
+            # first_week_start = first_day_of_month - datetime.timedelta(days=first_day_of_month.weekday())  # 첫 주의 월요일
+            # second_week_start = first_week_start + datetime.timedelta(weeks=1)  # 두 번째 주의 월요일
+            # second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
 
             # 오늘이 두 번째 주의 목요일인지 확인
-            thursday_week = second_thursday-datetime.timedelta(days=2)
-
-            if thursday_week < today and today <= second_thursday :  # 월물만기주 일 경우
+            first_thursday = self.nth_weekday(today,1,3)
+            second_thursday = self.nth_weekday(today,2,3)
+            if first_thursday < today and today <= second_thursday :  # 월물만기주 일 경우
                 # df_call, df_put = self.display_opt(today)
                 df_call = pd.DataFrame()
                 df_put = pd.DataFrame()
@@ -1072,7 +1070,6 @@ class KoreaInvestment:
                 return df_call, df_put, '만기주', past_date, expiry_date
                 # COND_MRKT = "" #몬슬리(목)
                 # expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
-
             elif yoil == dict_yoil['화'] or yoil == dict_yoil['수'] or yoil == dict_yoil['목']:
                 number_of_week += 1
                 # expiry_date_week = datetime.datetime.strftime(today,'%Y%m')+'0'+str(number_of_week)
@@ -3507,6 +3504,9 @@ if __name__ == "__main__":
     today = datetime.datetime.now().date()
     # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
     df_call, df_put, cond, past_date, expiry_date = exchange.display_opt_weekly(today)
+    print(df_call)
+    print(df_put)
+    print(cond)
     quit()
     ohlcv = exchange.fetch_futopt_1m_ohlcv('201W02490', 25)
     df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
