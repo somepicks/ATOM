@@ -33,7 +33,7 @@ import common_def
 import json  # 리스트를 문자열로 변환하기 위해 필요
 import tab_chart_table
 # from ex import df_history
-
+import os
 pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width', 1500)
@@ -251,7 +251,6 @@ class Window(QMainWindow):
 
 
     def init_file(self):
-        import os
         list_db_file = ['DB/stg_stock.db', 'DB/stg_bybit.db', 'DB/stg_futopt.db']
         # index = ['전략명']
         # dict_data = {'market': '', '진입대상': '', 'ticker': '', '봉': '', '방향': '', '배팅금액': 0, '매입금액': 0, '레버리지': 0, '진입전략': '',
@@ -297,102 +296,40 @@ class Window(QMainWindow):
         # print(self.df_manul)
 
     def display_futopt(self):
-        # def convert_column_types(df):
-        #     for col in df.columns:
-        #         try:
-        #             df[col] = pd.to_numeric(df[col], errors='raise')
-        #         except ValueError:
-        #             pass
-        #     return df
         QTest.qWait(500)
         df_f = self.ex_kis.display_fut()
-        df_f = common_def.convert_column_types(df_f)
-        #
-        현재가 = df_f.loc[df_f.index[0], '현재가']
-        # today = datetime.datetime.now().date()
         today = datetime.datetime.today()
         QTest.qWait(500)
-        # expiry_date = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
         df_c, df_p, past_date, expiry_date = self.ex_kis.display_opt(today)
+        QTest.qWait(500)
+        df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
+
+        df_f = common_def.convert_column_types(df_f)
         df_c = common_def.convert_column_types(df_c)
         df_p = common_def.convert_column_types(df_p)
-        # print(1)
-        QTest.qWait(500)
-        # expiry_date_week = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
-        df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
         df_c_weekly = common_def.convert_column_types(df_c_weekly)
         df_p_weekly = common_def.convert_column_types(df_p_weekly)
-        # df_c_thur, df_p_thur = self.ex_kis.display_opt_weekly_thur()
-        # df_c_thur = common_def.convert_column_types(df_c_thur)
-        # df_p_thur = common_def.convert_column_types(df_p_thur)
+        df_f['시가'] = 0
+        df_f['거래대금'] = 0
 
-        # print(2)
-        # 조건에 '시가_풋옵션_5분봉' 과같은 팩터가 올 수 있으니 비율을 똑같이 해줘야 함
-        df_c = df_c[df_c['행사가'] > 현재가 - 30]
-        df_c = df_c[df_c['행사가'] < 현재가 + 30]
-        df_c['종목명'] = '콜옵션'
-        df_p = df_p[df_p['행사가'] > 현재가 - 30]
-        df_p = df_p[df_p['행사가'] < 현재가 + 30]
-        df_p['종목명'] = '풋옵션'
+        df_combined = common_def.futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,self.COND_MRKT)
 
-        df_f.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
-        df_c.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
-        df_p.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
-        # df = ex.fetch_closed_roder(side='매수',ticker='005930')
+        # self.set_table_make(self.QT_tickers, df_combined)
+        self.dict_market_option['COND_MRKT'] = self.COND_MRKT
 
-        # 공통된 컬럼명 찾기
-        common_columns = list(set(df_f.columns).intersection(df_c.columns).intersection(df_p.columns))
-
-        # 공통된 컬럼명만 추출하여 새로운 데이터프레임 생성
-        df_f_common = df_f[common_columns]
-        df_c_common = df_c[common_columns]
-        df_p_common = df_p[common_columns]
-
-        # 구분 표시 행 생성 함수
-        def create_separator_row(columns):
-            return pd.DataFrame({col: '===' for col in columns}, index=[0])
-
-        # 각 데이터프레임에 구분 행 추가
-        df1_with_separator = pd.concat([df_f_common, create_separator_row(common_columns)], ignore_index=True)
-        df2_with_separator = pd.concat([df_c_common, create_separator_row(common_columns)], ignore_index=True)
-        df3_with_separator = pd.concat([df_p_common, create_separator_row(common_columns)], ignore_index=True)
-
-        # 모든 데이터프레임을 합치기
-        df_combined = pd.concat([df1_with_separator, df2_with_separator, df3_with_separator], ignore_index=True)
-
-        if not df_c_weekly.empty and not df_p_weekly.empty:
-            if self.COND_MRKT == "WKM":
-                yoil = '월'
-            elif self.COND_MRKT == "WKI":
-                yoil = '목'
-            else:
-                yoil = '만기'
-
-            df_c_weekly = df_c_weekly[df_c_weekly['행사가'] > 현재가 - 30]
-            df_c_weekly = df_c_weekly[df_c_weekly['행사가'] < 현재가 + 30]
-            df_c_weekly['종목명'] = '콜'+'_위클리_'+yoil
-
-            df_p_weekly = df_p_weekly[df_p_weekly['행사가'] > 현재가 - 30]
-            df_p_weekly = df_p_weekly[df_p_weekly['행사가'] < 현재가 + 30]
-            df_p_weekly['종목명'] = '풋'+'_위클리_'+yoil
-
-            df_c_weekly.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
-            df_p_weekly.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
-            df_c_weekly_common = df_c_weekly[common_columns]
-            df_p_weekly_common = df_p_weekly[common_columns]
-            df4_with_separator = pd.concat([df_c_weekly_common, create_separator_row(common_columns)], ignore_index=True)
-            df5_with_separator = pd.concat([df_p_weekly_common, create_separator_row(common_columns)], ignore_index=True)
-            df_combined = pd.concat([df_combined, df4_with_separator, df5_with_separator], ignore_index=True)
-
-        df_combined = df_combined[['종목코드', '현재가', '이론가/행사가', '거래량', '전일대비', '매수호가', '매도호가', '종목명']]
-        # 결과 출력
-        self.set_table_make(self.QT_tickers, df_combined)
+        #
         return df_combined
 
     def select_market(self):  # 국내시장인지 코인인지 선택합니다.
         self.set_table_make(self.QT_trade_open, pd.DataFrame())
         self.set_table_make(self.QT_trade_closed, pd.DataFrame())
         self.QLE_stg.clear()
+        self.QT_tickers.clear()
+        self.dict_market_option = {}
+        token_file = 'token.dat' # 한국투자증권 토큰 삭제
+        if os.path.isfile(token_file):  # token.dat 파일이 있으면
+            os.remove(token_file)  # 파일 삭제 나중에는 장 시작시 토큰유효기간 확인 후 중간에 만료되는토큰은 삭제하는걸로 변경 할 필요가 있음
+            print("token_file 파일이 삭제되었습니다.")
         if self.QCB_market.currentText() == '국내주식' :
             self.QTE_stg_buy.clear()
             self.QTE_stg_sell.clear()
@@ -404,8 +341,6 @@ class Window(QMainWindow):
             df_qt_stocks = df_qt_stocks[df_qt_stocks['시장구분']!='ETF'] #per 0 제외
             df_qt_stocks = df_qt_stocks[['종목명','시장구분','업종','BPS','PER','PBR' ,'EPS','DIV','DPS']]
             # 종목 맨 앞에 코스피200이 와야됨 왜냐하면
-            self.QT_tickers.clear()
-            self.set_table_make(self.QT_tickers,df_qt_stocks)
 
         elif self.QCB_market.currentText() == '국내선옵':
             self.QTE_stg_buy.clear()
@@ -419,7 +354,6 @@ class Window(QMainWindow):
             # list_duple_day = [x['bass_dt'] for x in output if x['opnd_yn'] == 'N' and (
             #             x['wday_dvsn_cd'] == '02' or x['wday_dvsn_cd'] == '05')]  # 옵션만기일(월,목)과 휴일이 겹치는날
             self.ex_kis = common_def.make_exchange_kis('모의선옵')
-            self.QT_tickers.clear()
             self.df_tickers = self.display_futopt()
             self.QCB_chart_bong_detail.setCurrentText('1분봉')
             self.QCB_chart_bong_detail.setEnabled(False)
@@ -437,12 +371,12 @@ class Window(QMainWindow):
             df_tickers.index = [x[:-10] for x in df_tickers.index.tolist() ]
             df_tickers['종목코드'] = df_tickers.index
             self.df_tickers = df_tickers[['종목코드','quoteVolume','volume24h','percentage','change']]
-            self.QT_tickers.clear()
-            self.COND_MRKT = None
-            self.set_table_make(self.QT_tickers,self.df_tickers)
+            # self.COND_MRKT = None
 
         else:
             stg_file = ''
+        self.dict_market_option['df_tickers'] = self.df_tickers
+        self.set_table_make(self.QT_tickers,self.df_tickers)
 
         if not self.QCB_market.currentText() == '':
             self.conn_stg = sqlite3.connect(stg_file)
@@ -940,7 +874,7 @@ class Window(QMainWindow):
             self.chart_thread.stop()
             self.chart_thread = None
 
-    def effect_start(self, light, df_trade):
+    def effect_start(self, light, df_trade, df_tickers):
         if light == True:
             self.QPB_start.setStyleSheet("background-color: #fa3232;")
 
@@ -967,9 +901,7 @@ class Window(QMainWindow):
             else:
                 self.QL_win.setText(f"{(win/len(df_history))*100:,.1f}%")
 
-            # print(df_history)
-            # print(self.df_stg)
-            # quit()
+            self.set_table_make(self.QT_tickers,df_tickers)
 
         if light == False:
             self.QPB_start.setStyleSheet("background-color: #cccccc;")
@@ -979,11 +911,10 @@ class Window(QMainWindow):
         self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')
         self.df_stg = self.set_table_modify(self.QT_trade_open, self.df_stg)
         # self.df_instock = pd.read_sql(f"SELECT * FROM 'instock'", self.conn_stg).set_index('index')
-        list_tickers = self.df_tickers['종목코드'].tolist()
-        print(f"{list_tickers= }")
+        self.dict_market_option['list_tickers'] = self.df_tickers['종목코드'].tolist()
         self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(), self.QCB_simul, self.df_stg,
                                                 self.QCB_chart_duration.currentText(),self.QCB_tele.isChecked(),
-                                                list_tickers, self.COND_MRKT)
+                                                self.dict_market_option)
         self.thread.start()
         # self.QPB_start.setText({True: "정지", False: "시작"}[self.thread.status])
         self.thread.qt_open.connect(self.qtable_open)

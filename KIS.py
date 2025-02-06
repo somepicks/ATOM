@@ -11,13 +11,13 @@ from multiprocessing import Process, Queue
 import datetime
 from time import strftime
 
+import DateTime
 import requests
 import zipfile
 import os
 import pandas as pd
 from dateutil.utils import today
 from pandas import to_numeric
-# from datetime import datetime, timedelta, date
 import websockets
 # from Crypto.Cipher import AES
 # from Crypto.Util.Padding import unpad
@@ -559,6 +559,9 @@ class KoreaInvestment:
                     "fid_input_iscd": symbol
                 }
                 resp = requests.get(url, headers=headers, params=params)
+                if resp.json()['msg1'] == '정상처리 되었습니다.':
+                    output = resp.json()
+                    break
 
             elif self.market == '선옵':
                 path = "uapi/domestic-futureoption/v1/quotations/inquire-price"
@@ -575,13 +578,22 @@ class KoreaInvestment:
                     "fid_input_iscd": symbol
                 }
                 resp = requests.get(url, headers=headers, params=params)
-            if resp.json()['msg1'] == '정상처리 되었습니다.':
-                break
+                if resp.json()['msg1'] == '정상처리 되었습니다.':
+                    output = resp.json()['output1']
+                    output['현재가'] = output.pop('futs_prpr')
+                    output['시가'] = output.pop('futs_oprc')
+                    output['고가'] = output.pop('futs_hgpr')
+                    output['저가'] = output.pop('futs_lwpr')
+                    output['거래량'] = output.pop('acml_vol')
+                    output['거래대금'] = output.pop('acml_tr_pbmn')
+                    output['베이시스'] = output.pop('basis')
+                    output['이론가'] = output.pop('hts_thpr')
+                    break
             elif i == 10:
                 raise print(f'{symbol} : {i}번 이상 해도 조회 안됨')
             i += 1
             QTest.qWait(500)
-        return resp.json()['output']
+        return output
 
     def fetch_oversea_price(self, symbol: str) -> dict:
         """해외주식현재가/해외주식 현재체결가
@@ -846,7 +858,7 @@ class KoreaInvestment:
                     print(output['msg1'])
                     print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
                     if output['msg1'] == '기간이 만료된 token 입니다.':
-                        print('기간만료')
+                        print('기간만료', output['msg1'])
 
                     QTest.qWait(800)
 
@@ -974,7 +986,7 @@ class KoreaInvestment:
                 df_put.set_index(df_put['종목코드'], inplace=True)
                 break
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
-                print(f'display_opt   {res.json()}')
+                print(f'{self.now_time()}  display_opt {res.json()}')
                 QTest.qWait(1000)
             else:
                 pprint(res.json())
@@ -1058,7 +1070,6 @@ class KoreaInvestment:
             # second_week_start = first_week_start + datetime.timedelta(weeks=1)  # 두 번째 주의 월요일
             # second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
 
-            # 오늘이 두 번째 주의 목요일인지 확인
             first_thursday = self.nth_weekday(today,1,3)
             second_thursday = self.nth_weekday(today,2,3)
             if first_thursday < today and today <= second_thursday :  # 월물만기주 일 경우
@@ -1138,7 +1149,7 @@ class KoreaInvestment:
                 df_put.set_index(df_put['종목코드'], inplace=True)
                 break
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
-                print(f'display_opt_weekly   {res.json()}')
+                print(f'{self.now_time()} display_opt_weekly   {res.json()}')
                 QTest.qWait(500)
             elif res.json()['msg1'] == '정상처리 되었습니다.' and not res.json()['output1'] and not res.json()['output2']:
                 df_call = pd.DataFrame()
@@ -1148,6 +1159,9 @@ class KoreaInvestment:
                 pprint(res.json())
                 raise
         return df_call, df_put, COND_MRKT, past_date, expiry_date
+
+    def now_time(self):
+        print(datetime.datetime.strftime(datetime.datetime.now(),"%H:%M:%S"))
 
 
     def display_fut(self):
@@ -1201,11 +1215,11 @@ class KoreaInvestment:
                            'total_bidp_rsqn':'매수호가 잔량',
 
                            'hts_otst_stpl_qty': '미결제약정',
-                           'futs_hgpr': '최고가',
-                           'futs_lwpr': '최저가'}, inplace=True)
-        df = df[['종목코드','종목명','현재가','전일대비','등락(%)','이론가','거래량','매도호가','매수호가','미결제약정','최고가','최저가']]
+                           'futs_hgpr': '고가',
+                           'futs_lwpr': '저가'}, inplace=True)
+        df = df[['종목코드','종목명','현재가','전일대비','등락(%)','이론가','거래량','매도호가','매수호가','미결제약정','고가','저가']]
         df.set_index(df['종목코드'], inplace=True)
-
+        df.drop(df.index[1:],axis=0,inplace=True) #코스피200 선물만 남기고 삭제
         return df
 
     def investor_trend(self):
@@ -3503,7 +3517,23 @@ if __name__ == "__main__":
     # today = datetime.datetime(2024,12,10)
     today = datetime.datetime.now().date()
     # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
+    df = exchange.display_fut()
+    output = exchange.fetch_domestic_price('F',df.index[0])
+    df.loc[df.index[0],'시가'] = float(output['시가'])
+    df.loc[df.index[0],'고가'] = float(output['고가'])
+    df.loc[df.index[0],'저가'] = float(output['저가'])
+    df.loc[df.index[0],'현재가'] = float(output['현재가'])
+    df.loc[df.index[0],'거래량'] = float(output['거래량'])
+    df.loc[df.index[0],'거래대금'] = float(output['거래대금'])
+    df.loc[df.index[0],'이론가'] = float(output['이론가'])
+    df.loc[df.index[0],'베이시스'] = float(output['베이시스'])
+
+    # list_tickers = df_call.index.tolist()
+    quit()
+    st = datetime.datetime.now()
     df_call, df_put, cond, past_date, expiry_date = exchange.display_opt_weekly(today)
+    print(datetime.datetime.now()-st)
+    quit()
     print(df_call)
     print(df_put)
     print(cond)

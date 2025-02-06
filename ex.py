@@ -311,7 +311,7 @@ df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn).set_index('ë‚ ì
 print(df_exist.dtypes)
 print(df_exist)
 df_exist.index = pd.to_datetime(df_exist.index)
-print(df_exist)
+quit()
 for i in range(10):
     if i ==5:
         continue

@@ -64,6 +64,76 @@ def convert_df_compare(df):
     # df['고저평균대비등락율'] = ((df['종가'] / ((df['고가'] + df['저가']) / 2) - 1) * 100).round(2)
     df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
     return df
+def futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
+    # 조건에 '시가_풋옵션_5분봉' 과같은 팩터가 올 수 있으니 비율을 똑같이 해줘야 함
+
+
+    현재가 = df_f.loc[df_f.index[0], '현재가']
+    df_c = df_c[df_c['행사가'] > 현재가 - 30]
+    df_c = df_c[df_c['행사가'] < 현재가 + 30]
+    df_c['종목명'] = '콜옵션'
+    df_p = df_p[df_p['행사가'] > 현재가 - 30]
+    df_p = df_p[df_p['행사가'] < 현재가 + 30]
+    df_p['종목명'] = '풋옵션'
+
+    df_f.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
+    df_c.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
+    df_p.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
+    # df = ex.fetch_closed_roder(side='매수',ticker='005930')
+
+    #옵션은 시가를 종목별로 조회해야 나오므로 그냥 0으로 표기
+    df_c['시가'] = 0
+    df_p['시가'] = 0
+    df_c_weekly['시가'] = 0
+    df_p_weekly['시가'] = 0
+
+    # 공통된 컬럼명 찾기
+    common_columns = list(set(df_f.columns).intersection(df_c.columns).intersection(df_p.columns))
+
+    # 공통된 컬럼명만 추출하여 새로운 데이터프레임 생성
+    df_f_common = df_f[common_columns]
+    df_c_common = df_c[common_columns]
+    df_p_common = df_p[common_columns]
+
+    # 구분 표시 행 생성 함수
+    def create_separator_row(columns):
+        return pd.DataFrame({col: '===' for col in columns}, index=[0])
+
+    # 각 데이터프레임에 구분 행 추가
+    df1_with_separator = pd.concat([df_f_common, create_separator_row(common_columns)], ignore_index=True)
+    df2_with_separator = pd.concat([df_c_common, create_separator_row(common_columns)], ignore_index=True)
+    df3_with_separator = pd.concat([df_p_common, create_separator_row(common_columns)], ignore_index=True)
+
+    # 모든 데이터프레임을 합치기
+    df_combined = pd.concat([df1_with_separator, df2_with_separator, df3_with_separator], ignore_index=True)
+
+    if not df_c_weekly.empty and not df_p_weekly.empty:
+        if COND_MRKT == "WKM":
+            yoil = '월'
+        elif COND_MRKT == "WKI":
+            yoil = '목'
+        else:
+            yoil = '만기'
+
+        df_c_weekly = df_c_weekly[df_c_weekly['행사가'] > 현재가 - 30]
+        df_c_weekly = df_c_weekly[df_c_weekly['행사가'] < 현재가 + 30]
+        df_c_weekly['종목명'] = '콜' + '_위클리_' + yoil
+
+        df_p_weekly = df_p_weekly[df_p_weekly['행사가'] > 현재가 - 30]
+        df_p_weekly = df_p_weekly[df_p_weekly['행사가'] < 현재가 + 30]
+        df_p_weekly['종목명'] = '풋' + '_위클리_' + yoil
+
+        df_c_weekly.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
+        df_p_weekly.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
+        df_c_weekly_common = df_c_weekly[common_columns]
+        df_p_weekly_common = df_p_weekly[common_columns]
+        df4_with_separator = pd.concat([df_c_weekly_common, create_separator_row(common_columns)], ignore_index=True)
+        df5_with_separator = pd.concat([df_p_weekly_common, create_separator_row(common_columns)], ignore_index=True)
+        df_combined = pd.concat([df_combined, df4_with_separator, df5_with_separator], ignore_index=True)
+
+    df_combined = df_combined[['종목코드', '현재가','시가',  '이론가/행사가', '거래량', '거래대금', '전일대비','종목명']]
+    return df_combined
+
 def resample_df(df, bong, rule, name, compare):
     ohlc_dict = {
         '상세시가': 'first',

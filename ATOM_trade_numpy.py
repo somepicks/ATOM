@@ -27,7 +27,7 @@ from pprint import pprint
 import sqlite3
 import KIS
 import talib
-
+import os
 import tab_trade
 from common_def import export_sql
 
@@ -500,11 +500,10 @@ class Trade_np(QThread):
     qt_open = pyqtSignal(pd.DataFrame)
     qt_closed = pyqtSignal(pd.DataFrame)
     # val_sum = pyqtSignal(pd.DataFrame)
-    val_light = pyqtSignal(bool,pd.DataFrame)
-    # val_instock = pyqtSignal(pd.DataFrame)
+    val_light = pyqtSignal(bool,pd.DataFrame,pd.DataFrame)
 
 
-    def __init__(self,parent,market,simul,df_stg,chart_duration,tele,list_tickers,COND_MRKT):
+    def __init__(self,parent,market,simul,df_stg,chart_duration,tele,dict_market_option):
         super().__init__(parent)
     # def __init__(self,market,simul,df_stg):
     #     super().__init__()
@@ -512,8 +511,6 @@ class Trade_np(QThread):
         self.market = market
         self.simul = simul
         self.df_stg = df_stg
-        # self.df_instock = df_instock
-        # self.df_qcb = df_qcb
 
         self.cond = QWaitCondition()
         self.mutex = QMutex()
@@ -539,7 +536,6 @@ class Trade_np(QThread):
         self.timer_light.setInterval(1000)  #10초에 한번씩 불러오기
         self.bool_light = False
 
-
         self.fee_stock = 0.0140527#%
         self.tax_stock = 0.018
         self.fee_future = 0.00185
@@ -549,8 +545,8 @@ class Trade_np(QThread):
         self.fee_bybit_limit = 0.055
         self.위탁증거금률 = 10  # 10%
         self.tele = tele
-        self.list_tickers = list_tickers
-        self.COND_MRKT = COND_MRKT
+        self.list_tickers = dict_market_option['list_tickers']
+        self.dict_market_option = dict_market_option
         # self.list_close_day = list_close_day
 
 
@@ -578,6 +574,7 @@ class Trade_np(QThread):
             print(f"{self.cyan('모의매매')}")
 
         if self.market == '국내주식' or self.market == '국내선옵':
+
             if datetime.datetime.now().time() < datetime.datetime.strptime('00:55:00','%H:%M:%S').time(): #9시 전에 클릭하면 9시 정각에 실행
                 schedule.every().day.at("08:55:00").do(self.loop_init)
                 while self._status:
@@ -616,9 +613,9 @@ class Trade_np(QThread):
             self.cond.wakeAll()
         elif not self._status:
             self.bool_light = False
-            self.val_light.emit(self.bool_light,self.df_trade)
+            self.val_light.emit(self.bool_light,self.df_trade,self.df_tickers)
     def active_light(self):
-        self.val_light.emit(self.bool_light,self.df_trade)
+        self.val_light.emit(self.bool_light,self.df_trade,self.df_tickers)
         self.bool_light = not self.bool_light
     @property
     def status(self):
@@ -781,8 +778,6 @@ class Trade_np(QThread):
             while self._status:
                 one_minute, dict_stg = self.loop_main(장종료시간, one_minute, dict_stg)
                 self.qt_open.emit(self.df_trade)
-                # self.val_light.emit(self.bool_light)
-                # self.bool_light = not self.bool_light
         return dict_stg
     def loop_main(self,장종료시간, one_minute, dict_stg):
         # global 데이터길이, 현재시간, 캔들종료시간
@@ -2474,18 +2469,18 @@ class Trade_np(QThread):
         for val in dict_stg.values():
             if type(val['진입대상']) == dict:
                 li_obj_type.append(list(val['진입대상'].keys())[0])
-        if li_obj_type:
+        if li_obj_type: #해당하는 조건이 있을 경우에만 진입
             if self.market == '코인':
                 fetch_tickers = self.ex_bybit.fetch_tickers()
                 df = self.bybit_set_tickers(fetch_tickers)
-                if '거래대금급등' in li_obj_type:  # 옵션_월물
+                if '거래대금급등' in li_obj_type:
                     se_vol = self.se_vol - df['quoteVolume']
                     se_vol.sort_values(ascending=False, inplace=True)  # 거래대금 급등 순 정렬
                     self.se_vol = df['quoteVolume']
                     se_vol = se_vol.dropna()
                     list_increase_vol = se_vol.tolist()[:50]  # 거래대금 급등 상위 20위만 거래
                     se_top = self.se_vol.copy()
-                if '거래대금상위' in li_obj_type:  # 옵션_월물
+                if '거래대금상위' in li_obj_type:
                     self.df_quotevolum = df['quoteVolume'].copy()
                     self.df_quotevolum.sort_values(ascending=False, inplace=True)  # 거래대금 상위 순 정렬
 
@@ -2493,36 +2488,37 @@ class Trade_np(QThread):
                     # self.dict_sorting_obj = [x[:-10] for x in list_tickers if x[-4:] == 'USDT' and x[:6] != 'GASDAO']  #GASDAO 종목 삭제
                     # list_tickers = list(set(list_tickers) - set(self.list_stg_tickers))  # 전체 대상에서 전략에 종목이 지정된 종목은 제외
             elif self.market == '국내선옵':
+
+                self.COND_MRKT = '옵션' #일단은 '옵션'으로 명명 나중에 바뀜
                 if '콜옵션' in li_obj_type or '풋옵션' in li_obj_type:  # 옵션_월물
-                    # print('콜풋')
                     QTest.qWait(800)
                     df_c, df_p, past_date, expiry_date = self.ex_kis.display_opt(today)
                     self.df_c = common_def.convert_column_types(df_c)
                     self.df_p = common_def.convert_column_types(df_p)
-#                     print(self.df_c)
-#                     print(self.df_p)
+                else:
+                    self.df_c = pd.DataFrame()
+                    self.df_p = pd.DataFrame()
+
                 if '콜옵션_위클리' in li_obj_type or '풋옵션_위클리' in li_obj_type: #옵션_주간
-#                     print('위클리')
                     QTest.qWait(800)
                     df_c_weekly, df_p_weekly,cond_mrkt, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
                     self.df_c_weekly = common_def.convert_column_types(df_c_weekly)
                     self.df_p_weekly = common_def.convert_column_types(df_p_weekly)
-                # if week == 4 or week == 5 or week == 6 or week == 0: #위클리 월요일일 경우
-
-                # else: #목요일 만기 옵션일 경우
-                #     first_day_of_month = datetime.datetime.today().replace(day=1)
-                #
-                #     # 첫 번째 주의 목요일 찾기
-                #     first_week_start = first_day_of_month - datetime.timedelta(
-                #         days=first_day_of_month.weekday())  # 첫 주의 월요일
-                #     second_week_start = first_week_start + datetime.timedelta(weeks=1)  # 두 번째 주의 월요일
-                #     second_thursday = second_week_start + datetime.timedelta(days=3)  # 두 번째 주의 목요일
-                #
-                #     # 오늘이 두 번째 주의 목요일인지 확인
-                #     if datetime.datetime.today().date() == second_thursday.date(): #만기주 일 경우
-                #         df_c, df_p = self.ex_kis.display_opt()
-                #     elif week == 1 or week == 2 or week == 3:
-                #         df_c, df_p = self.ex_kis.display_opt_weekly_thur()
+                else:
+                    self.df_c_weekly = pd.DataFrame()
+                    self.df_p_weekly = pd.DataFrame()
+                df_tickers = self.dict_market_option['df_tickers']
+                df_f = df_tickers.iloc[[0]] #첫번째 행은 코스피 200 선물이라 추출
+                output = self.ex_kis.fetch_domestic_price('F', df_f.index[0])
+                df_f.loc[df_f.index[0], '시가'] = float(output['시가'])
+                # df_f.loc[df_f.index[0], '고가'] = float(output['고가'])
+                # df_f.loc[df_f.index[0], '저가'] = float(output['저가'])
+                df_f.loc[df_f.index[0], '현재가'] = float(output['현재가'])
+                df_f.loc[df_f.index[0], '거래량'] = float(output['거래량'])
+                df_f.loc[df_f.index[0], '거래대금'] = float(output['거래대금'])
+                df_f.loc[df_f.index[0], '이론가'] = float(output['이론가'])
+                # df.loc[df.index[0], '베이시스'] = float(output['베이시스'])
+                self.df_tickers = common_def.futopt_set_tickers(df_f,self.df_c,self.df_p,self.df_c_weekly,self.df_p_weekly,self.COND_MRKT)
 
     def sorting_tickers(self,dict_stg_stg,obj):
         key = list(obj.keys())[0]
@@ -2689,10 +2685,10 @@ class Trade_np(QThread):
         dict_trend.update(self.ex_kis.investor_trend_time('주식선물'))
         dict_trend.update(self.ex_kis.investor_trend_time('콜옵션'))
         dict_trend.update(self.ex_kis.investor_trend_time('풋옵션'))
-        if self.COND_MRKT == "WKM":
+        if self.dict_market_option['COND_MRKT'] == "WKM":
             dict_trend.update(self.ex_kis.investor_trend_time('콜_위클리_월'))
             dict_trend.update(self.ex_kis.investor_trend_time('풋_위클리_월'))
-        elif self.COND_MRKT == "WKI":
+        elif self.dict_market_option['COND_MRKT'] == "WKI":
             dict_trend.update(self.ex_kis.investor_trend_time('콜_위클리_목'))
             dict_trend.update(self.ex_kis.investor_trend_time('풋_위클리_목'))
 
@@ -2960,12 +2956,12 @@ if __name__ == "__main__":
     elif market == '코인':
         conn_stg = sqlite3.connect('DB/stg_bybit.db')
         list_tickers = ['BTC','ETH','XRP']
-        COND_MRKT = "WKM"
+        # COND_MRKT = "WKM"
     df_stg = pd.read_sql(f"SELECT * FROM 'stg'", conn_stg).set_index('index')
     # df_instock = pd.DataFrame()
     tele = True
     duration = 30
-    trade = Trade_np(None,market,simul,df_stg,duration,tele,list_tickers,COND_MRKT)
+    trade = Trade_np(None,market,simul,df_stg,duration,tele,list_tickers,dict)
 
     # stg = '시가_풋'
     # ticker = '201W01337'
