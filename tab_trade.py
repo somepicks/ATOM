@@ -104,7 +104,7 @@ class Window(QMainWindow):
         self.QCB_simul = QCheckBox('모의매매')
         self.QCB_simul.setChecked(True)
         self.QCB_market = QComboBox()
-        self.QCB_market.addItems(['', '코인', '국내주식','국내선옵'])
+        self.QCB_market.addItems(['', '코인', '국내주식','국내선옵','해외선옵'])
         self.QLE_chart_ticker = QLineEdit()
         self.QLE_bet = QLineEdit()
         self.QCB_hoga_buy = QComboBox()
@@ -251,7 +251,7 @@ class Window(QMainWindow):
 
 
     def init_file(self):
-        list_db_file = ['DB/stg_stock.db', 'DB/stg_bybit.db', 'DB/stg_futopt.db']
+        list_db_file = ['DB/stg_stock.db', 'DB/stg_bybit.db', 'DB/stg_futopt.db', 'DB/stg_futopt_oversea.db']
         # index = ['전략명']
         # dict_data = {'market': '', '진입대상': '', 'ticker': '', '봉': '', '방향': '', '배팅금액': 0, '매입금액': 0, '레버리지': 0, '진입전략': '',
         #              '청산전략': '',  '현재가': 0, '진입가': 0, '주문수량': 0, '진입시간': '', '청산가': 0, '청산시간': '', '수익률': 0,
@@ -326,11 +326,25 @@ class Window(QMainWindow):
         self.QLE_stg.clear()
         self.QT_tickers.clear()
         self.dict_market_option = {}
-        token_file = 'token.dat' # 한국투자증권 토큰 삭제
-        if os.path.isfile(token_file):  # token.dat 파일이 있으면
-            os.remove(token_file)  # 파일 삭제 나중에는 장 시작시 토큰유효기간 확인 후 중간에 만료되는토큰은 삭제하는걸로 변경 할 필요가 있음
-            print("token_file 파일이 삭제되었습니다.")
-        if self.QCB_market.currentText() == '국내주식' :
+        # token_file = 'token.dat' # 한국투자증권 토큰 삭제
+        # if os.path.isfile(token_file):  # token.dat 파일이 있으면
+        #     os.remove(token_file)  # 파일 삭제 나중에는 장 시작시 토큰유효기간 확인 후 중간에 만료되는토큰은 삭제하는걸로 변경 할 필요가 있음
+        #     print("token_file 파일이 삭제되었습니다.")
+        if self.QCB_market.currentText() == '코인':
+            self.QTE_stg_buy.clear()
+            self.QTE_stg_sell.clear()
+            stg_file = 'DB/stg_bybit.db'
+            self.ex_bybit,self.ex_pybit  = common_def.make_exchange_bybit(False)  # do_trade에서 exchange를 넘겨주는 방법은 안될까
+            fetch_tickers = self.ex_bybit.fetch_tickers()
+            df_tickers = self.bybit_set_tickers(fetch_tickers)
+            df_tickers = df_tickers[df_tickers.index.str[-10:]=='/USDT:USDT']
+            # df_tickers.index = [x[:-10] for x in df_tickers.index.tolist() if x[-4:] == 'USDT' and x[:6] != 'GASDAO']  #GASDAO 종목 삭제
+            df_tickers.index = [x[:-10] for x in df_tickers.index.tolist() ]
+            df_tickers['종목코드'] = df_tickers.index
+            self.df_tickers = df_tickers[['종목코드','quoteVolume','volume24h','percentage','change']]
+            # self.COND_MRKT = None
+
+        elif self.QCB_market.currentText() == '국내주식' :
             self.QTE_stg_buy.clear()
             self.QTE_stg_sell.clear()
             stg_file = 'DB/stg_stock.db'
@@ -358,21 +372,14 @@ class Window(QMainWindow):
             self.QCB_chart_bong_detail.setCurrentText('1분봉')
             self.QCB_chart_bong_detail.setEnabled(False)
             self.QCB_chart_bong.setCurrentText('5분봉')
-
-        elif self.QCB_market.currentText() == '코인':
+        elif self.QCB_market.currentText() == '해외선옵':
             self.QTE_stg_buy.clear()
             self.QTE_stg_sell.clear()
-            stg_file = 'DB/stg_bybit.db'
-            self.ex_bybit,self.ex_pybit  = common_def.make_exchange_bybit(False)  # do_trade에서 exchange를 넘겨주는 방법은 안될까
-            fetch_tickers = self.ex_bybit.fetch_tickers()
-            df_tickers = self.bybit_set_tickers(fetch_tickers)
-            df_tickers = df_tickers[df_tickers.index.str[-10:]=='/USDT:USDT']
-            # df_tickers.index = [x[:-10] for x in df_tickers.index.tolist() if x[-4:] == 'USDT' and x[:6] != 'GASDAO']  #GASDAO 종목 삭제
-            df_tickers.index = [x[:-10] for x in df_tickers.index.tolist() ]
-            df_tickers['종목코드'] = df_tickers.index
-            self.df_tickers = df_tickers[['종목코드','quoteVolume','volume24h','percentage','change']]
-            # self.COND_MRKT = None
-
+            stg_file = 'DB/stg_futopt_oversea.db'
+            self.QCB_chart_bong_detail.setCurrentText('1분봉')
+            self.QCB_chart_bong_detail.setEnabled(False)
+            self.QCB_chart_bong.setCurrentText('5분봉')
+            self.df_tickers = pd.DataFrame()
         else:
             stg_file = ''
         self.dict_market_option['df_tickers'] = self.df_tickers
@@ -1133,7 +1140,7 @@ class Window(QMainWindow):
         self.QLE_stg.setText(stg)
         self.QCB_stgs.setCurrentText(stg)
         # print(ticker)
-        # print(type(ticker))
+        # px cv   n                         rint(type(ticker))
         if ticker != "":
             self.QLE_chart_ticker.setText(ticker)
     # def save_instock(self,df_instock):
@@ -1167,7 +1174,7 @@ class Window(QMainWindow):
             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
             # df.index = df.index + pd.Timedelta(hours=9)
         if market == '국내선옵' :
-            ohlcv = self.ex_kis.fetch_futopt_1m_ohlcv(symbol=ticker, limit=int(bong_since))
+            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker, limit=int(bong_since))
             df = common_def.get_kis_ohlcv(market, ohlcv)
             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
         df['매수가'] = np.nan

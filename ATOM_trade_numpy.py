@@ -824,8 +824,8 @@ class Trade_np(QThread):
                 ticker = dict_stg[stg]['종목코드']
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False)
                 df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
-                # print(f"{df= }")
-                # print(f"{df.loc[df.index[-1],'종가']= }")
+                print(f"{df= }")
+                print(f"{df.loc[df.index[-1],'종가']= }")
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 # if not np.isnan():
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
@@ -1129,7 +1129,7 @@ class Trade_np(QThread):
             if 매도 == True :
                 재진입금지 = locals_dict_sell.get('재진입금지')
                 if 재진입금지 == True:
-                    self.df_trade.loc[stg, '매도전환'] = "재진입금지"
+                    self.df_trade.loc[stg, '매도전환'] = '재진입금지'
                 if 매도가 == 시장가 and 상태 != '시장가매도' and 상태 != '매도': # 지정가로 매도주문이 나간상태인데 손절라인에 걸려서 시장가 매도 주문이 나가야할 경우
                     print(f'{stg= }, {종목코드= } | 잔량 시장가 매도 - {datetime.datetime.now()}')
                     주문수량 = self.df_trade.loc[stg, '주문수량']
@@ -2258,7 +2258,7 @@ class Trade_np(QThread):
                         df = ohlcv
                 else:
                     to = ohlcv[0]['stck_cntg_hour']
-                    output = self.ex_kis._fetch_futopt_today_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
+                    output = self.ex_kis._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
                     output = output['output2']
                     list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
                     if to in list_cntg_hour:
@@ -2285,19 +2285,20 @@ class Trade_np(QThread):
         elif self.market == '국내선옵':
             if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
                 ohlcv = globals()[ticker_full_name]
-                to = ohlcv[0]['stck_cntg_hour']
-                output = self.ex_kis._fetch_futopt_today_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
-                output = output['output2']
-                list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
-                if to in list_cntg_hour:
-                    output = output[:list_cntg_hour.index(to)+1]
-                    del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                    output.extend(ohlcv)
-                    ohlcv = output
-                    globals()[ticker_full_name] = ohlcv
+                # to = ohlcv[0]['stck_cntg_hour']
+                # output = self.ex_kis._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
+                # output = output['output2']
+                # list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
+                # if to in list_cntg_hour:
+                #     output = output[:list_cntg_hour.index(to)+1]
+                #     del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                #     output.extend(ohlcv)
+                #     ohlcv = output
+                #     globals()[ticker_full_name] = ohlcv
             else: # 최초 생성 시
-                ohlcv = self.ex_kis.fetch_futopt_1m_ohlcv(symbol=ticker,limit=bong_since)
-                globals()[ticker_full_name] = ohlcv
+                ohlcv = []
+            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker,limit=bong_since,ohlcv=ohlcv)
+            globals()[ticker_full_name] = ohlcv
 
 
                 # 시간 단축을 위해 데이터프레임에서 필요없는 팩터 지우기
@@ -2509,14 +2510,15 @@ class Trade_np(QThread):
                     self.df_p_weekly = pd.DataFrame()
                 df_tickers = self.dict_market_option['df_tickers']
                 df_f = df_tickers.iloc[[0]] #첫번째 행은 코스피 200 선물이라 추출
-                output = self.ex_kis.fetch_domestic_price('F', df_f.index[0])
+                fut_ticker = df_f.loc[df_f.index[0],'종목코드']
+                output = self.ex_kis.fetch_domestic_price('F', fut_ticker)
                 df_f.loc[df_f.index[0], '시가'] = float(output['시가'])
                 # df_f.loc[df_f.index[0], '고가'] = float(output['고가'])
                 # df_f.loc[df_f.index[0], '저가'] = float(output['저가'])
                 df_f.loc[df_f.index[0], '현재가'] = float(output['현재가'])
                 df_f.loc[df_f.index[0], '거래량'] = float(output['거래량'])
                 df_f.loc[df_f.index[0], '거래대금'] = float(output['거래대금'])
-                df_f.loc[df_f.index[0], '이론가'] = float(output['이론가'])
+                df_f.loc[df_f.index[0], '이론가/행사가'] = float(output['이론가'])
                 # df.loc[df.index[0], '베이시스'] = float(output['베이시스'])
                 self.df_tickers = common_def.futopt_set_tickers(df_f,self.df_c,self.df_p,self.df_c_weekly,self.df_p_weekly,self.COND_MRKT)
 
@@ -2586,11 +2588,22 @@ class Trade_np(QThread):
                 print(f"3 {stg= }, {ticker= } | {self.df_trade.loc[stg, '상태']} → {상태= }   {분할상태}")
         self.qt_open.emit(self.df_trade)
         if self.market == '국내주식':
-            quit()
+            pass
         elif self.market == '국내선옵':
-            export_sql(self.df_trend,datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_investor"))
-            quit()
+            common_def.export_sql(self.df_trend,datetime.datetime.strftime(datetime.datetime.now(),"%Y%m%d_investor"))
+            conn_DB = sqlite3.connect('DB/DB_futopt.db')
+            cursor = conn_DB.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            try:
+                list_table = np.concatenate(cursor.fetchall()).tolist()
+            except:
+                list_table = []
+            today = datetime.datetime.now().date()
 
+            for ticker in ['콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
+                common_def.save_kis_DB(self.simul.isChecked(),self.ex_kis, ticker,list_table,today,conn_DB)
+            cursor.close()
+            conn_DB.close()
     def order_open(self, ticker, price, qty, side, type, leverage):
         try:
             if side == 'buy':  # 지정가 open long
