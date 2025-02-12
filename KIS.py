@@ -743,8 +743,8 @@ class KoreaInvestment:
                                          'futs_lwpr': '0',
                                          'futs_oprc': '0',
                                          'futs_prpr': '0',
-                                         'stck_bsop_date': date_now.date().strftime("%Y%m%d"),
-                                         'stck_cntg_hour': date_now.strftime("%H%M") + "00"}]
+                                         'stck_bsop_date': datetime.datetime.now().date().strftime("%Y%m%d"),
+                                         'stck_cntg_hour': datetime.datetime.now().strftime("%H%M") + "00"}]
 
         return ohlcv
     def _fetch_1m_ohlcv(self, symbol: str, to: str, day:str="", fake_tick:bool=False):

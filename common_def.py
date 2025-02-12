@@ -396,10 +396,9 @@ def save_kis_DB(market, check_simul,ex_kis,ticker,list_table,today,conn_DB):
             df_display = pd.DataFrame()
         if not df_display.empty and cond_mrkt != '만기주':
             list_ticker = df_display.종목코드.tolist()
-            past_date = datetime.datetime.combine(past_date, datetime.time(15, 45, 0))  # 12:30:45 추가
+            past_date = datetime.datetime.combine(past_date, datetime.time(15, 45, 0))  # 12:30:45 추가 past_date+시간
             for symbol in list_ticker:
                 ticker_symbol = ticker + '_' + symbol[-3:]
-
                 if ticker_symbol in list_table: #연속저장
                     df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn_DB).set_index('날짜')
                     df_exist.index = pd.to_datetime(df_exist.index)

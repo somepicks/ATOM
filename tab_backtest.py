@@ -258,8 +258,6 @@ class Window(QWidget):
         self.QLE_start.mousePressEvent = self.show_calendar_popup_start  # 클릭 시 팝업 호출
         self.QLE_end.mousePressEvent = self.show_calendar_popup_end  # 클릭 시 팝업 호출
 
-
-
         # self.QCB_krx.setChecked(True)
 
         #
