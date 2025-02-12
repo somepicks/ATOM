@@ -163,7 +163,7 @@ class Graph(QThread):
                         df = ohlcv
                 else:
                     to = ohlcv[0]['stck_cntg_hour']
-                    output = self.ex_kis._fetch_futopt_today_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
+                    output = self.ex_kis._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
                     output = output['output2']
                     list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
                     if to in list_cntg_hour:
@@ -190,19 +190,20 @@ class Graph(QThread):
         elif self.market == '국내선옵':
             if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
                 ohlcv = globals()[ticker_full_name]
-                to = ohlcv[0]['stck_cntg_hour']
-                output = self.ex._fetch_futopt_today_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
-                output = output['output2']
-                list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
-                if to in list_cntg_hour:
-                    output = output[:list_cntg_hour.index(to)+1]
-                    del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                    output.extend(ohlcv)
-                    ohlcv = output
-                    globals()[ticker_full_name] = ohlcv
+                # to = ohlcv[0]['stck_cntg_hour']
+                # output = self.ex._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
+                # output = output['output2']
+                # list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
+                # if to in list_cntg_hour:
+                #     output = output[:list_cntg_hour.index(to)+1]
+                #     del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                #     output.extend(ohlcv)
+                #     ohlcv = output
+                #     globals()[ticker_full_name] = ohlcv
             else: # 최초 생성 시
-                ohlcv = self.ex.fetch_futopt_1m_ohlcv(symbol=ticker,limit=int(bong_since))
-                globals()[ticker_full_name] = ohlcv
+                ohlcv = []
+            ohlcv = self.ex.fetch_1m_ohlcv(symbol=ticker,limit=int(bong_since),ohlcv=ohlcv)
+            globals()[ticker_full_name] = ohlcv
             df = common_def.get_kis_ohlcv(self.market,ohlcv)
             if ticker_full_name.count('_') == 2:  # 진입대상인지 비교대상인지 확인 - 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
                 df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)

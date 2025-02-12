@@ -296,6 +296,9 @@ bybit = ccxt.bybit({
 # tickers = bybit.fetch_tickers()
 # df = bybit_set_tickers(tickers)
 # print(df['quoteVolume'])
+with open('token.dat','rb') as file:
+    print(file.read())
+quit()
 st = '1~2'
 print(st[st.index('~')+1:])
 print(st[:st.index('~')])
@@ -304,7 +307,9 @@ if di:
     print('asdf')
 
 print(type(datetime.datetime.now().date()))
-
+acc_no = '13546-90'
+print(acc_no.split('-')[0])
+quit()
 conn = sqlite3.connect('DB/DB_futopt.db')
 ticker_symbol = '콜옵션_355'
 df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn).set_index('날짜')

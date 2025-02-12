@@ -383,7 +383,7 @@ class KoreaInvestment:
         self.acc_no_postfix = acc_no.split('-')[1]
 
         if self.market == '해외선옵' or self.market == '해외주식':
-            exchange = '미국'
+            exchange = '해외'
         self.exchange = exchange
 
         # access token
@@ -406,6 +406,13 @@ class KoreaInvestment:
                 self.base_url = "https://openapi.koreainvestment.com:9443"
                 # print(f'{market}: 인생은 실전')
         elif market == '선옵':
+            if mock:
+                self.base_url = "https://openapivts.koreainvestment.com:29443"
+                # print(f'{market}: 돌다리도 두드리자')
+            else:
+                self.base_url = "https://openapi.koreainvestment.com:9443"
+                # print(f'{market}: 인생은 실전')
+        elif market == '해외선옵':
             if mock:
                 self.base_url = "https://openapivts.koreainvestment.com:29443"
                 # print(f'{market}: 돌다리도 두드리자')
@@ -446,7 +453,6 @@ class KoreaInvestment:
 
     def check_access_token(self):
         """check access token
-
         Returns:
             Bool: True: token is valid, False: token is not valid
         """
@@ -580,14 +586,24 @@ class KoreaInvestment:
                 resp = requests.get(url, headers=headers, params=params)
                 if resp.json()['msg1'] == '정상처리 되었습니다.':
                     output = resp.json()['output1']
-                    output['현재가'] = output.pop('futs_prpr')
-                    output['시가'] = output.pop('futs_oprc')
-                    output['고가'] = output.pop('futs_hgpr')
-                    output['저가'] = output.pop('futs_lwpr')
-                    output['거래량'] = output.pop('acml_vol')
-                    output['거래대금'] = output.pop('acml_tr_pbmn')
-                    output['베이시스'] = output.pop('basis')
-                    output['이론가'] = output.pop('hts_thpr')
+                    if output:
+                        output['현재가'] = output.pop('futs_prpr')
+                        output['시가'] = output.pop('futs_oprc')
+                        output['고가'] = output.pop('futs_hgpr')
+                        output['저가'] = output.pop('futs_lwpr')
+                        output['거래량'] = output.pop('acml_vol')
+                        output['거래대금'] = output.pop('acml_tr_pbmn')
+                        output['베이시스'] = output.pop('basis')
+                        output['이론가'] = output.pop('hts_thpr')
+                    else:
+                        output['현재가'] = 0
+                        output['시가'] = 0
+                        output['고가'] = 0
+                        output['저가'] = 0
+                        output['거래량'] = 0
+                        output['거래대금'] = 0
+                        output['베이시스'] = 0
+                        output['이론가'] = 0
                     break
             elif i == 10:
                 raise print(f'{symbol} : {i}번 이상 해도 조회 안됨')
@@ -624,10 +640,12 @@ class KoreaInvestment:
         resp = requests.get(url, headers=headers, params=params)
         return resp.json()
 
-    def fetch_today_1m_ohlcv(self, symbol: str, to: str=""):
-        """주식당일분봉조회"""
-        ohlcv = []
-        now = datetime.datetime.now()
+    def fetch_1m_ohlcv(self , symbol: str,  limit: int , ohlcv:list=[]):
+        """당일 1분봉조회"""
+        date_now = datetime.datetime.now()
+        now_time = date_now.strftime("%H%M") + "00"  # 마지막에 초는 00으로
+        now_day = date_now.date().strftime("%Y%m%d")
+
         if self.market == '주식':
             if to == "":
                 to = now.strftime("%H%M%S")
@@ -660,214 +678,275 @@ class KoreaInvestment:
             ohlcv = self.make_ohlcv_1m(ohlcv)
             return ohlcv
         elif self.market == '선옵':
-            trade_market = '선물' if symbol[:1]=='1' else '콜옵션' if symbol[:1]=='2' else '풋옵션' if symbol[:1]=='3' else '스프레드'
-            market_mark = 'F' if trade_market == '선물' else 'O'
-            if to == "":
-                to = now.strftime("%H%M%S")
-                if (90000 > int(to)) or (int(to) > 153000):
-                    to = "153400"
-            while True:  # 매번 전체를 조회하는 방식임 시간 단축을 위해 추 후 변경 필요
-                output = self._fetch_futopt_today_1m_ohlcv(market_mark, symbol, to)  # to = 현재시간
-                if output['msg1'] != '정상처리 되었습니다.':
-                    # time.sleep(0.3)
-                    QTest.qWait(300)
-                else:
-                    output = output['output2']
-                    ohlcv.extend(output)
-                    to = ohlcv[-1]['stck_cntg_hour']
-                    dt = datetime.datetime.strptime(to, "%H%M%S").time()
-                    dt = datetime.datetime.combine(datetime.date.today(), dt)
-                    dt = dt - datetime.timedelta(minutes=1)
-                    to = dt.strftime("%H%M%S")
-                    # time.sleep(0.5)
-                    QTest.qWait(500)
-                    if to == '084400':
-                        break
-            ohlcv = self.make_ohlcv_1m(ohlcv)
-            return ohlcv
-    def fetch_futopt_1m_ohlcv(self, symbol: str, limit: int, ): #허봉을 포함하지 않은 최초 데이터 수집 (허봉 포함 시 당일만 조회됨)
-        """풋옵션최초 분봉조회"""
-        ohlcv = []
-        to = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
-        if (90000 > int(to)) or (int(to) > 153000):
-            to = "153400"
-        day = datetime.datetime.now().date().strftime("%Y%m%d")
-        i = 0
-        while True:
-            i += 1
-            output = self._fetch_futopt_today_1m_ohlcv(symbol=symbol,to=to, day=day, fake_tick=False)  # to = 현재시간
-            if output['msg1'] == '정상처리 되었습니다.':
-                output = output['output2']
-                # print(output)
-                # print('============')
-                if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
-                    ohlcv.extend(output)
-                    if to == '084400': # 8시 44분은 조회가 안되기 때문에 다음날로 넘어가야됨
-                        day = ohlcv[-1]['stck_bsop_date']
-                        day = datetime.datetime.strptime(day, "%Y%m%d").date()
-                        day = day - datetime.timedelta(days=1)
-                        day = day.strftime("%Y%m%d")
-                        to = "153400"
-                    else:
-                        day = ohlcv[-1]['stck_bsop_date']
-                        to = ohlcv[-1]['stck_cntg_hour']
-                        dt = datetime.datetime.strptime(to, "%H%M%S").time()
-                        dt = datetime.datetime.combine(datetime.date.today(), dt)
-                        dt = dt - datetime.timedelta(minutes=1)
-                        to = dt.strftime("%H%M%S")
+            # trade_market = '선물' if symbol[:1]=='1' else '콜옵션' if symbol[:1]=='2' else '풋옵션' if symbol[:1]=='3' else '스프레드'
+            # market_mark = 'F' if trade_market == '선물' else 'O'
+            if ohlcv :
+                to = ohlcv[0]['stck_cntg_hour']
+                output = self._fetch_1m_ohlcv(symbol=symbol, to=to, fake_tick=True)  # to = 현재시간
 
-                    list_bsop_dates = [item['stck_bsop_date'] for item in ohlcv]  # 딕셔너리의 날짜를 리스트로 변환
-                    # print(f"{len(list(set(list_bsop_dates)))= }     {list(set(list_bsop_dates))= }")
-                    if len(list(set(list_bsop_dates))) > limit:
-                        ohlcv = ohlcv[:list_bsop_dates.index(list_bsop_dates[-1])]
-                        break
-                    # time.sleep(0.5)
-                else:
-                    break
+                output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
+                # output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
+
+                list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
+                if to in list_cntg_hour:
+                    output = output[:list_cntg_hour.index(to) + 1]
+                    del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                    output.extend(ohlcv)
+                    ohlcv = output
             else:
-                # time.sleep(0.5)
-                print('fetch_futopt_1m_ohlcv 조회에러')
-                if i > 10:
-                    print('fetch_futopt_1m_ohlcv 조회에러')
-                    raise
-            QTest.qWait(800)
-        day = ''
-        for i,data in enumerate(ohlcv):
-            if day != data['stck_bsop_date']:
-                day = data['stck_bsop_date']
-            if i + 1 < len(ohlcv):
-                if day == data['stck_bsop_date'] and day == ohlcv[i+1]['stck_bsop_date']:
-                    t1 = datetime.datetime.strptime(day+data['stck_cntg_hour'],'%Y%m%d%H%M%S')
-                    t2 = datetime.datetime.strptime(day+ohlcv[i+1]['stck_cntg_hour'],'%Y%m%d%H%M%S')
-                    # t1 = data['stck_cntg_hour']
-                    # t2 = ohlcv[i+1]['stck_cntg_hour']
-                    # 체결이 안될경우 앞전 값으로 대체 거래량은 0으로 앞전 값으로 대체하고자 하지 않을 경우 주석처리 할 것
-                    if t1-t2 != datetime.timedelta(minutes=1):
-                        ohlcv.insert(i+1, {'acml_tr_pbmn': '0',
-                                         'cntg_vol': '0',
-                                         'futs_hgpr': ohlcv[i+1]['futs_hgpr'],
-                                         'futs_lwpr': ohlcv[i+1]['futs_lwpr'],
-                                         'futs_oprc': ohlcv[i+1]['futs_oprc'],
-                                         'futs_prpr': ohlcv[i+1]['futs_prpr'],
-                                         'stck_bsop_date': day,
-                                         'stck_cntg_hour': datetime.datetime.strftime(t1-datetime.timedelta(minutes=1),'%H%M%S')})
-        if not ohlcv:
-            ohlcv= [{'acml_tr_pbmn': '0',
-                                 'cntg_vol': '0',
-                                 'futs_hgpr': '0',
-                                 'futs_lwpr': '0',
-                                 'futs_oprc': '0',
-                                 'futs_prpr': '0',
-                                 'stck_bsop_date': datetime.datetime.now().date().strftime("%Y%m%d"),
-                                 'stck_cntg_hour': datetime.datetime.now().strftime("%H%M") + "00"}]
+                # print(f"{now_time= }")
+                if (int(now_time) < 90000) or (153000 < int(now_time)):
+                    now_time = "154500"
+                # now_day='20250210'
+                # now_time='012700'
+#                 print(f"{now_day= }")
+                while True:
+                    output = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day, fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
+                    if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
+                        ohlcv.extend(output)
+                        if now_time == '084400': # 8시 44분은 조회가 안되기 때문에 다음날로 넘어가야됨
+                            now_day = ohlcv[-1]['stck_bsop_date']
+                            now_day = datetime.datetime.strptime(now_day, "%Y%m%d").date()
+                            now_day = now_day - datetime.timedelta(days=1)
+                            now_day = now_day.strftime("%Y%m%d")
+                            now_time = "153400"
+                        else:
+                            now_day = ohlcv[-1]['stck_bsop_date']
+                            now_time = ohlcv[-1]['stck_cntg_hour']
+                            dt = datetime.datetime.strptime(now_time, "%H%M%S").time()
+                            dt = datetime.datetime.combine(datetime.date.today(), dt)
+                            dt = dt - datetime.timedelta(minutes=1)
+                            now_time = dt.strftime("%H%M%S")
 
+                        list_bsop_dates = [item['stck_bsop_date'] for item in ohlcv]  # 딕셔너리의 날짜를 리스트로 변환
+                        # print(f"{len(list(set(list_bsop_dates)))= }     {list(set(list_bsop_dates))= }")
+                        if len(list(set(list_bsop_dates))) > limit:
+                            ohlcv = ohlcv[:list_bsop_dates.index(list_bsop_dates[-1])]
+                            break
+                        # time.sleep(0.5)
+                    else:
+                        print(f"{symbol= }   {now_time= }   {now_day= }    {now_time= }  {output= }")
+                        break
+                    QTest.qWait(800)
+                now_day = ''
+                for i,data in enumerate(ohlcv):
+                    if now_day != data['stck_bsop_date']:
+                        now_day = data['stck_bsop_date']
+                    if i + 1 < len(ohlcv):
+                        if now_day == data['stck_bsop_date'] and now_day == ohlcv[i+1]['stck_bsop_date']:
+                            t1 = datetime.datetime.strptime(now_day+data['stck_cntg_hour'],'%Y%m%d%H%M%S')
+                            t2 = datetime.datetime.strptime(now_day+ohlcv[i+1]['stck_cntg_hour'],'%Y%m%d%H%M%S')
+                            # t1 = data['stck_cntg_hour']
+                            # t2 = ohlcv[i+1]['stck_cntg_hour']
+                            # 체결이 안될경우 앞전 값으로 대체 거래량은 0으로 앞전 값으로 대체하고자 하지 않을 경우 주석처리 할 것
+                            if t1-t2 != datetime.timedelta(minutes=1):
+                                ohlcv.insert(i+1, {'acml_tr_pbmn': '0',
+                                                 'cntg_vol': '0',
+                                                 'futs_hgpr': ohlcv[i+1]['futs_hgpr'],
+                                                 'futs_lwpr': ohlcv[i+1]['futs_lwpr'],
+                                                 'futs_oprc': ohlcv[i+1]['futs_oprc'],
+                                                 'futs_prpr': ohlcv[i+1]['futs_prpr'],
+                                                 'stck_bsop_date': now_day,
+                                                 'stck_cntg_hour': datetime.datetime.strftime(t1-datetime.timedelta(minutes=1),'%H%M%S')})
+                if not ohlcv:
+                    ohlcv= [{'acml_tr_pbmn': '0',
+                                         'cntg_vol': '0',
+                                         'futs_hgpr': '0',
+                                         'futs_lwpr': '0',
+                                         'futs_oprc': '0',
+                                         'futs_prpr': '0',
+                                         'stck_bsop_date': date_now.date().strftime("%Y%m%d"),
+                                         'stck_cntg_hour': date_now.strftime("%H%M") + "00"}]
+        elif self.market == '해외선옵':
+            if ohlcv:
+                to = ohlcv[0]['stck_cntg_hour']
+                output = self._fetch_1m_ohlcv(symbol=symbol, to=to, fake_tick=True)  # to = 현재시간
+
+                output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
+                # output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
+
+                list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
+                if to in list_cntg_hour:
+                    output = output[:list_cntg_hour.index(to) + 1]
+                    del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                    output.extend(ohlcv)
+                    ohlcv = output
+            else:
+                if (int(now_time) < 90000) or (153000 < int(now_time)):
+                    now_time = "154500"
+                ohlcv = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day, fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
+                # while True:
+                #     if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
+                #         ohlcv.extend(output)
         return ohlcv
-    def _fetch_today_1m_ohlcv(self, symbol: str, to: str):
+    def _fetch_1m_ohlcv(self, symbol: str, to: str, day:str="", fake_tick:bool=False):
         """국내주식시세/주식당일분봉조회
 
         Args:
             symbol (str): 6자리 종목코드
             to (str): "HH:MM:SS"
         """
-        path = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
-        url = f"{self.base_url}/{path}"
-        headers = {
-           "content-type": "application/json; charset=utf-8",
-           "authorization": self.access_token,
-           "appKey": self.api_key,
-           "appSecret": self.api_secret,
-           "tr_id": "FHKST03010200",
-           "tr_cont": "",
-        }
+        if self.market == '주식':
+            path = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
+            url = f"{self.base_url}/{path}"
+            headers = {
+               "content-type": "application/json; charset=utf-8",
+               "authorization": self.access_token,
+               "appKey": self.api_key,
+               "appSecret": self.api_secret,
+               "tr_id": "FHKST03010200",
+               "tr_cont": "",
+            }
+            params = {
+                "fid_etc_cls_code": "",
+                "fid_cond_mrkt_div_code": "J",
+                "fid_input_iscd": symbol,
+                "fid_input_hour_1": to,
+                "fid_pw_data_incu_yn": "N"  #N : 당일데이터만 조회   Y : 이후데이터도 조회
+            }
+            i = 0
+            while True:
+                res = requests.get(url, headers=headers, params=params)
+                # hrd = {'User_Agent': generate_user_agent(os='win', device_type='desktop')}
+                if res.json()['msg1'] == '정상처리 되었습니다.':
+                    break
+                elif i == 10:
+                    raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_today_1m_ohlcv')
+                else:
+                    # time.sleep(1)
+                    QTest.qWait(500)
+                i += 1
+        elif self.market == '선옵':
+            path = "uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice"
+            url = f"{self.base_url}/{path}"
+            headers = {
+               "content-type": "application/json; charset=utf-8",
+               "authorization": self.access_token,
+               "appKey": self.api_key,
+               "appSecret": self.api_secret,
+               "tr_id": "FHKIF03020200",
+               "tr_cont": "",
+            }
+            continue_check = "N" if day == "" else "Y" # continue_day에 날짜가 들어오면 "Y"
+            fake_tick = 'Y' if fake_tick == True else "N"
+            trade_market = 'F' if symbol[:1] == '1' else 'O'
+            params = {
+                "FID_COND_MRKT_DIV_CODE": trade_market,
+                "FID_INPUT_ISCD": symbol,
+                "FID_HOUR_CLS_CODE": "60",
+                "FID_PW_DATA_INCU_YN": continue_check, # "Y"일 경우 연속 조회
+                "FID_FAKE_TICK_INCU_YN": fake_tick, #허봉 조회
+                "FID_INPUT_DATE_1": day, # YYYYMMDD  ex) 20230908 입력 시, 2023년 9월 8일부터 일자 역순으로 조회
+                "FID_INPUT_HOUR_1": to,
+            }
+            i=0
+            # print(f"{trade_market= }    {symbol= }   {continue_check= }   {fake_tick= }   {day= }   {to= }")
+            while True:
+                try:
+                    res = requests.get(url, headers=headers, params=params)  # 연결된 구성원으로부터 - 에러 발생
+                    output = res.json()
+                except:
+                    output = {}
+                    output['msg1'] = 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다'
+                    # time.sleep(1)
+                    QTest.qWait(800)
+                if output['msg1'] == '정상처리 되었습니다.':
+                    break
+                elif output['msg1'] == 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다':
+                    print(output['msg1'])
+                elif output['msg1'] == '기간이 만료된 token 입니다.':
+                    QTest.qWait(800)
+                    if i == 10:
+                        print(output['msg1'])
+                        print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                        QTest.qWait(800)
+                        i = 0
+                        raise
+                        # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                else:
+                    # time.sleep(1)
+                    QTest.qWait(800)
+                    if i == 10:
+                        print(output['msg1'])
+                        print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                        if output['msg1'] == '기간이 만료된 token 입니다.':
+                            print('기간만료', output['msg1'])
 
-        params = {
-            "fid_etc_cls_code": "",
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": symbol,
-            "fid_input_hour_1": to,
-            "fid_pw_data_incu_yn": "N"  #N : 당일데이터만 조회   Y : 이후데이터도 조회
-        }
-        i = 0
-        while True:
-            res = requests.get(url, headers=headers, params=params)
-            # hrd = {'User_Agent': generate_user_agent(os='win', device_type='desktop')}
-            if res.json()['msg1'] == '정상처리 되었습니다.':
-                break
-            elif i == 10:
-                raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_today_1m_ohlcv')
-            else:
+                        QTest.qWait(800)
+
+                        i = 0
+                        # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                i += 1
                 # time.sleep(1)
                 QTest.qWait(500)
-            i += 1
-        return res.json()
-
-
-    def _fetch_futopt_today_1m_ohlcv(self, symbol: str, to: str, day:str="", fake_tick:bool=False):
-        """국내선물옵션기본시세/손물옵션 분봉조회
-        """
-        path = "uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice"
-        url = f"{self.base_url}/{path}"
-        headers = {
-           "content-type": "application/json; charset=utf-8",
-           "authorization": self.access_token,
-           "appKey": self.api_key,
-           "appSecret": self.api_secret,
-           "tr_id": "FHKIF03020200",
-           "tr_cont": "",
-        }
-        continue_check = "N" if day == "" else "Y" # continue_day에 날짜가 들어오면 "Y"
-        fake_tick = 'Y' if fake_tick == True else "N"
-        trade_market = 'F' if symbol[:1] == '1' else 'O'
-        params = {
-            "FID_COND_MRKT_DIV_CODE": trade_market,
-            "FID_INPUT_ISCD": symbol,
-            "FID_HOUR_CLS_CODE": "60",
-            "FID_PW_DATA_INCU_YN":continue_check, # "Y"일 경우 연속 조회
-            "FID_FAKE_TICK_INCU_YN":fake_tick, #허봉 조회
-            "FID_INPUT_DATE_1": day , # YYYYMMDD  ex) 20230908 입력 시, 2023년 9월 8일부터 일자 역순으로 조회
-            "FID_INPUT_HOUR_1": to,
-        }
-        i=0
-
-        while True:
-            try:
-                res = requests.get(url, headers=headers, params=params)  # 연결된 구성원으로부터 - 에러 발생
-                output = res.json()
-            except:
-                output = {}
-                output['msg1'] = 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다'
-                # time.sleep(1)
-                QTest.qWait(800)
-            if output['msg1'] == '정상처리 되었습니다.':
-                break
-            elif output['msg1'] == 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다':
-                print(output['msg1'])
-            elif output['msg1'] == '기간이 만료된 token 입니다.':
-                QTest.qWait(800)
-                if i == 10:
-                    print(output['msg1'])
-                    print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+        elif self.market == '해외선옵':
+            path = "uapi/overseas-futureoption/v1/quotations/inquire-time-futurechartprice"
+            url = f"{self.base_url}/{path}"
+            headers = {
+               "content-type": "application/json; charset=utf-8",
+               "authorization": self.access_token,
+               "appKey": self.api_key,
+               "appSecret": self.api_secret,
+               "tr_id": "HHDFC55020400",
+               "tr_cont": "",
+            }
+            # continue_check = "N" if day == "" else "Y" # continue_day에 날짜가 들어오면 "Y"
+            # fake_tick = 'Y' if fake_tick == True else "N"
+            # trade_market = 'F' if symbol[:1] == '1' else 'O'
+            params = {
+                "EXCH_CD": 'HKEX', #거래소코드 CME, SGX 는 유료
+                "SRS_CD": symbol, # 종목코드
+                "START_DATE_TIME": "", #조회시작일시
+                "CLOSE_DATE_TIME": '20250212',#조회종료일시
+                "QRY_TP": "Q", #조회구분
+                "QRY_CNT": "120", # 요청개수
+                "QRY_GAP": "1",  #묶음개수
+                "INDEX_KEY": "", # 이전조회KEY
+            }
+            i=0
+            # print(f"{trade_market= }    {symbol= }   {continue_check= }   {fake_tick= }   {day= }   {to= }")
+            while True:
+                try:
+                    res = requests.get(url, headers=headers, params=params)  # 연결된 구성원으로부터 - 에러 발생
+                    output = res.json()
+                    pprint(output)
+                except:
+                    output = {}
+                    output['msg1'] = 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다'
+                    # time.sleep(1)
+                    print('error')
                     QTest.qWait(800)
-                    i = 0
-                    raise
-                    # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
-            else:
-                # time.sleep(1)
-                QTest.qWait(800)
-                if i == 10:
+                quit()
+                if output['msg1'] == '정상처리 되었습니다.':
+                    break
+                elif output['msg1'] == 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다':
                     print(output['msg1'])
-                    print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
-                    if output['msg1'] == '기간이 만료된 token 입니다.':
-                        print('기간만료', output['msg1'])
-
+                elif output['msg1'] == '기간이 만료된 token 입니다.':
                     QTest.qWait(800)
+                    if i == 10:
+                        print(output['msg1'])
+                        print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                        QTest.qWait(800)
+                        i = 0
+                        raise
+                        # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                else:
+                    # time.sleep(1)
+                    QTest.qWait(800)
+                    if i == 10:
+                        print(output['msg1'])
+                        print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                        if output['msg1'] == '기간이 만료된 token 입니다.':
+                            print('기간만료', output['msg1'])
 
-                    i = 0
-                    # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
-            i += 1
-            # time.sleep(1)
-            QTest.qWait(500)
-        return output
+                        QTest.qWait(800)
+
+                        i = 0
+                        # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                i += 1
+                # time.sleep(1)
+                QTest.qWait(500)
+        return output['output2']
 
 
     def make_ohlcv_1m(self, ohlcv):
@@ -1206,14 +1285,13 @@ class KoreaInvestment:
                            'hts_kor_isnm': '종목명',
                            'futs_prpr': '현재가',
                            'futs_prdy_vrss': '전일대비',
-                     'futs_prdy_ctrt': '등락(%)',
+                           'futs_prdy_ctrt': '등락(%)',
                            'hts_thpr': '이론가',
                            'acml_vol': '거래량',
                            'futs_askp': '매도호가',
-                     'futs_bidp': '매수호가',
+                           'futs_bidp': '매수호가',
                            'total_askp_rsqn':'매도호가 잔량',
                            'total_bidp_rsqn':'매수호가 잔량',
-
                            'hts_otst_stpl_qty': '미결제약정',
                            'futs_hgpr': '고가',
                            'futs_lwpr': '저가'}, inplace=True)
@@ -1723,9 +1801,7 @@ class KoreaInvestment:
 
     def fetch_balance(self) -> dict:
         """잔고 조회
-
         Args:
-
         Returns:
             dict: response data
         """
@@ -1801,6 +1877,42 @@ class KoreaInvestment:
                     df_instock.set_index('종목코드', inplace=True)
             # return output
             return dict_amount, df_instock
+        if self.exchange == '해외':
+            output = {}
+            dict_amount = {}
+
+            i=0
+            while True:
+                data = self.fetch_balance_oversea()
+                if data['msg1'] == '조회가 완료되었습니다                                                           ':
+                    break
+                else:
+                    # time.sleep(0.5)
+                    QTest.qWait(1000)
+                    i += 1
+                    if i > 10:
+                        print('fetch_balance 조회에러')
+                        pprint(data['msg1'])
+                        quit()
+            if self.market == '해외선옵':
+
+                dict_amount['주문가능금액'] = int(data['output']['fm_ord_psbl_amt'])
+                dict_amount['출금가능금액'] = int(float(data['output']['fm_drwg_psbl_amt']))
+                dict_amount['총자산평가금액'] = int(data['output']['fm_tot_asst_evlu_amt'])
+                dict_amount['통화코드'] = data['output']['crcy_cd']
+                dict_amount['예수금잔액'] = int(float(data['output']['fm_dnca_rmnd']))
+                dict_amount['계좌번호'] = f"{self.acc_no_prefix}-{self.acc_no_postfix}"
+                pprint(data['output'])
+                df_instock = pd.DataFrame(data['output'],index=[0])
+                if not df_instock.empty:
+                    df_instock.rename(
+                        columns={'fm_nxdy_dncl_amt': '익일예수금액', 'fm_tot_asst_evlu_amt': '총자산평가금액', 'crcy_cd': '통화코드', 'fm_dnca_rmnd': '예수금잔액',
+                                 'fm_lqd_pfls_amt': '청산손익금액', 'fm_fee': '수수료', 'fm_fuop_evlu_pfls_amt': '선물옵션평가손익금액', 'fm_ord_psbl_amt': '주문가능금액',
+                                 'fm_drwg_psbl_amt': '출금가능금액', 'fm_opt_icld_asst_evlu_amt': '옵션포함자산평가금액', }, inplace=True)
+                    df_instock = df_instock[['익일예수금액', '총자산평가금액', '통화코드', '예수금잔액', '청산손익금액', '수수료', '선물옵션평가손익금액',
+                                             '주문가능금액', '출금가능금액', '옵션포함자산평가금액']]
+                    # df_instock.set_index('종목코드', inplace=True)
+            return dict_amount, df_instock
         else: #해외주식, 선물, 옵션
             # 해외주식 잔고
             output = {}
@@ -1817,7 +1929,8 @@ class KoreaInvestment:
                 output['output1'].extend(data['output1'])
                 output['output2'].extend(data['output2'])
 
-            return output
+
+
 
     def fetch_balance_domestic(self, ctx_area_fk100: str = "", ctx_area_nk100: str = "") -> dict:
         if self.market == '주식':
@@ -1856,7 +1969,6 @@ class KoreaInvestment:
             # data['tr_cont'] = res.headers['tr_cont']
             return data
         elif self.market == '선옵':
-            # print('선물')
             """국내선물옵션/선물옵션잔고조회 """
             path = "uapi/domestic-futureoption/v1/trading/inquire-balance"
             url = f"{self.base_url}/{path}"
@@ -1954,53 +2066,69 @@ class KoreaInvestment:
         return res.json()
 
     def fetch_balance_oversea(self, ctx_area_fk200: str = "", ctx_area_nk200: str = "") -> dict:
-        """해외주식주문/해외주식 잔고
-        Args:
-            ctx_area_fk200 (str): 연속조회검색조건200
-            ctx_area_nk200 (str): 연속조회키200
-        Returns:
-            dict: _description_
-        """
-        path = "/uapi/overseas-stock/v1/trading/inquire-balance"
-        url = f"{self.base_url}/{path}"
+        if self.market == '해외주식':
+            path = "/uapi/overseas-stock/v1/trading/inquire-balance"
+            url = f"{self.base_url}/{path}"
 
 
-        # 주야간원장 구분 호출
-        resp = self.fetch_oversea_day_night()
-        psbl = resp['output']['PSBL_YN']
+            # 주야간원장 구분 호출
+            resp = self.fetch_oversea_day_night()
+            pprint(resp)
+            psbl = resp['output']['PSBL_YN']
 
-        if self.mock:
-            tr_id = "VTTS3012R" if psbl == 'N' else 'VTTT3012R'
-        else:
-            tr_id = "TTTS3012R" if psbl == 'N' else 'JTTT3012R'
+            if self.mock:
+                tr_id = "VTTS3012R" if psbl == 'N' else 'VTTT3012R'
+            else:
+                tr_id = "TTTS3012R" if psbl == 'N' else 'JTTT3012R'
 
-        # request header
-        headers = {
-           "content-type": "application/json",
-           "authorization": self.access_token,
-           "appKey": self.api_key,
-           "appSecret": self.api_secret,
-           "tr_id": tr_id
-        }
+            # request header
+            headers = {
+               "content-type": "application/json",
+               "authorization": self.access_token,
+               "appKey": self.api_key,
+               "appSecret": self.api_secret,
+               "tr_id": tr_id
+            }
 
-        # query parameter
-        exchange_cd = EXCHANGE_CODE2[self.exchange]
-        currency_cd = CURRENCY_CODE[self.exchange]
+            # query parameter
+            exchange_cd = EXCHANGE_CODE2[self.exchange]
+            currency_cd = CURRENCY_CODE[self.exchange]
 
-        params = {
-            'CANO': self.acc_no_prefix,
-            'ACNT_PRDT_CD': self.acc_no_postfix,
-            'OVRS_EXCG_CD': exchange_cd,
-            'TR_CRCY_CD': currency_cd,
-            'CTX_AREA_FK200': ctx_area_fk200,
-            'CTX_AREA_NK200': ctx_area_nk200
-        }
+            params = {
+                'CANO': self.acc_no_prefix,
+                'ACNT_PRDT_CD': self.acc_no_postfix,
+                'OVRS_EXCG_CD': exchange_cd,
+                'TR_CRCY_CD': currency_cd,
+                'CTX_AREA_FK200': ctx_area_fk200,
+                'CTX_AREA_NK200': ctx_area_nk200
+            }
 
-        res = requests.get(url, headers=headers, params=params)
-        data = res.json()
-        data['tr_cont'] = res.headers['tr_cont']
-        return data
+            res = requests.get(url, headers=headers, params=params)
+            data = res.json()
+            data['tr_cont'] = res.headers['tr_cont']
+            return data
+        elif self.market == '해외선옵':
+            path = "uapi/overseas-futureoption/v1/trading/inquire-deposit"
+            url = f"{self.base_url}/{path}"
+            headers = {
+                "content-type": "application/json",
+                "authorization": self.access_token,
+                "appkey": self.api_key,
+                "appsecret": self.api_secret,
+                "tr_id": "OTFM1411R",
+                "tr_cont": "",
+                "custtype": "P",
 
+            }
+            params = {
+                'CANO': self.acc_no_prefix,
+                'ACNT_PRDT_CD': self.acc_no_postfix,
+                'CRCY_CD': 'TUS',
+                'INQR_DT': datetime.datetime.today().strftime("%Y%m%d"),
+            }
+
+            res = requests.get(url, headers=headers, params=params)
+            return res.json()
     def fetch_oversea_day_night(self):
         """해외주식주문/해외주식 주야간원장구분조회
         """
@@ -2017,6 +2145,7 @@ class KoreaInvestment:
         }
 
         res = requests.get(url, headers=headers)
+        pprint(res.json())
         return res.json()
 
     def create_order(self, side: str, symbol: str, price, quantity: int, order_type: str) -> dict:
@@ -3415,57 +3544,57 @@ class KoreaInvestment:
         elif mydate > thismonth_duedate :
             nextmonth_duedate = self.nth_weekday(mydate+relativedelta(months=1),2, 3)
             return nextmonth_duedate
-    def add_trend(self,현재시간,df_trend,COND_MRKT):
-        dict_trend = {}
-        dict_trend.update(ex_kis.investor_trend_time('코스피'))
-        dict_trend.update(ex_kis.investor_trend_time('선물'))
-        dict_trend.update(ex_kis.investor_trend_time('주식선물'))
-        dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
-        dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
-        if COND_MRKT == "WKM":
-            dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
-            dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
-        elif COND_MRKT == "WKI":
-            dict_trend.update(ex_kis.investor_trend_time('콜_위클리_목'))
-            dict_trend.update(ex_kis.investor_trend_time('풋_위클리_목'))
-        # current_time = datetime.datetime.now().replace(second=0, microsecond=0)
-        df = pd.DataFrame([dict_trend], index=[현재시간])
-        if not df_trend.empty:
-            df_trend = pd.concat([df_trend, df],axis=0)
-        else:
-            df_trend = df
-        return df_trend
+    # def add_trend(self,현재시간,df_trend,COND_MRKT):
+    #     dict_trend = {}
+    #     dict_trend.update(ex_kis.investor_trend_time('코스피'))
+    #     dict_trend.update(ex_kis.investor_trend_time('선물'))
+    #     dict_trend.update(ex_kis.investor_trend_time('주식선물'))
+    #     dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
+    #     dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
+    #     if COND_MRKT == "WKM":
+    #         dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
+    #         dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
+    #     elif COND_MRKT == "WKI":
+    #         dict_trend.update(ex_kis.investor_trend_time('콜_위클리_목'))
+    #         dict_trend.update(ex_kis.investor_trend_time('풋_위클리_목'))
+    #     # current_time = datetime.datetime.now().replace(second=0, microsecond=0)
+    #     df = pd.DataFrame([dict_trend], index=[현재시간])
+    #     if not df_trend.empty:
+    #         df_trend = pd.concat([df_trend, df],axis=0)
+    #     else:
+    #         df_trend = df
+    #     return df_trend
 
 if __name__ == "__main__":
-    def make_exchange_kis(trade_type):
-        conn = sqlite3.connect('DB/setting.db')
-        df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
-        conn.close()
-        if trade_type == '실전주식':
-            key = df.loc['KIS_stock_api', 'value']
-            secret = df.loc['KIS_stock_secret', 'value']
-            acc_no = df.loc['KIS_stock_account', 'value']
-            mock = False
-            # broker = mojito.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no)
-        elif trade_type == '모의주식':
-            key = df.loc['KIS_stock_mock_api', 'value']
-            secret = df.loc['KIS_stock_mock_secret', 'value']
-            acc_no = df.loc['KIS_stock_mock_account', 'value']
-            mock = True
-        elif trade_type == '실전선옵':
-            key = df.loc['KIS_futopt_api', 'value']
-            secret = df.loc['KIS_futopt_secret', 'value']
-            acc_no = df.loc['KIS_futopt_account', 'value']
-            mock = False
-        elif trade_type == '모의선옵' or trade_type == '모의해외선옵':
-            key = df.loc['KIS_futopt_mock_api', 'value']
-            secret = df.loc['KIS_futopt_mock_secret', 'value']
-            acc_no = df.loc['KIS_futopt_mock_account', 'value']
-            mock = True
-
-        market = trade_type[2:]
-        exchange = KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
-        return exchange, key, secret
+    # def make_exchange_kis(trade_type):
+    #     conn = sqlite3.connect('DB/setting.db')
+    #     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
+    #     conn.close()
+    #     if trade_type == '실전주식':
+    #         key = df.loc['KIS_stock_api', 'value']
+    #         secret = df.loc['KIS_stock_secret', 'value']
+    #         acc_no = df.loc['KIS_stock_account', 'value']
+    #         mock = False
+    #         # broker = mojito.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no)
+    #     elif trade_type == '모의주식':
+    #         key = df.loc['KIS_stock_mock_api', 'value']
+    #         secret = df.loc['KIS_stock_mock_secret', 'value']
+    #         acc_no = df.loc['KIS_stock_mock_account', 'value']
+    #         mock = True
+    #     elif trade_type == '실전선옵':
+    #         key = df.loc['KIS_futopt_api', 'value']
+    #         secret = df.loc['KIS_futopt_secret', 'value']
+    #         acc_no = df.loc['KIS_futopt_account', 'value']
+    #         mock = False
+    #     elif trade_type == '모의선옵' or trade_type == '모의해외선옵':
+    #         key = df.loc['KIS_futopt_mock_api', 'value']
+    #         secret = df.loc['KIS_futopt_mock_secret', 'value']
+    #         acc_no = df.loc['KIS_futopt_mock_account', 'value']
+    #         mock = True
+    #
+    #     market = trade_type[2:]
+    #     exchange = KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
+    #     return exchange, key, secret
     def nth_weekday(the_date, nth_week, week_day):
         temp = the_date.replace(day=1)
         adj = (week_day - temp.weekday()) % 7
@@ -3512,44 +3641,32 @@ if __name__ == "__main__":
            data = broker_ws.get()
            print(data)
 
-    exchange, key,secret = make_exchange_kis('모의선옵')
+    exchange = common_def.make_exchange_kis('실전해외선옵')
+
     # make_exchange_kis_WS(key,secret)
     # today = datetime.datetime(2024,12,10)
-    today = datetime.datetime.now().date()
+    # today = datetime.datetime.now().date()
     # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
-    df = exchange.display_fut()
-    output = exchange.fetch_domestic_price('F',df.index[0])
-    df.loc[df.index[0],'시가'] = float(output['시가'])
-    df.loc[df.index[0],'고가'] = float(output['고가'])
-    df.loc[df.index[0],'저가'] = float(output['저가'])
-    df.loc[df.index[0],'현재가'] = float(output['현재가'])
-    df.loc[df.index[0],'거래량'] = float(output['거래량'])
-    df.loc[df.index[0],'거래대금'] = float(output['거래대금'])
-    df.loc[df.index[0],'이론가'] = float(output['이론가'])
-    df.loc[df.index[0],'베이시스'] = float(output['베이시스'])
-
-    # list_tickers = df_call.index.tolist()
-    quit()
-    st = datetime.datetime.now()
-    df_call, df_put, cond, past_date, expiry_date = exchange.display_opt_weekly(today)
-    print(datetime.datetime.now()-st)
-    quit()
-    print(df_call)
-    print(df_put)
-    print(cond)
-    quit()
-    ohlcv = exchange.fetch_futopt_1m_ohlcv('201W02490', 25)
-    df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
-
-
+    # while True:
+    #     ohlcv = exchange.fetch_futopt_1m_ohlcv('201W02335',6)
+    #     df = pd.DataFrame(ohlcv)
+    #     if df.loc[df.index[0],'stck_bsop_date'] != '20250207':
+    #         pprint(ohlcv)
+    #         print(df)
+    #         break
+    ohlcv = []
+    while True:
+        ohlcv = exchange.fetch_1m_ohlcv('MNQH25', 2,ohlcv)
+        pprint(ohlcv)
+        df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
+        print(df)
+        time.sleep(10)
     df.to_sql('bt1',sqlite3.connect('DB/bt.db'),if_exists='replace')
-    quit()
     now = datetime.datetime.now().replace(second=0,microsecond=0)
     df = df.drop(df.loc[df.index == now].index)
 
 
     #
-    quit()
     # list_ticker = df_call.종목코드.tolist()
     # ticker = '콜옵션'
     # list_ticker = [ticker+'_' + x[-3:] for x in list_ticker]
