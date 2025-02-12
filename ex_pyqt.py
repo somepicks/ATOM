@@ -1,45 +1,93 @@
-from PyQt5.QtCore import Qt, QRegExp
-from PyQt5.QtGui import QTextCharFormat, QColor, QFont
-from PyQt5.QtWidgets import QApplication, QTextEdit
-from PyQt5.QtGui import QSyntaxHighlighter
+import datetime
+import sys
+from PyQt5.QtWidgets import QApplication, QWidget, QTabWidget, QVBoxLayout, QPushButton
+from PyQt5.QtCore import QTimer, QTime, QDateTime
 
 
-class PythonHighlighter(QSyntaxHighlighter):
-    def __init__(self, parent=None):
-        super(PythonHighlighter, self).__init__(parent)
+class MyApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
 
-        # 주석 줄 포맷 설정
-        self.commentFormat = QTextCharFormat()
-        self.commentFormat.setForeground(QColor("gray"))  # 회색
-        self.commentFormat.setFontItalic(True)  # 기울임꼴
+    def initUI(self):
+        # QTabWidget 생성
+        self.tab_widget = QTabWidget()
 
-    def highlightBlock(self, text):
-        # 주석 패턴: 줄의 시작부터 `#`으로 시작하는 부분
-        comment_pattern = QRegExp(r"#.*")
-        index = comment_pattern.indexIn(text)
-        while index >= 0:
-            length = comment_pattern.matchedLength()
-            self.setFormat(index, length, self.commentFormat)
-            index = comment_pattern.indexIn(text, index + length)
+        # 첫 번째 탭
+        tab1 = QWidget()
+        tab1_layout = QVBoxLayout()
+        self.button1 = QPushButton("첫 번째 탭 버튼")
+        tab1_layout.addWidget(self.button1)
+        tab1.setLayout(tab1_layout)
+        self.button1.clicked.connect(self.del_stg1)
+        # 두 번째 탭 (QPushButton 추가)
+        self.tab2 = QWidget()
+        tab2_layout = QVBoxLayout()
+        self.button2 = QPushButton("두 번째 탭 버튼")
+        tab2_layout.addWidget(self.button2)
+        self.tab2.setLayout(tab2_layout)
+        self.button2.clicked.connect(self.del_stg2)
 
-        # 기본 블록 상태 초기화
-        self.setCurrentBlockState(0)
+        # 세 번째 탭
+        tab3 = QWidget()
+        tab3_layout = QVBoxLayout()
+        self.button3 = QPushButton("첫 번째 탭 버튼")
+        tab3_layout.addWidget(self.button3)
+        self.button3.clicked.connect(self.del_stg3)
+
+        tab3.setLayout(tab3_layout)
+
+        # 탭 추가
+        self.tab_widget.addTab(tab1, "탭 1")
+        self.tab_widget.addTab(self.tab2, "탭 2")
+        self.tab_widget.addTab(tab3, "탭 3")
+
+        # 메인 레이아웃 설정
+        layout = QVBoxLayout()
+        layout.addWidget(self.tab_widget)
+        self.setLayout(layout)
+
+        # 윈도우 설정
+        self.setWindowTitle("QTabWidget 자동 클릭 예제")
+        self.setGeometry(300, 300, 400, 300)
+        self.show()
+
+        # 특정 시간(오전 8시 50분)에 자동 클릭 설정
+        while True:
+            self.setAutoClickTime(15, 57)
+    def del_stg1(self):
+        print('tab1')
+
+    def del_stg2(self):
+        print('tab2')
+
+    def del_stg3(self):
+        print('tab3')
+    def setAutoClickTime(self, hour, minute):
+        print(datetime.datetime.now())
+        """ 지정된 시간(hour, minute)에 버튼 클릭을 실행하는 함수 """
+        now = QDateTime.currentDateTime()
+        target_time = QDateTime(now.date(), QTime(hour, minute, 0))
+
+        if now > target_time:
+            # 현재 시간이 목표 시간보다 크면, 다음 날 실행하도록 설정
+            target_time = target_time.addDays(1)
+
+        # 목표 시간까지 남은 시간(밀리초 단위) 계산
+        msec_until_target = now.msecsTo(target_time)
+
+        # QTimer 설정
+        QTimer.singleShot(msec_until_target, self.autoClickButton)
+
+    def autoClickButton(self):
+        """ 두 번째 탭의 버튼을 자동으로 클릭하는 함수 """
+        self.tab_widget.setCurrentIndex(1)  # 두 번째 탭으로 변경
+        self.button2.click()  # 버튼 클릭 이벤트 발생
 
 
-class CodeEditor(QTextEdit):
-    def __init__(self, parent=None):
-        super(CodeEditor, self).__init__(parent)
-        self.setFont(QFont("Courier", 10))
-        self.highlighter = PythonHighlighter(self.document())  # 하이라이터 연결
-
-
-if __name__ == "__main__":
-    import sys
-
+if __name__ == '__main__':
     app = QApplication(sys.argv)
-    editor = CodeEditor()
-    editor.setPlainText("# 이 줄은 회색으로 표시됩니다.\nprint('Hello, World!')\n# 또 다른 주석입니다.")
-    editor.show()
+    ex = MyApp()
     sys.exit(app.exec_())
 
 #
