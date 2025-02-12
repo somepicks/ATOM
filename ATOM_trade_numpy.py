@@ -1047,7 +1047,7 @@ class Trade_np(QThread):
                 self.df_trade.loc[stg, '분할id'] = json.dumps(empty_txt, ensure_ascii=False)
                 self.df_trade.loc[stg, '분할청산시간'] = json.dumps(empty_txt, ensure_ascii=False)
                 self.df_trade.loc[stg, '주문수량'] = sum(분할주문수량)
-                self.df_trade.loc[stg, '매도전환'] = '매도중'
+                self.df_trade.loc[stg, '매도전환'] = '진입완료'
                 상태 = '매수'
                 self.df_trade.loc[stg, '상태'] = 상태
                 print(f"if self.df_trade.loc[stg, '매도전환'] == True:  {stg= }    {종목코드= }  {상태= } {분할상태= }  {self.df_trade.loc[stg, '매도전환']= }")

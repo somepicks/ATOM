@@ -358,75 +358,80 @@ def make_exchange_bybit(mock):
 
     return exchange_ccxt, exchange_pybit
 
-def save_kis_DB(check_simul,ex_kis,ticker,list_table,today,conn_DB):
+def save_kis_DB(market, check_simul,ex_kis,ticker,list_table,today,conn_DB):
     if check_simul:
         ex = make_exchange_kis('실전주식')
         holiday = ex.check_holiday_domestic_stock(datetime.datetime.now().strftime('%Y%m%d'))
     else:
         holiday = ex_kis.check_holiday_domestic_stock(datetime.datetime.now().strftime('%Y%m%d'))
     df_holiday = pd.DataFrame(holiday)
-    if ticker == '콜옵션' or ticker == '풋옵션':
-        df_call, df_put, past_date, expiry_date = ex_kis.display_opt(today)
-        d_day = today - past_date
-        cond_mrkt = ticker
-        expiry_date = int(datetime.datetime.strftime(expiry_date, '%Y%m%d'))
-        while df_holiday.loc[str(expiry_date), '개장일'] == 'N':  # 만기일이 휴장일인지 확인
-            expiry_date -= 1
-        if ticker == '콜옵션':
-            df = df_call
-        elif ticker == '풋옵션':
-            df = df_put
-    elif ticker == '콜옵션_위클리' or ticker == '풋옵션_위클리':
-        df_call_weekly, df_put_weekly, cond_mrkt, past_date, expiry_date = ex_kis.display_opt_weekly(today)
-        expiry_date = int(datetime.datetime.strftime(expiry_date, '%Y%m%d'))
-        while df_holiday.loc[str(expiry_date), '개장일'] == 'N':  # 만기일이 휴장일인지 확인
-            expiry_date -= 1
-            if expiry_date <= int(datetime.datetime.strftime(past_date, '%Y%m%d')):
-                print('휴일로인해 저장할 대상이 없음')
-                return
-        d_day = today - past_date
-        if ticker == '콜옵션_위클리':
-            df = df_call_weekly
-        elif ticker == '풋옵션_위클리':
-            df = df_put_weekly
-    if not df.empty and cond_mrkt != '만기주':
-        list_ticker = df.종목코드.tolist()
-        past_date = datetime.datetime.combine(past_date, datetime.time(15, 45, 0))  # 12:30:45 추가
-        for symbol in list_ticker:
-            ticker_symbol = ticker + '_' + symbol[-3:]
+    if market == '국내주식':
+        pass
+    elif market == '국내선옵':
+        if ticker == '콜옵션' or ticker == '풋옵션':
+            df_call, df_put, past_date, expiry_date = ex_kis.display_opt(today)
+            d_day = today - past_date
+            cond_mrkt = ticker
+            expiry_date = int(datetime.datetime.strftime(expiry_date, '%Y%m%d'))
+            while df_holiday.loc[str(expiry_date), '개장일'] == 'N':  # 만기일이 휴장일인지 확인
+                expiry_date -= 1
+            if ticker == '콜옵션':
+                df_display = df_call
+            elif ticker == '풋옵션':
+                df_display = df_put
+        elif ticker == '콜옵션_위클리' or ticker == '풋옵션_위클리':
+            df_call_weekly, df_put_weekly, cond_mrkt, past_date, expiry_date = ex_kis.display_opt_weekly(today)
+            expiry_date = int(datetime.datetime.strftime(expiry_date, '%Y%m%d'))
+            while df_holiday.loc[str(expiry_date), '개장일'] == 'N':  # 만기일이 휴장일인지 확인
+                expiry_date -= 1
+                if expiry_date <= int(datetime.datetime.strftime(past_date, '%Y%m%d')):
+                    print('휴일로인해 저장할 대상이 없음')
+                    return
+            d_day = today - past_date
+            if ticker == '콜옵션_위클리':
+                df_display = df_call_weekly
+            elif ticker == '풋옵션_위클리':
+                df_display = df_put_weekly
+        elif ticker == '선물':
+            df_display = pd.DataFrame()
+        if not df_display.empty and cond_mrkt != '만기주':
+            list_ticker = df_display.종목코드.tolist()
+            past_date = datetime.datetime.combine(past_date, datetime.time(15, 45, 0))  # 12:30:45 추가
+            for symbol in list_ticker:
+                ticker_symbol = ticker + '_' + symbol[-3:]
 
-            if ticker_symbol in list_table:
-                df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn_DB).set_index('날짜')
-                df_exist.index = pd.to_datetime(df_exist.index)
-                # df_exist.drop(df_exist.index[-1], inplace=True)
-                final_time = df_exist.index[-1]
-                d_day = today - final_time.date()
-                ohlcv = ex_kis.fetch_futopt_1m_ohlcv(symbol, d_day.days)
-                df = get_kis_ohlcv('국내선옵', ohlcv)
-                df = df[df.index > final_time]
-                if df.empty:
-                    continue
-                df = pd.concat([df_exist, df])
-                print(f"{symbol= }   {ticker_symbol= }   {final_time.date()= }   {d_day.days= }    {expiry_date= }    {past_date= }   {df.index[-1]= }")
+                if ticker_symbol in list_table: #연속저장
+                    df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn_DB).set_index('날짜')
+                    df_exist.index = pd.to_datetime(df_exist.index)
+                    # df_exist.drop(df_exist.index[-1], inplace=True)
+                    final_time = df_exist.index[-1]
+                    d_day = today - final_time.date()
+                    ohlcv = ex_kis.fetch_1m_ohlcv(symbol=symbol, limit=d_day.days, ohlcv=ohlcv)
+                    df = get_kis_ohlcv('국내선옵', ohlcv)
+                    df = df[df.index > final_time]
+                    if df.empty:
+                        continue
+                    df = pd.concat([df_exist, df])
+                    print(f"{symbol= }   {ticker_symbol= }   {final_time.date()= }   {d_day.days= }    {expiry_date= }    {past_date= }   {df.index[-1]= }")
 
-            else:
-                ohlcv = ex_kis.fetch_futopt_1m_ohlcv(symbol, d_day.days)
-                df = get_kis_ohlcv('국내선옵', ohlcv)
-                # df = df[df.index > past_date + datetime.timedelta(days=1)]
-                df = df[df.index > past_date]
-                print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_date= }")
+                else:  # 기존 데이터가 없을 경우
+                    ohlcv = ex_kis.fetch_1m_ohlcv(symbol=symbol, limit=d_day.days, ohlcv=ohlcv)
+                    df = get_kis_ohlcv('국내선옵', ohlcv)
+                    # df = df[df.index > past_date + datetime.timedelta(days=1)]
+                    df = df[df.index > past_date]
+                    print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_date= }")
 
-            # 데이터가 없을경우 해당하는 행 삭제
+                # 데이터가 없을경우 해당하는 행 삭제
 
-            now = datetime.datetime.now().replace(second=0, microsecond=0)
-            df = df.drop(df.loc[df.index == now].index)
+                now = datetime.datetime.now().replace(second=0, microsecond=0)
+                df = df.drop(df.loc[df.index == now].index)
 
-            df['만기일'] = expiry_date
-            if not df.empty:
-                df.to_sql(ticker_symbol, conn_DB, if_exists='replace')
-    else:
-        df = pd.DataFrame()
-        ticker_symbol = ''
+                df['만기일'] = expiry_date
+                if not df.empty:
+                    df.to_sql(ticker_symbol, conn_DB, if_exists='replace')
+        else:
+            df = pd.DataFrame()
+            ticker_symbol = ''
     return df, ticker_symbol
 def make_exchange_kis(trade_type):
     conn = sqlite3.connect('DB/setting.db')

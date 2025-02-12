@@ -642,10 +642,8 @@ class KoreaInvestment:
 
     def fetch_1m_ohlcv(self , symbol: str,  limit: int , ohlcv:list=[]):
         """당일 1분봉조회"""
-        date_now = datetime.datetime.now()
-        now_time = date_now.strftime("%H%M") + "00"  # 마지막에 초는 00으로
-        now_day = date_now.date().strftime("%Y%m%d")
-
+        now_day = datetime.datetime.now().date().strftime("%Y%m%d")
+        now_time = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
         if self.market == '주식':
             if to == "":
                 to = now.strftime("%H%M%S")
@@ -678,23 +676,15 @@ class KoreaInvestment:
             ohlcv = self.make_ohlcv_1m(ohlcv)
             return ohlcv
         elif self.market == '선옵':
-            # trade_market = '선물' if symbol[:1]=='1' else '콜옵션' if symbol[:1]=='2' else '풋옵션' if symbol[:1]=='3' else '스프레드'
-            # market_mark = 'F' if trade_market == '선물' else 'O'
-            if ohlcv :
-                to = ohlcv[0]['stck_cntg_hour']
-                output = self._fetch_1m_ohlcv(symbol=symbol, to=to, fake_tick=True)  # to = 현재시간
-
+            if ohlcv : #실시간일 경우
+                output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time, fake_tick=True)  # to = 현재시간
                 output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
-                # output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
-
-                list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
-                if to in list_cntg_hour:
-                    output = output[:list_cntg_hour.index(to) + 1]
-                    del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                    output.extend(ohlcv)
-                    ohlcv = output
+                output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
+                del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                output.extend(ohlcv)
+                ohlcv = output
             else:
-                # print(f"{now_time= }")
+                print(f"최초생성 {now_time= }")
                 if (int(now_time) < 90000) or (153000 < int(now_time)):
                     now_time = "154500"
                 # now_day='20250210'
@@ -719,11 +709,9 @@ class KoreaInvestment:
                             now_time = dt.strftime("%H%M%S")
 
                         list_bsop_dates = [item['stck_bsop_date'] for item in ohlcv]  # 딕셔너리의 날짜를 리스트로 변환
-                        # print(f"{len(list(set(list_bsop_dates)))= }     {list(set(list_bsop_dates))= }")
                         if len(list(set(list_bsop_dates))) > limit:
                             ohlcv = ohlcv[:list_bsop_dates.index(list_bsop_dates[-1])]
                             break
-                        # time.sleep(0.5)
                     else:
                         print(f"{symbol= }   {now_time= }   {now_day= }    {now_time= }  {output= }")
                         break
@@ -757,27 +745,7 @@ class KoreaInvestment:
                                          'futs_prpr': '0',
                                          'stck_bsop_date': date_now.date().strftime("%Y%m%d"),
                                          'stck_cntg_hour': date_now.strftime("%H%M") + "00"}]
-        elif self.market == '해외선옵':
-            if ohlcv:
-                to = ohlcv[0]['stck_cntg_hour']
-                output = self._fetch_1m_ohlcv(symbol=symbol, to=to, fake_tick=True)  # to = 현재시간
 
-                output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
-                # output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
-
-                list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
-                if to in list_cntg_hour:
-                    output = output[:list_cntg_hour.index(to) + 1]
-                    del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                    output.extend(ohlcv)
-                    ohlcv = output
-            else:
-                if (int(now_time) < 90000) or (153000 < int(now_time)):
-                    now_time = "154500"
-                ohlcv = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day, fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
-                # while True:
-                #     if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
-                #         ohlcv.extend(output)
         return ohlcv
     def _fetch_1m_ohlcv(self, symbol: str, to: str, day:str="", fake_tick:bool=False):
         """국내주식시세/주식당일분봉조회
@@ -860,6 +828,7 @@ class KoreaInvestment:
                         print(output['msg1'])
                         print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
                         QTest.qWait(800)
+
                         i = 0
                         raise
                         # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
@@ -916,7 +885,6 @@ class KoreaInvestment:
                     # time.sleep(1)
                     print('error')
                     QTest.qWait(800)
-                quit()
                 if output['msg1'] == '정상처리 되었습니다.':
                     break
                 elif output['msg1'] == 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다':
@@ -3632,35 +3600,24 @@ if __name__ == "__main__":
         broker_ws.start()
         for i in range(3):
            data = broker_ws.get()
-           print(data)
 
         # 실시간주식체결통보
         broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNI0"], user_id="somepick")
         broker_ws.start()
         for i in range(3):
            data = broker_ws.get()
-           print(data)
 
-    exchange = common_def.make_exchange_kis('실전해외선옵')
+    exchange = common_def.make_exchange_kis('모의선옵')
 
     # make_exchange_kis_WS(key,secret)
     # today = datetime.datetime(2024,12,10)
     # today = datetime.datetime.now().date()
     # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
-    # while True:
-    #     ohlcv = exchange.fetch_futopt_1m_ohlcv('201W02335',6)
-    #     df = pd.DataFrame(ohlcv)
-    #     if df.loc[df.index[0],'stck_bsop_date'] != '20250207':
-    #         pprint(ohlcv)
-    #         print(df)
-    #         break
+
     ohlcv = []
     while True:
-        ohlcv = exchange.fetch_1m_ohlcv('MNQH25', 2,ohlcv)
-        pprint(ohlcv)
+        ohlcv = exchange.fetch_1m_ohlcv('201W02335', 2,ohlcv)
         df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
-        print(df)
-        time.sleep(10)
     df.to_sql('bt1',sqlite3.connect('DB/bt.db'),if_exists='replace')
     now = datetime.datetime.now().replace(second=0,microsecond=0)
     df = df.drop(df.loc[df.index == now].index)
