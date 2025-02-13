@@ -626,7 +626,8 @@ class Trade_np(QThread):
         # global 장종료시간
         현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
         진입시간 = 현재시간
-
+        now_day = 현재시간.date().strftime("%Y%m%d")
+        now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
         if self.market == '코인':
             장종료시간 = 현재시간 + datetime.timedelta(days=30)
             self.ex_bybit, self.ex_pybit = common_def.make_exchange_bybit(False)
@@ -711,10 +712,10 @@ class Trade_np(QThread):
 
             if type(obj) == str or (type(obj) == dict and 상태 != '대기') and (type(obj) == dict and 상태 != '청산'): #종목이 지정되어있을 경우
                 pass
-                df = self.make_df(ticker,bong,bong_detail,bong_since,False)
+                df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
                 dict_stg[stg] = self.check_compare_ticker(stg,ticker,dict_stg[stg])
                 # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임 생성
-                df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since,now_day,now_time)
                 # print(f"{stg= }    {ticker= }   {obj= }    {type(obj)=}    {bong= },    {bong_detail= }    {bong_since= }   {dict_stg[stg]= }")
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상태봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
@@ -748,13 +749,13 @@ class Trade_np(QThread):
                             bong_since = self.df_trade.loc[stg, '봉제한']
                         else:
                             bong_since = df_same['봉제한'].max()
-                        df = self.make_df(ticker,bong,bong_detail,bong_since,False)
+                        df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
                         dict_stg[stg]['종목코드'] = ticker
                         dict_stg[stg]['봉제한'] = bong_since
                         dict_stg[stg]['비교대상']['수급동향'] = False
                         dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
                         # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
-                        df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                        df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since,now_day,now_time)
 
                         데이터길이 = df.loc[df.index[-1], '데이터길이']
                         idx_bong = df['데이터길이'].tolist().index(데이터길이)
@@ -782,7 +783,8 @@ class Trade_np(QThread):
     def loop_main(self,장종료시간, one_minute, dict_stg):
         # global 데이터길이, 현재시간, 캔들종료시간
         현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
-
+        now_day = 현재시간.date().strftime("%Y%m%d")
+        now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
         check_time = False
         # self.list_df_duplicated = [] # 매번 초기화해서 데이터가 동일한 데이터를 두번 부르지 않도록하기 위함
         if 장종료시간 < 현재시간:
@@ -822,8 +824,8 @@ class Trade_np(QThread):
                 캔들종료시간 = 장종료시간
             if type(obj) == str or (type(obj) == dict and 상태 != '대기') and (type(obj) == dict and 상태 != '청산'):  # 종목이 지정되어있을 경우
                 ticker = dict_stg[stg]['종목코드']
-                df = self.make_df(ticker,bong,bong_detail,bong_since,False)
-                df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
+                df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since,now_day,now_time)
                 print(f"{df= }")
                 print(f"{df.loc[df.index[-1],'종가']= }")
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
@@ -861,10 +863,10 @@ class Trade_np(QThread):
                             dict_stg[stg]['비교대상']['수급동향'] = False
                             # 비교대상에서 긴 봉제한을 갖고왔을 때 어떡게 df에 접목할지 고민 해봐야 함
                             # dict_stg[stg]['봉제한'] = bong_since
-                            df = self.make_df(ticker,bong,bong_detail,bong_since,False)
+                            df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
                             dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
                             # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
-                            df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since)
+                            df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since,now_day,now_time)
                             데이터길이 = df.loc[df.index[-1], '데이터길이']
                             # print(f"{stg= }   {ticker= }   {데이터길이= }")
                             idx_bong = df['데이터길이'].tolist().index(데이터길이)
@@ -2230,7 +2232,7 @@ class Trade_np(QThread):
         # print(f"cal_ror - {누적수익금= }    {self.df_trade.loc[stg, '누적수익금']= }     {수익금= },  {수익률= }")
         return 누적수익금
 
-    def make_df(self,ticker, bong, bong_detail, bong_since, check_compare):
+    def make_df(self,ticker, bong, bong_detail, bong_since, check_compare,now_day,now_time):
         ticker_full_name = f"{ticker}_{bong}_{bong_detail}"
         if self.market =='국내주식':
             if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
@@ -2285,19 +2287,9 @@ class Trade_np(QThread):
         elif self.market == '국내선옵':
             if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
                 ohlcv = globals()[ticker_full_name]
-                # to = ohlcv[0]['stck_cntg_hour']
-                # output = self.ex_kis._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
-                # output = output['output2']
-                # list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
-                # if to in list_cntg_hour:
-                #     output = output[:list_cntg_hour.index(to)+1]
-                #     del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                #     output.extend(ohlcv)
-                #     ohlcv = output
-                #     globals()[ticker_full_name] = ohlcv
             else: # 최초 생성 시
                 ohlcv = []
-            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker,limit=bong_since,ohlcv=ohlcv)
+            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker,limit=bong_since,ohlcv=ohlcv,now_day=now_day,now_time=now_time)
             globals()[ticker_full_name] = ohlcv
 
 
@@ -2403,7 +2395,7 @@ class Trade_np(QThread):
                 dict_stg_stg['비교대상']['수급동향'] = True
             # dict_stg_stg['비교대상']['301W01337'] = '5분봉'
         return dict_stg_stg
-    def add_compare_df(self, ticker, df, dict_stg_stg,bong_detail,bong_since):
+    def add_compare_df(self, ticker, df, dict_stg_stg,bong_detail,bong_since,now_day,now_time):
         list_idx = df.index.tolist()
         # print(dict_stg_stg['비교대상'].items())
         for symbol,list_bong in dict_stg_stg['비교대상'].items():
@@ -2427,7 +2419,7 @@ class Trade_np(QThread):
                 elif symbol == '풋옵션':
                     symbol = '3' + ticker[1:]
                 for bong in list_bong:
-                    df_compare = self.make_df(symbol, bong, bong_detail, bong_since, True)
+                    df_compare = self.make_df(symbol, bong, bong_detail, bong_since, True,now_day,now_time)
 #                     print(f"{symbol= }")
 #                     print(df_compare)
                     df_compare.columns = [f"{col}_{symbol_orgin}_{bong}" for col in df_compare.columns]
@@ -2601,7 +2593,7 @@ class Trade_np(QThread):
             today = datetime.datetime.now().date()
 
             for ticker in ['콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
-                common_def.save_kis_DB(self.simul.isChecked(),self.ex_kis, ticker,list_table,today,conn_DB)
+                common_def.save_kis_DB(self.market,self.simul.isChecked(),self.ex_kis, ticker,list_table,today,conn_DB)
             cursor.close()
             conn_DB.close()
     def order_open(self, ticker, price, qty, side, type, leverage):

@@ -7,16 +7,11 @@
     <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/DB_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_futopt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/bt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/bt.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/setting.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/setting.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/stg_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chart_real.py" beforeDir="false" afterPath="$PROJECT_DIR$/chart_real.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -144,7 +139,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="tab_set" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="tab_backtest" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -157,7 +152,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tab_set.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tab_backtest.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -191,10 +186,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.KIS" />
-        <item itemvalue="Python.tab_trade" />
+        <item itemvalue="Python.tab_backtest" />
         <item itemvalue="Python.ex" />
+        <item itemvalue="Python.tab_trade" />
         <item itemvalue="Python.common_def" />
-        <item itemvalue="Python.tab_set" />
       </list>
     </recent_temporary>
   </component>
@@ -350,7 +345,15 @@
       <option name="project" value="LOCAL" />
       <updated>1738885616967</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1739403999201</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1739403999201</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

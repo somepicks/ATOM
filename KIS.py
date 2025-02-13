@@ -482,32 +482,76 @@ class KoreaInvestment:
             data = pickle.load(f)
             self.access_token = f'Bearer {data["access_token"]}'
 
-    def check_holiday_domestic_stock(self,day:str): # 'YYYYMMDD'
+    def check_holiday_domestic_stock(self,day:str,expiry_date:str): # 'YYYYMMDD'
         """국내주식 업종/기타/국내휴장일조회[국내주식-040] """
-        path = "uapi/domestic-stock/v1/quotations/chk-holiday"
-        url = f"{self.base_url}/{path}"
-        headers = {
-           "content-type": "application/json; charset=utf-8",
-           "authorization": self.access_token,
-           "appKey": self.api_key,
-           "appSecret": self.api_secret,
-           "tr_id": "CTCA0903R"
-        }
-        params = {
-            "BASS_DT": day,
-            "CTX_AREA_NK": '',
-            "CTX_AREA_FK": ''
-        }
-        resp = requests.get(url, headers=headers, params=params)
-        if resp.json()['msg1'] == '조회가 계속됩니다..다음버튼을 Click 하십시오.                                   ':
-            df = pd.DataFrame(resp.json()['output'])
-            df.rename(
-                columns={'wday_dvsn_cd': '요일', 'bzdy_yn': '금융기관업무일', 'tr_day_yn': '입출금가능일',
-                         'opnd_yn': '개장일', 'sttl_day_yn': '지불일'}, inplace=True)
-            df.index = df['bass_dt']
-            return df
-
-
+        output = []
+        while True:
+            path = "uapi/domestic-stock/v1/quotations/chk-holiday"
+            url = f"{self.base_url}/{path}"
+            headers = {
+               "content-type": "application/json; charset=utf-8",
+               "authorization": self.access_token,
+               "appKey": self.api_key,
+               "appSecret": self.api_secret,
+               "tr_id": "CTCA0903R",
+                # "tr_cont": tr_cont
+            }
+            params = {
+                "BASS_DT": day,
+                "CTX_AREA_NK": '',
+                "CTX_AREA_FK": ''
+            }
+            resp = requests.get(url, headers=headers, params=params)
+            if resp.json()['msg1'] == '조회가 계속됩니다..다음버튼을 Click 하십시오.                                   ':
+                output.extend(resp.json()['output'])
+                df = pd.DataFrame(output)
+                print(df)
+                if expiry_date in df['bass_dt'].tolist():
+                    df.rename(
+                        columns={'wday_dvsn_cd': '요일', 'bzdy_yn': '금융기관업무일', 'tr_day_yn': '입출금가능일',
+                                 'opnd_yn': '개장일', 'sttl_day_yn': '지불일'}, inplace=True)
+                    df.index = df['bass_dt']
+                    return df
+                else:
+                    day = df['bass_dt'].tolist()[-1]
+                    QTest.qWait(800)
+            else:
+                print(day)
+                pprint(resp.json())
+                return 0
+    def check_holiday_future(self,day:str,expiry_date:int): # 'YYYYMMDD'
+        next_search = ""
+        list_date = "N"
+        while True:
+            path = "uapi/domestic-stock/v1/quotations/market-time"
+            url = f"{self.base_url}/{path}"
+            headers = {
+                "content-type": "application/json; charset=utf-8",
+                "authorization": self.access_token,
+                "appKey": self.api_key,
+                "appSecret": self.api_secret,
+                "tr_id": "HHMCM000002C0",
+                "tr_cont": next_search
+            }
+            params = {
+                # "BASS_DT": day,
+                # "CTX_AREA_NK": '',
+                # "CTX_AREA_FK": ''
+            }
+            resp = requests.get(url, headers=headers, params=params)
+            pprint(resp.json())
+            if resp.json()['msg1'] == '정상처리 되었습니다.':
+                output = resp.json()['output1']
+                list_date.append(int(output['date1']))
+                list_date.append(int(output['date2']))
+                list_date.append(int(output['date3']))
+                list_date.append(int(output['date4']))
+                list_date.append(int(output['date5']))
+                print(list_date)
+                if any(n > expiry_date for n in list_date):
+                    return list_date
+                else:
+                    next_search = 'N'
     def issue_hashkey(self, data: dict):
         """해쉬키 발급
         Args:
@@ -640,10 +684,10 @@ class KoreaInvestment:
         resp = requests.get(url, headers=headers, params=params)
         return resp.json()
 
-    def fetch_1m_ohlcv(self , symbol: str,  limit: int , ohlcv:list=[]):
+    def fetch_1m_ohlcv(self , symbol: str,  limit: int , ohlcv:list,now_day:str,now_time:str):
         """당일 1분봉조회"""
-        now_day = datetime.datetime.now().date().strftime("%Y%m%d")
-        now_time = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
+        # now_day = datetime.datetime.now().date().strftime("%Y%m%d")
+        # now_time = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
         if self.market == '주식':
             if to == "":
                 to = now.strftime("%H%M%S")
@@ -3607,13 +3651,18 @@ if __name__ == "__main__":
         for i in range(3):
            data = broker_ws.get()
 
-    exchange = common_def.make_exchange_kis('모의선옵')
+    exchange = common_def.make_exchange_kis('실전주식')
 
     # make_exchange_kis_WS(key,secret)
     # today = datetime.datetime(2024,12,10)
     # today = datetime.datetime.now().date()
     # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
-
+    today = datetime.datetime.now().date()
+    today = datetime.datetime.now().date()
+    df_holiday = exchange.check_holiday_domestic_stock(today.strftime('%Y%m%d'),'20250313')
+    print(df_holiday)
+    print(df_holiday.dtypes)
+    quit()
     ohlcv = []
     while True:
         ohlcv = exchange.fetch_1m_ohlcv('201W02335', 2,ohlcv)
@@ -3632,7 +3681,7 @@ if __name__ == "__main__":
     print(list_ticker)
     # today = today.strftime('%Y%m%d')
     # print(today)
-    df_holiday = exchange.check_holiday_domestic_stock(today.strftime('%Y%m%d'))
+
     print(df_holiday)
     print(f"{today= }")
     print(f"{type(today)= }")

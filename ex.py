@@ -298,6 +298,21 @@ bybit = ccxt.bybit({
 # print(df['quoteVolume'])
 with open('token.dat','rb') as file:
     print(file.read())
+import pandas as pd
+
+# 예제 데이터프레임 생성
+df1 = pd.DataFrame({'A': [1, 2, 3]}, index=[0, 1, 2])
+df2 = pd.DataFrame({'A': [4, 5, 6]}, index=[1, 2, 3])
+print(df1)
+print(df2)
+# 데이터프레임 합치기
+df = pd.concat([df1, df2])
+
+# 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
+df = df[~df.index.duplicated(keep='last')]
+
+print(df)
+if for [1,2,3,4,5]
 quit()
 st = '1~2'
 print(st[st.index('~')+1:])

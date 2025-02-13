@@ -431,10 +431,8 @@ class Window(QWidget):
         # self.QCB_bong_detail.setCurrentText('5분봉')
         # self.QCB_bong_detail.setEnabled(False)
     def save_DB(self):
-        # import pandas_datareader.data as web
         from pandas import to_numeric
         self.BTN_efect(self.QPB_DB_save)
-        # dict_bong = {'1분봉':'1m','3분봉': '3m', '5분봉': '5m', '30분봉': '30m', '4시간봉': '4h', '일봉': 'd', '주봉':'W'}
 
         market = self.QCB_market.currentText()
         ticker = self.QLE_DB_ticker.text()
@@ -446,7 +444,7 @@ class Window(QWidget):
         except:
             list_table = []
         cursor.close()
-        today = datetime.datetime.now().date()
+        now_day = datetime.datetime.now().date()
 
         if ticker == '':  # 티커가 명시되어 있지 않을 경우
             raise Exception('ticker 확인 필요')
@@ -508,7 +506,8 @@ class Window(QWidget):
                 print(f"종목명 확인 필요 {ticker= }")
                 self.save_DB_CYBOS(market, ticker, list_table)
         elif market == '국내선옵':
-            common_def.save_kis_DB(market,True, self.exchange, ticker, list_table, today, self.conn_DB)
+            common_def.save_kis_DB(market,True, self.exchange, ticker, list_table,
+                                   now_day, self.conn_DB)
         else:
             raise print('데이터를 저장 할 시장을 선택해주세요.')
 
