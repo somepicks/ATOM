@@ -826,8 +826,8 @@ class Trade_np(QThread):
                 ticker = dict_stg[stg]['종목코드']
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
                 df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since,now_day,now_time)
-                print(f"{df= }")
-                print(f"{df.loc[df.index[-1],'종가']= }")
+                # print(f"{df= }")
+                # print(f"{df.loc[df.index[-1],'종가']= }")
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상세봉이기 때문에  찾아서 다시 들어가야됨
                 # if not np.isnan():
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)

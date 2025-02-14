@@ -505,7 +505,7 @@ class KoreaInvestment:
             if resp.json()['msg1'] == '조회가 계속됩니다..다음버튼을 Click 하십시오.                                   ':
                 output.extend(resp.json()['output'])
                 df = pd.DataFrame(output)
-                print(df)
+                # print(df)
                 if expiry_date in df['bass_dt'].tolist():
                     df.rename(
                         columns={'wday_dvsn_cd': '요일', 'bzdy_yn': '금융기관업무일', 'tr_day_yn': '입출금가능일',
@@ -728,7 +728,7 @@ class KoreaInvestment:
                 output.extend(ohlcv)
                 ohlcv = output
             else:
-                print(f"최초생성 {now_time= }")
+                # print(f"최초생성 {now_time= }")
                 if (int(now_time) < 90000) or (153000 < int(now_time)):
                     now_time = "154500"
                 # now_day='20250210'
@@ -922,7 +922,7 @@ class KoreaInvestment:
                 try:
                     res = requests.get(url, headers=headers, params=params)  # 연결된 구성원으로부터 - 에러 발생
                     output = res.json()
-                    pprint(output)
+                    # pprint(output)
                 except:
                     output = {}
                     output['msg1'] = 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다'
@@ -1087,7 +1087,7 @@ class KoreaInvestment:
                     df_put = pd.DataFrame()
                     break
         return df_call, df_put, past_date, expiry_date
-    def display_opt_weekly(self,today):
+    def display_opt_weekly(self,today:datetime):
         """국내선물옵션기본시세/국내옵션전광판_콜풋"""
         path = "uapi/domestic-futureoption/v1/quotations/display-board-callput"
         url = f"{self.base_url}/{path}"
@@ -1113,8 +1113,8 @@ class KoreaInvestment:
         # print(f"{yoil=}")
 
         first_day_of_month = today.replace(day=1) #이번달 1일
-        print(f"{first_day_of_month=}")
-        print(f"{type(first_day_of_month)=}")
+        # print(f"{first_day_of_month=}")
+        # print(f"{type(first_day_of_month)=}")
         first_day_weekday = first_day_of_month.isoweekday()  # isoweekday 0 = 일요일, 6 = 토요일, 월요일 기준으로 하고싶으면 isoweekday() 대신에 weekday()로 변경
 #         print(f"{first_day_weekday=}")
 
@@ -1184,6 +1184,7 @@ class KoreaInvestment:
         # print(f"{expiry_date_week=}")
         # print(f"{number_of_week=}")
         # quit()
+        i = 0
         while True:
             params = {
                 "FID_COND_MRKT_DIV_CODE": "O",
@@ -1242,13 +1243,13 @@ class KoreaInvestment:
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
                 print(f'{self.now_time()} display_opt_weekly   {res.json()}')
                 QTest.qWait(500)
-            elif res.json()['msg1'] == '정상처리 되었습니다.' and not res.json()['output1'] and not res.json()['output2']:
-                df_call = pd.DataFrame()
-                df_put = pd.DataFrame()
-                return  df_call, df_put, COND_MRKT, past_date, expiry_date
             else:
-                pprint(res.json())
-                raise
+                i += 1
+                QTest.qWait(800)
+                if i ==10:
+                    print('display_opt_weekly  조회할 수 없음')
+                    pprint(res.json())
+
         return df_call, df_put, COND_MRKT, past_date, expiry_date
 
     def now_time(self):
@@ -3651,26 +3652,18 @@ if __name__ == "__main__":
         for i in range(3):
            data = broker_ws.get()
 
-    exchange = common_def.make_exchange_kis('실전주식')
+    exchange = common_def.make_exchange_kis('모의선옵')
 
     # make_exchange_kis_WS(key,secret)
     # today = datetime.datetime(2024,12,10)
-    # today = datetime.datetime.now().date()
-    # df_call, df_put, past_date, expiry_date = exchange.display_opt(today)
     today = datetime.datetime.now().date()
-    today = datetime.datetime.now().date()
-    df_holiday = exchange.check_holiday_domestic_stock(today.strftime('%Y%m%d'),'20250313')
-    print(df_holiday)
-    print(df_holiday.dtypes)
+    df_call, df_put, COND_MRKT, past_date, expiry_date = exchange.display_opt_weekly(today)
+    print(df_call)
+    print(df_put)
+    print(COND_MRKT)
+    print(past_date)
+    print(expiry_date)
     quit()
-    ohlcv = []
-    while True:
-        ohlcv = exchange.fetch_1m_ohlcv('201W02335', 2,ohlcv)
-        df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
-    df.to_sql('bt1',sqlite3.connect('DB/bt.db'),if_exists='replace')
-    now = datetime.datetime.now().replace(second=0,microsecond=0)
-    df = df.drop(df.loc[df.index == now].index)
-
 
     #
     # list_ticker = df_call.종목코드.tolist()

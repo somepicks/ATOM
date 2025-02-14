@@ -360,7 +360,6 @@ def make_exchange_bybit(mock):
 
 def save_kis_DB(market, check_simul,ex_kis,ticker,list_table,now_day,conn_DB):
 
-    print(f"{df_holiday=}")
     if market == '국내주식':
         pass
     elif market == '국내선옵':

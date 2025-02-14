@@ -497,7 +497,6 @@ class Window(QWidget):
             list_table.insert(0, '전체')
             self.QCB_ticker.clear()
             self.QCB_ticker.addItems(list_table)
-
         elif market == '국내주식':
             dict_ticker_reverse = dict(zip(self.dict_ticker.values(), self.dict_ticker.keys()))
             try:

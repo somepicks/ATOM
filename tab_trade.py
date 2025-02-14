@@ -76,15 +76,14 @@ class Window(QMainWindow):
         # self.QCB_stg_current.activated[str].connect(lambda: self.selectedCombo_stg(self.QCB_stg_current))
         # self.QCB_stg_current.activated[str].connect(lambda: self.QLE_stg.setText(self.QCB_stg_current.currentText()))
         self.QCB_market.activated[str].connect(lambda: self.select_market())
-        self.QT_trade_open.cellClicked.connect(lambda: self.cellclick_table(1))
-        self.QT_trade_closed.cellClicked.connect(lambda: self.cellclick_table(2))
+        self.QT_trade_open.cellClicked.connect(lambda: self.cellclick_table("open"))
+        self.QT_trade_open.cellDoubleClicked.connect(lambda:self.cell_doubleclick_trading_table(self.QT_trade_open,self.df_stg))
+        self.QT_trade_closed.cellClicked.connect(lambda: self.cellclick_table("closed"))
+        self.QT_trade_closed.cellDoubleClicked.connect(lambda:self.cell_doubleclick_trading_table(self.QT_trade_closed,self.df_history))
+        self.QT_trade_closed.setEditTriggers(QAbstractItemView.NoEditTriggers)  # 더블클릭 시 수정 금지
         self.QT_tickers.cellClicked.connect(lambda: self.cellclick_ticker_table())
-
         self.QT_tickers.cellDoubleClicked.connect(lambda:self.cell_doubleclick_ticker_table())
         self.QT_tickers.setEditTriggers(QAbstractItemView.NoEditTriggers)  # 더블클릭 시 수정 금지
-        self.QT_trade_closed.cellDoubleClicked.connect(lambda:self.cell_doubleclick_trading_table(self.QT_trade_closed,self.df_history))
-        self.QT_trade_open.cellDoubleClicked.connect(lambda:self.cell_doubleclick_trading_table(self.QT_trade_open,self.df_stg))
-        self.QT_trade_closed.setEditTriggers(QAbstractItemView.NoEditTriggers)  # 더블클릭 시 수정 금지
     def set_UI(self):
         self.real_chart = chart_real.Graph(self)
 
@@ -296,14 +295,12 @@ class Window(QMainWindow):
         # print(self.df_manul)
 
     def display_futopt(self):
-        QTest.qWait(500)
         df_f = self.ex_kis.display_fut()
         today = datetime.datetime.today()
         QTest.qWait(500)
         df_c, df_p, past_date, expiry_date = self.ex_kis.display_opt(today)
         QTest.qWait(500)
         df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
-
         df_f = common_def.convert_column_types(df_f)
         df_c = common_def.convert_column_types(df_c)
         df_p = common_def.convert_column_types(df_p)
@@ -1124,11 +1121,10 @@ class Window(QMainWindow):
     def cellclick_table(self, num):
         self.QTE_stg_buy.clear()
         self.QTE_stg_sell.clear()
-        if num == 1: # table_open 클릭 시
+        if num == "open": # table_open 클릭 시
             row = self.QT_trade_open.currentRow()
             stg = self.QT_trade_open.item(int(row), 1).text()
-            # print(stg)
-        elif num == 2: # table_close 클릭 시
+        elif num == "closed": # table_close 클릭 시
             row = self.QT_trade_closed.currentRow()
             stg = self.QT_trade_closed.item(int(row), 1).text()
 
@@ -1139,10 +1135,8 @@ class Window(QMainWindow):
         self.QTE_stg_sell.setText(stg_sell)
         self.QLE_stg.setText(stg)
         self.QCB_stgs.setCurrentText(stg)
-        # print(ticker)
-        # px cv   n                         rint(type(ticker))
-        if ticker != "":
-            self.QLE_chart_ticker.setText(ticker)
+        # if ticker != "":
+        self.QLE_chart_ticker.setText(ticker)
     # def save_instock(self,df_instock):
     #     df_instock.to_sql('instock',self.conn_stg,if_exists='replace')
     def cellclick_ticker_table(self):
