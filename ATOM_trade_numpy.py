@@ -2591,7 +2591,6 @@ class Trade_np(QThread):
             except:
                 list_table = []
             today = datetime.datetime.now().date()
-
             for ticker in ['콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
                 common_def.save_kis_DB(self.market,self.simul.isChecked(),self.ex_kis, ticker,list_table,today,conn_DB)
             cursor.close()

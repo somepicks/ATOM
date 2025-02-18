@@ -940,7 +940,7 @@ class Window(QMainWindow):
         # self.timer.stop()
 
     def qtable_open(self, df):
-        self.df_compare = df[['ticker', '진입시간', '청산가', '청산시간', '상태', '분할상태', '현재봉시간','매입금액', '잔고', '분할보유수량']]
+        self.df_compare = df[['ticker', '진입시간', '청산가', '청산시간', '상태', '분할상태', '현재봉시간','매입금액', '잔고', '분할보유수량','매도전환']]
         if not self.df_old.equals(self.df_compare):
             self.df_stg = df.combine_first(self.df_stg)
             self.df_stg.sort_values('table', inplace=True)

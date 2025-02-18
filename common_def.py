@@ -359,7 +359,6 @@ def make_exchange_bybit(mock):
     return exchange_ccxt, exchange_pybit
 
 def save_kis_DB(market, check_simul,ex_kis,ticker,list_table,now_day,conn_DB):
-
     if market == '국내주식':
         pass
     elif market == '국내선옵':
@@ -411,6 +410,7 @@ def save_kis_DB(market, check_simul,ex_kis,ticker,list_table,now_day,conn_DB):
             past_expiry_date = datetime.datetime.combine(past_expiry_date, datetime.time(15, 45, 0))  # 12:30:45 추가 past_expiry_date+시간
             for symbol in list_ticker:
                 ticker_symbol = ticker + '_' + symbol[-3:]
+                ohlcv = []
                 if ticker_symbol in list_table: #연속저장
                     df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn_DB).set_index('날짜')
                     df_exist.index = pd.to_datetime(df_exist.index)
@@ -418,7 +418,6 @@ def save_kis_DB(market, check_simul,ex_kis,ticker,list_table,now_day,conn_DB):
                     d_day = now_day - final_time.date()
                     now_day = final_time.strftime("%Y%m%d")
                     now_time = final_time.strftime("%H%M%S")
-                    ohlcv = []
                     ohlcv = ex_kis.fetch_1m_ohlcv(symbol=symbol, limit=d_day.days, ohlcv=ohlcv,now_day=now_day,now_time=now_time)
                     df = get_kis_ohlcv('국내선옵', ohlcv)
                     df = df[df.index >= final_time]
@@ -429,6 +428,8 @@ def save_kis_DB(market, check_simul,ex_kis,ticker,list_table,now_day,conn_DB):
                     print(f"{symbol= }   {ticker_symbol= }   {final_time.date()= }   {d_day.days= }    {expiry_date= }    {past_expiry_date= }   {df.index[-1]= }")
 
                 else:  # 기존 데이터가 없을 경우
+                    now_day = now_day.strftime("%Y%m%d")
+                    now_time = now_day.strftime("%H%M%S")
                     ohlcv = ex_kis.fetch_1m_ohlcv(symbol=symbol, limit=d_day.days, ohlcv=ohlcv,now_day=now_day,now_time=now_time)
                     df = get_kis_ohlcv('국내선옵', ohlcv)
                     # df = df[df.index > past_expiry_date + datetime.timedelta(days=1)]
