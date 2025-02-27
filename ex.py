@@ -1,7 +1,7 @@
 import KIS
 import sys
+import time
 import talib
-# import pyupbit
 from PyQt5.QtWidgets import QWidget,QPushButton,QApplication,QListWidget,QGridLayout,QLabel
 from PyQt5.QtCore import QTimer,QDateTime
 from PyQt5.QtWidgets import *
@@ -11,8 +11,6 @@ from PyQt5.QtCore import *
 from collections import deque
 import numpy as np
 import datetime
-# from pymongo import MongoClient
-# import ccxt
 import sqlite3
 from pprint import pprint
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
@@ -21,18 +19,8 @@ pd.set_option('display.width',1500)
 pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
 # from ccxt.base.decimal_to_precision import TICK_SIZE
-# import talib as ta
-# import pyupbit
 # from collections import deque
-# import schedule
 # # 5초에 한번씩 함수 실행
-# import schedule
-# import time
-# import mojito
-# import pickle
-# import requests
-# import json
-# import talib
 import common_def
 import ccxt
 
@@ -296,34 +284,44 @@ bybit = ccxt.bybit({
 # tickers = bybit.fetch_tickers()
 # df = bybit_set_tickers(tickers)
 # print(df['quoteVolume'])
+
 with open('token.dat','rb') as file:
     print(file.read())
 import pandas as pd
 
 # 예제 데이터프레임 생성
+li_col = ['날짜', '요일', '금융기관업무일', '입출금가능일', '개장일', '지불일']
+df = pd.DataFrame(columns=li_col)
+df.index = df['날짜']
+
+# 데이터프레임 합치기
 df1 = pd.DataFrame({'A': [1, 2, 3]}, index=[0, 1, 2])
 df2 = pd.DataFrame({'A': [4, 5, 6]}, index=[1, 2, 3])
-print(df1)
-print(df2)
-# 데이터프레임 합치기
 df = pd.concat([df1, df2])
 
 # 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
 df = df[~df.index.duplicated(keep='last')]
 
-print(df)
-if for [1,2,3,4,5]
-quit()
-st = '1~2'
-print(st[st.index('~')+1:])
-print(st[:st.index('~')])
-di = {'수급동향': False,'asdf': True}
-if di:
-    print('asdf')
-
-print(type(datetime.datetime.now().date()))
-acc_no = '13546-90'
-print(acc_no.split('-')[0])
+# print(df)
+df_trade = pd.read_sql(f"SELECT * FROM 'stg'", sqlite3.connect('DB/stg_futopt.db')).set_index('전략명')
+stg = "시가_콜"
+df_stg = df_trade.drop(columns=["index", "진입전략", "청산전략", "레버리지", "market", "table", "봉", "봉제한", "방향", "상세봉"]).loc[[stg]]
+df_stg.index=[datetime.datetime.now().strftime("%H:%M:%S")]
+globals()[f'전략_{stg}'] = df_stg
+print(globals()[f'전략_{stg}'])
+time.sleep(1)
+df_stg = df_trade.loc[[stg]][globals()[f'전략_{stg}'].columns]
+df_stg.index=[datetime.datetime.now().strftime("%H:%M:%S")]
+globals()[f'전략_{stg}'] = pd.concat([globals()[f'전략_{stg}'], df_stg])
+print(globals()[f'전략_{stg}'])
+# globals()[f"{stg}"] =
+# today = "20250301"
+# expiry_day = "20250304"
+# df_holiday = df_holiday[today:expiry_day]
+# print((df_holiday['개장일']=="N").all())
+수익률 = 11
+최고수익률 = 17.78
+print((최고수익률-(최고수익률-수익률))/최고수익률*100)
 quit()
 conn = sqlite3.connect('DB/DB_futopt.db')
 ticker_symbol = '콜옵션_355'

@@ -482,7 +482,7 @@ class KoreaInvestment:
             data = pickle.load(f)
             self.access_token = f'Bearer {data["access_token"]}'
 
-    def check_holiday_domestic_stock(self,day:str,expiry_date:str): # 'YYYYMMDD'
+    def check_holiday_domestic_stock(self,nowday:str,expiry_date:str): # 'YYYYMMDD'
         """국내주식 업종/기타/국내휴장일조회[국내주식-040] """
         output = []
         while True:
@@ -497,7 +497,7 @@ class KoreaInvestment:
                 # "tr_cont": tr_cont
             }
             params = {
-                "BASS_DT": day,
+                "BASS_DT": nowday,
                 "CTX_AREA_NK": '',
                 "CTX_AREA_FK": ''
             }
@@ -505,19 +505,18 @@ class KoreaInvestment:
             if resp.json()['msg1'] == '조회가 계속됩니다..다음버튼을 Click 하십시오.                                   ':
                 output.extend(resp.json()['output'])
                 df = pd.DataFrame(output)
-                # print(df)
                 if expiry_date in df['bass_dt'].tolist():
                     df.rename(
-                        columns={'wday_dvsn_cd': '요일', 'bzdy_yn': '금융기관업무일', 'tr_day_yn': '입출금가능일',
+                        columns={'bass_dt':'날짜','wday_dvsn_cd': '요일', 'bzdy_yn': '금융기관업무일', 'tr_day_yn': '입출금가능일',
                                  'opnd_yn': '개장일', 'sttl_day_yn': '지불일'}, inplace=True)
-                    df.index = df['bass_dt']
+                    df = df.set_index('날짜', drop=True)
                     return df
                 else:
                     day = df['bass_dt'].tolist()[-1]
                     QTest.qWait(800)
             else:
-                print(day)
                 pprint(resp.json())
+                print(day)
                 return 0
     def check_holiday_future(self,day:str,expiry_date:int): # 'YYYYMMDD'
         next_search = ""
@@ -1077,7 +1076,7 @@ class KoreaInvestment:
                 df_put.set_index(df_put['종목코드'], inplace=True)
                 break
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
-                print(f'{self.now_time()}  display_opt {res.json()}')
+                print(f'{datetime.datetime.strftime(datetime.datetime.now(),"%H:%M:%S")}  display_opt {res.json()}')
                 QTest.qWait(1000)
             else:
                 pprint(res.json())
@@ -1181,9 +1180,6 @@ class KoreaInvestment:
             else:
                 raise
 
-        # print(f"{expiry_date_week=}")
-        # print(f"{number_of_week=}")
-        # quit()
         i = 0
         while True:
             params = {
@@ -1199,57 +1195,77 @@ class KoreaInvestment:
             if res.json()['msg1'] == '정상처리 되었습니다.' and res.json()['output1'] and res.json()['output2']:
                 df_call = pd.DataFrame(res.json()['output1'])
                 df_put = pd.DataFrame(res.json()['output2'])
-                # pprint(res.json())
-                # if df_call.empty:
-                #     today = today + datetime.timedelta(days=25)
-                # else:
-                df_call.rename(
-                    columns={'acpr': '행사가',
-                             'unch_prpr': '환산현재가',
-                             'optn_shrn_iscd': '종목코드',
-                             'optn_prpr': '현재가',
-                             'optn_prdy_vrss': '전일대비',
-                             'prdy_vrss_sign': '전일대비부호',
-                             'optn_prdy_ctrt': '옵션전일대비율',
-                             'total_askp_rsqn': '매도호가잔량',
-                             'total_bidp_rsqn': '매수호가잔량',
-                             'optn_bidp': '매수호가',
-                             'optn_askp': '매도호가',
-                             'hts_otst_stpl_qty':'미결제약정',
-                             'acml_vol': '거래량',
-                             'acml_tr_pbmn': '거래대금'},inplace=True)
-                df_call = df_call[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
-                                   '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','미결제약정','거래량','거래대금']]
-                df_call.set_index(df_call['종목코드'], inplace=True)
+                print(f"{res.json()['msg1'] }   {expiry_date_week[2:]=}  {COND_MRKT=}")
+                print(df_call)
+                print(df_put)
+                if df_call.empty or df_put.empty : #만기일까지 계속 휴일인지 확인
+                    print("display_opt_weekly")
+                    pprint(res.json())
+                    df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", sqlite3.connect('DB/DB_futopt.db')).set_index('날짜')
+                    df_holiday = df_holiday[datetime.datetime.strftime(today,"%Y%m%d"):datetime.datetime.strftime(expiry_date,"%Y%m%d")]
+                    if (df_holiday['개장일']=="N").all(): #만기일까지 계속 휴일일 경우
+                        df_call = pd.DataFrame()
+                        df_put = pd.DataFrame()
+                        return df_call, df_put, COND_MRKT, past_date, expiry_date
+                    else:
+                        i += 1
+                        QTest.qWait(1000)
+                        if i >= 10:
+                            print('display_opt_weekly 조회 할 수 없음 확인 필요')
+                            df_call = pd.DataFrame()
+                            df_put = pd.DataFrame()
+                            return df_call, df_put, COND_MRKT, past_date, expiry_date
+                else:
+                    df_call.rename(
+                        columns={'acpr': '행사가',
+                                 'unch_prpr': '환산현재가',
+                                 'optn_shrn_iscd': '종목코드',
+                                 'optn_prpr': '현재가',
+                                 'optn_prdy_vrss': '전일대비',
+                                 'prdy_vrss_sign': '전일대비부호',
+                                 'optn_prdy_ctrt': '옵션전일대비율',
+                                 'total_askp_rsqn': '매도호가잔량',
+                                 'total_bidp_rsqn': '매수호가잔량',
+                                 'optn_bidp': '매수호가',
+                                 'optn_askp': '매도호가',
+                                 'hts_otst_stpl_qty':'미결제약정',
+                                 'acml_vol': '거래량',
+                                 'acml_tr_pbmn': '거래대금'},inplace=True)
+                    df_call = df_call[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
+                                       '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','미결제약정','거래량','거래대금']]
+                    df_call.set_index(df_call['종목코드'], inplace=True)
 
-                df_put.rename(
-                    columns={'acpr': '행사가',
-                             'unch_prpr': '환산현재가',
-                             'optn_shrn_iscd': '종목코드',
-                             'optn_prpr': '현재가',
-                             'optn_prdy_vrss': '전일대비',
-                             'prdy_vrss_sign': '전일대비부호',
-                             'optn_prdy_ctrt': '옵션전일대비율',
-                             'total_askp_rsqn': '매도호가잔량',
-                             'total_bidp_rsqn': '매수호가잔량',
-                             'optn_bidp': '매수호가',
-                             'optn_askp': '매도호가',
-                             'acml_vol': '거래량',
-                             'acml_tr_pbmn': '거래대금'},inplace=True)
-                df_put = df_put[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
-                                 '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
-                df_put.set_index(df_put['종목코드'], inplace=True)
-                break
+                    df_put.rename(
+                        columns={'acpr': '행사가',
+                                 'unch_prpr': '환산현재가',
+                                 'optn_shrn_iscd': '종목코드',
+                                 'optn_prpr': '현재가',
+                                 'optn_prdy_vrss': '전일대비',
+                                 'prdy_vrss_sign': '전일대비부호',
+                                 'optn_prdy_ctrt': '옵션전일대비율',
+                                 'total_askp_rsqn': '매도호가잔량',
+                                 'total_bidp_rsqn': '매수호가잔량',
+                                 'optn_bidp': '매수호가',
+                                 'optn_askp': '매도호가',
+                                 'acml_vol': '거래량',
+                                 'acml_tr_pbmn': '거래대금'},inplace=True)
+                    df_put = df_put[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
+                                     '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
+                    df_put.set_index(df_put['종목코드'], inplace=True)
+                    break
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
-                print(f'{self.now_time()} display_opt_weekly   {res.json()}')
+                print(f'{datetime.datetime.strftime(datetime.datetime.now(),"%H:%M:%S")} display_opt_weekly   {res.json()}')
                 QTest.qWait(500)
             else:
                 i += 1
                 QTest.qWait(800)
-                if i ==10:
+                print('display_opt_weekly  조회불가')
+                if i >= 10:
                     print('display_opt_weekly  조회할 수 없음')
                     pprint(res.json())
-
+                    df_call = pd.DataFrame()
+                    df_put = pd.DataFrame()
+                    break
         return df_call, df_put, COND_MRKT, past_date, expiry_date
 
     def now_time(self):
@@ -3653,47 +3669,11 @@ if __name__ == "__main__":
            data = broker_ws.get()
 
     exchange = common_def.make_exchange_kis('모의선옵')
-
-    # make_exchange_kis_WS(key,secret)
-    # today = datetime.datetime(2024,12,10)
-    today = datetime.datetime.now().date()
-    df_call, df_put, COND_MRKT, past_date, expiry_date = exchange.display_opt_weekly(today)
-    print(df_call)
-    print(df_put)
-    print(COND_MRKT)
-    print(past_date)
-    print(expiry_date)
-    quit()
-
-    #
-    # list_ticker = df_call.종목코드.tolist()
-    # ticker = '콜옵션'
-    # list_ticker = [ticker+'_' + x[-3:] for x in list_ticker]
-
-    print(df_put)
-    print(list_ticker)
-    # today = today.strftime('%Y%m%d')
-    # print(today)
-
-    print(df_holiday)
-    print(f"{today= }")
-    print(f"{type(today)= }")
-    expiry_date = exchange.nth_weekday(today,2,3)
-    print(expiry_date)
-
-    print(expiry_date)
-    while df_holiday.loc[str(expiry_date),'개장일'] == 'N':
-        expiry_date -= 1
-    print(expiry_date)
-    print(d_day.days)
-    # while
-    ticker = '201W02352'
-    ohlcv = exchange.fetch_futopt_1m_ohlcv(ticker,d_day.days)
-    df = common_def.get_kis_ohlcv('국내선옵', ohlcv)
-    print(df)
-    df = df[df.index > past_date+datetime.timedelta(days=1)]
-    df['만기일'] = expiry_date
-    print(df)
-
-    conn_DB = sqlite3.connect('DB/bt.db')
-    df.to_sql(ticker, conn_DB, if_exists='replace')
+    conn_DB = sqlite3.connect('DB/DB_futopt.db')
+    cursor = conn_DB.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    try:
+        list_table = np.concatenate(cursor.fetchall()).tolist()
+    except:
+        list_table = []
+    common_def.save_futopt_DB(check_simul=True, ex_kis=exchange, ticker='콜옵션', list_table=list_table, conn_DB=conn_DB)

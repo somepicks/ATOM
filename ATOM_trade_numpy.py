@@ -7,32 +7,22 @@ from PyQt5.QtWidgets import QMainWindow,QGridLayout,QLineEdit,QLabel,QPushButton
 from PyQt5.QtCore import Qt,QThread,pyqtSignal,QWaitCondition,QMutex
 from PyQt5.QtTest import QTest
 from PyQt5.QtGui import QFontMetrics,QFont
-#from PyQt5.QtGui import *
-# from PyQt5 import QtWidgets, QtCore
 from PyQt5 import QtWidgets, QtCore
 import numpy as np
 import ccxt
-from pykrx import stock
 import math
-# import color as cl
 import chart_real
 from collections import deque
-#from pymongo import MongoClient
 import time
 from pprint import pprint
 #import multiprocessing as mp
-# import tab_chart_table
 #import color as cl
 #import sys
 import sqlite3
 import KIS
 import talib
 import os
-import tab_trade
-from common_def import export_sql
 
-# from pykrx import stock
-# import pandas_datareader.data as web
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -40,7 +30,6 @@ pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
 
 import schedule
-# import Loop_trade
 import asyncio
 import telegram
 import common_def
@@ -499,7 +488,7 @@ def moving_average(np_arry, w):
 class Trade_np(QThread):
     qt_open = pyqtSignal(pd.DataFrame)
     qt_closed = pyqtSignal(pd.DataFrame)
-    # val_sum = pyqtSignal(pd.DataFrame)
+    save_history = pyqtSignal(str,pd.DataFrame)
     val_light = pyqtSignal(bool,pd.DataFrame,pd.DataFrame)
 
 
@@ -574,7 +563,6 @@ class Trade_np(QThread):
             print(f"{self.cyan('모의매매')}")
 
         if self.market == '국내주식' or self.market == '국내선옵':
-
             if datetime.datetime.now().time() < datetime.datetime.strptime('00:55:00','%H:%M:%S').time(): #9시 전에 클릭하면 9시 정각에 실행
                 schedule.every().day.at("08:55:00").do(self.loop_init)
                 while self._status:
@@ -591,13 +579,16 @@ class Trade_np(QThread):
             # schedule.every().hour.at(":00").do(self.sorting_tickers) #매시각 정시마다 거래대금 순위 정렬해서 불러오기
             # schedule.every().hour.at(":30").do(self.sorting_tickers) #매시각 30분마다 거래대금 순위 정렬해서 불러오기
             schedule.every().hour.at(":00").do(self.time_sync) #매시각 정시마다 거래대금 순위 정렬해서 불러오기
+
             dict_stg = self.loop_init()
             dt = datetime.datetime.now().replace(second=0, microsecond=0)
             one_minute = dt+datetime.timedelta(minutes=1)
             # print(dict_stg)
             while self._status:
                 QTest.qWait(1000)
-                장종료시간 = dt + datetime.timedelta(days=30)
+                # 장종료시간 = dt + datetime.timedelta(days=30)
+                장종료시간 = dt + datetime.timedelta(minutes=1)
+
                 one_minute, dict_stg = self.loop_main(장종료시간,one_minute,dict_stg)
                 schedule.run_pending()
                 self.qt_open.emit(self.df_trade)
@@ -636,6 +627,8 @@ class Trade_np(QThread):
             print('거래에 사용하고 있는 코인양: ', balanceSpot['USDT']['used'])
             print('전체 코인양: ', balanceSpot['USDT']['total'])
             self.list_tickers = [x for x in self.list_tickers if len(x) != 1]
+            fetch_tickers = self.ex_bybit.fetch_tickers()
+            self.df_tickers = self.bybit_set_tickers(fetch_tickers)
 
         elif self.market == '국내주식' or self.market == '국내선옵':
             # dt = 현재시간.strftime('%Y-%m-%d') + ' 15:30:00'
@@ -694,11 +687,11 @@ class Trade_np(QThread):
 
         for stg in self.df_trade.index:
 
-            #들여쓰기 에러 방지용
             상태 = self.df_trade.loc[stg, '상태']
             배팅금액 = self.df_trade.loc[stg, '배팅금액']
             stg_buy = self.df_trade.loc[stg, '진입전략']
             stg_sell = self.df_trade.loc[stg, '청산전략']
+            #들여쓰기 에러 방지용
             self.df_trade.loc[stg, '진입전략'] = common_def.replace_tabs_with_spaces(stg_buy)
             self.df_trade.loc[stg, '청산전략'] = common_def.replace_tabs_with_spaces(stg_sell)
 
@@ -707,7 +700,9 @@ class Trade_np(QThread):
             bong = dict_stg[stg]['봉']
             bong_detail = dict_stg[stg]['상세봉']
             bong_since = dict_stg[stg]['봉제한']
-
+            df_stg = self.df_trade.drop(columns=["진입전략", "청산전략", "레버리지", "market", "table", "봉", "봉제한", "방향", "상세봉"]).loc[[stg]]
+            df_stg.index = [now_time]
+            globals()[f'전략_{stg}'] = df_stg
                 # self.dict_sorting_obj = self.sorting_tickers(stg,obj)
 
             if type(obj) == str or (type(obj) == dict and 상태 != '대기') and (type(obj) == dict and 상태 != '청산'): #종목이 지정되어있을 경우
@@ -818,6 +813,9 @@ class Trade_np(QThread):
             상태 = self.df_trade.loc[stg, '상태']
             배팅금액 = self.df_trade.loc[stg, '배팅금액']
             # 캔들 캔들종료시간 계산용
+            df_stg = self.df_trade.loc[[stg]][globals()[f'전략_{stg}'].columns] # 기존에 있던 컬럼들만 합치기
+            df_stg.index = [now_time]
+            globals()[f'전략_{stg}'] = pd.concat([globals()[f'전략_{stg}'], df_stg])
             if bong != '일봉':
                 캔들종료시간 = common_def.str_to_datetime(bong_time) + self.dict_bong_timedelta[bong]
             elif bong == '일봉':
@@ -887,6 +885,9 @@ class Trade_np(QThread):
                                 if self.df_trade.loc[stg,'상태'] != '대기':
                                     break
             self.active_light()
+            df_stg = self.df_trade.loc[[stg]][globals()[f'전략_{stg}'].columns] # 기존에 있던 컬럼들만 합치기
+            df_stg.index = [datetime.datetime.now().strftime("%H:%M:%S")]
+            globals()[f'전략_{stg}'] = pd.concat([globals()[f'전략_{stg}'], df_stg])
         # print(self.df_trade[['현재봉시간','캔들종료시간']])
         return one_minute, dict_stg
 
@@ -1067,7 +1068,7 @@ class Trade_np(QThread):
             if 매도 == True or type(매도)==list:  # 청산 주문
                 매도가 = locals_dict_sell.get('매도가')
                 재진입금지 = locals_dict_sell.get('재진입금지')
-                print(f"{재진입금지= }")
+                # print(f"{재진입금지= }")
                 if 재진입금지 == True:
                     print('재진입금지')
                     self.df_trade.loc[stg, '매도전환'] = "재진입금지"
@@ -2476,7 +2477,7 @@ class Trade_np(QThread):
                 if '거래대금상위' in li_obj_type:
                     self.df_quotevolum = df['quoteVolume'].copy()
                     self.df_quotevolum.sort_values(ascending=False, inplace=True)  # 거래대금 상위 순 정렬
-
+                    self.df_tickers = df
                     # self.dict_sorting_obj = list(set(list_increase_vol) & set(list_top_vol))  # 거래대금 급등, 거래대금 상위 교집합
                     # self.dict_sorting_obj = [x[:-10] for x in list_tickers if x[-4:] == 'USDT' and x[:6] != 'GASDAO']  #GASDAO 종목 삭제
                     # list_tickers = list(set(list_tickers) - set(self.list_stg_tickers))  # 전체 대상에서 전략에 종목이 지정된 종목은 제외
@@ -2557,6 +2558,7 @@ class Trade_np(QThread):
 
     def market_finish(self):
         print(f'장 마감 {datetime.datetime.now()=}')
+        print(self.df_trade)
         for stg in self.df_trade.index:
             print('===============================')
             상태 = self.df_trade.loc[stg, '상태']
@@ -2578,6 +2580,8 @@ class Trade_np(QThread):
                 self.df_trade.loc[stg, '상태'] = 상태
             else:
                 print(f"3 {stg= }, {ticker= } | {self.df_trade.loc[stg, '상태']} → {상태= }   {분할상태}")
+            print(globals()[f'전략_{stg}'])
+            self.save_history.emit(stg,globals()[f'전략_{stg}'])
         self.qt_open.emit(self.df_trade)
         if self.market == '국내주식':
             pass
@@ -2590,11 +2594,13 @@ class Trade_np(QThread):
                 list_table = np.concatenate(cursor.fetchall()).tolist()
             except:
                 list_table = []
-            today = datetime.datetime.now().date()
+            # today = datetime.datetime.now().date()
             for ticker in ['콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
-                common_def.save_kis_DB(self.market,self.simul.isChecked(),self.ex_kis, ticker,list_table,today,conn_DB)
+                common_def.save_futopt_DB(self.simul.isChecked(),self.ex_kis, ticker,list_table,conn_DB)
             cursor.close()
             conn_DB.close()
+        print('완료')
+        quit()
     def order_open(self, ticker, price, qty, side, type, leverage):
         try:
             if side == 'buy':  # 지정가 open long
@@ -2814,10 +2820,12 @@ class Trade_np(QThread):
         if self.tele == True:
             if state != 'open 부분체결' or state != 'close 부분체결':
                 self.bot = telegram.Bot(token=self.TOKEN)
+                # asyncio.run(self.bot.send_message(chat_id=self.chat_id, text=txt))
                 try:
                     asyncio.run(self.bot.send_message(chat_id=self.chat_id, text=txt))
                 except:
-                    print('텔레그램 오류')
+                    # print('텔레그램 오류')
+                    pass
                 # asyncio.run(self.bot.send_message(chat_id=self.chat_id, text=txt))
 
     def fetch_bal(self):  # 지갑 조회

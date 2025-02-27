@@ -1,10 +1,8 @@
 import sys
 from PyQt5.QtWidgets import *
 import numpy as np
-# import ATOM_tab2
 import tab_trade
 import tab_backtest
-#import ATOM_chart
 import tab_chart_table
 import tab_optimize
 import tab_set
@@ -14,7 +12,6 @@ import win32api
 import time
 import os
 
-# import chart_numpy
 class MyApp(QWidget):
 
     def __init__(self):

@@ -444,7 +444,7 @@ class Window(QWidget):
         except:
             list_table = []
         cursor.close()
-        now_day = datetime.datetime.now().date()
+        # now_day = datetime.datetime.now().date()
 
         if ticker == '':  # 티커가 명시되어 있지 않을 경우
             raise Exception('ticker 확인 필요')
@@ -505,8 +505,7 @@ class Window(QWidget):
                 print(f"종목명 확인 필요 {ticker= }")
                 self.save_DB_CYBOS(market, ticker, list_table)
         elif market == '국내선옵':
-            common_def.save_kis_DB(market,True, self.exchange, ticker, list_table,
-                                   now_day, self.conn_DB)
+            common_def.save_futopt_DB(True, self.exchange, ticker, list_table, self.conn_DB)
         else:
             raise print('데이터를 저장 할 시장을 선택해주세요.')
 
@@ -1471,13 +1470,20 @@ class Window(QWidget):
         QTest.qWait(250)
         QPB.setEnabled(True)
 
+
     def init_file(self):
         import os
         stg_file = ['DB/DB_stock.db', 'DB/DB_bybit.db', 'DB/DB_futopt.db']
         for market in stg_file:
             if not os.path.isfile(market):  # stg_file.db 파일이 없으면
                 print(f"{market} 파일 없음")
-                sqlite3.connect(market)
+                conn = sqlite3.connect(market)
+                if market == 'DB/DB_futopt.db':
+                    li_col = ['날짜', '요일', '금융기관업무일', '입출금가능일', '개장일', '지불일']
+                    df = pd.DataFrame(columns=li_col)
+                    df = df.set_index('날짜', drop=True)
+                    df.to_sql('holiday',conn,if_exists='replace')
+
         file = 'DB/strategy.db'
         if not os.path.isfile(file):
             sqlite3.connect(file)

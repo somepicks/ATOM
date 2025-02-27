@@ -1,38 +1,20 @@
-# from datetime import datetime, timedelta
 import datetime
 import pandas as pd
-# from pandas import to_numeric
 from PyQt5.QtWidgets import QMainWindow, QGridLayout, QLineEdit, QLabel, QPushButton, QWidget, QVBoxLayout, \
     QTableWidget, QSplitter, QApplication, QCheckBox, QTextEdit, QTableWidgetItem, QHeaderView, QComboBox, QAbstractItemView
 from PyQt5.QtCore import Qt, QThread, pyqtSlot, QTimer, QRegExp
 from PyQt5.QtTest import QTest
 from PyQt5.QtGui import QFontMetrics, QFont, QColor, QSyntaxHighlighter, QTextCharFormat
-# from PyQt5.QtGui import *
-# from PyQt5 import QtWidgets, QtCore
-# from PyQt5 import QtWidgets, QtCore
 import numpy as np
-# import pyqtgraph as pg
-# import ccxt
-# import math
-# import color as cl
 import chart_real
-# from collections import deque
 import time
 from pprint import pprint
-# import multiprocessing as mp
-# import tab_chart_table
-# import color as cl
-# import sys
 import sqlite3
 import ATOM_trade_numpy
 import subprocess
-# import ntplib
-# from time import ctime
-# import random
 import common_def
 import json  # 리스트를 문자열로 변환하기 위해 필요
 import tab_chart_table
-# from ex import df_history
 import os
 pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
@@ -924,7 +906,7 @@ class Window(QMainWindow):
         self.thread.qt_open.connect(self.qtable_open)
         self.thread.qt_closed.connect(self.qtable_closed)
         self.thread.val_light.connect(self.effect_start)
-        # self.thread.val_instock.connect(self.save_instock)
+        self.thread.save_history.connect(self.save_sql)
 
     @pyqtSlot()
     def slot_clicked_button(self):
@@ -993,24 +975,9 @@ class Window(QMainWindow):
         self.set_table_make(self.QT_trade_open, df_active)
 
     def qtable_closed(self, df):
-        # df_history = pd.read_sql(f"SELECT * FROM 'history'", self.conn_stg).set_index('index')
-        # if self.df_history.empty:
-        #     if df.empty:
-        #         pass
-        #     else:
-        #         # df_history = df_history.append(df_closed, ignore_index=False)
-        #         self.df_history = pd.concat([self.df_history, df])  # 데이터프레임끼리 위, 아래로 붙이기
-        #         self.df_history.to_sql('history', self.conn_stg, if_exists='replace')
-        #         self.df_history['전략명'] = self.df_history.index
-        #     df_history = self.df_history[['market', '전략명', 'ticker', '수익률', '최고수익률', '최저수익률', '수익금',
-        #                                   '누적수익금', '진입가', '청산가', '잔고', '진입시간', '청산시간']]
-        #     self.set_table_make(self.QT_trade_closed, df_history)
-        #
-        # else:
         if df.empty:
             pass
         else:
-            # df_history = df_history.append(df_closed, ignore_index=False)
             if not self.df_history.equals(df): # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위라래로 붙임
                 self.df_history = pd.concat([self.df_history, df])  # 데이터프레임끼리 위, 아래로 붙이기
                 try:
@@ -1037,7 +1004,7 @@ class Window(QMainWindow):
                             pass
         df_history = self.df_history[['market', '전략명', 'ticker', '수익률', '최고수익률', '최저수익률', '수익금',
                                       '누적수익금', '진입가', '청산가', '잔고','매입금액','청산금액','수수료', '진입수수료',
-                                      '진입시간', '청산시간']]
+                                      '진입시간', '청산시간','체결수량']]
         df_history = df_history[df_history['청산시간'].str[:10]==datetime.datetime.now().date().strftime('%Y-%m-%d')] #오늘 청산한 전략만
         df_history['진입가'] = df_history['진입가'].apply(lambda int_num : "{:,}".format(int_num))
         df_history['청산가'] = df_history['청산가'].apply(lambda int_num : "{:,}".format(int_num))
@@ -1050,7 +1017,9 @@ class Window(QMainWindow):
         df_history['청산금액'] = df_history['청산금액'].apply(lambda int_num : "{:,}".format(int_num))
         df_history['잔고'] = df_history['잔고'].apply(lambda int_num : "{:,}".format(int_num))
         self.set_table_make(self.QT_trade_closed, df_history)
-
+    def save_sql(self,stg,df):
+        print(f'save_sql  저장  {stg}' )
+        df.to_sql(stg, self.conn_stg, if_exists='replace')
 
     def bybit_set_tickers(self,fetch_tickers):
         for ticker in fetch_tickers.keys():
@@ -1150,11 +1119,12 @@ class Window(QMainWindow):
         bong_detail = self.QCB_chart_bong_detail.currentText()
         bong_since = self.QCB_chart_duration.currentText()
         market = self.QCB_market.currentText()
+        present = datetime.datetime.now()
 
         ticker_full_name = ticker+'_chart'
         if bong_since == '기간(일)':
             bong_since = 1
-        date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
+        date_old = present.date() - datetime.timedelta(days=int(bong_since))
         stamp_date_old = common_def.datetime_to_stamp(date_old)
         ohlcv = []
         if market == '코인' :
@@ -1168,7 +1138,9 @@ class Window(QMainWindow):
             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
             # df.index = df.index + pd.Timedelta(hours=9)
         if market == '국내선옵' :
-            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker, limit=int(bong_since))
+            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker, limit=int(bong_since),ohlcv=[],
+                                               now_day=datetime.datetime.strftime(present,"%Y%m%d"),
+                                               now_time=datetime.datetime.strftime(present,"%H%M%S"))
             df = common_def.get_kis_ohlcv(market, ohlcv)
             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
         df['매수가'] = np.nan
@@ -1187,6 +1159,7 @@ class Window(QMainWindow):
         bong_detail = self.QCB_chart_bong_detail.currentText()
         bong_since = self.QCB_chart_duration.currentText()
         market = self.QCB_market.currentText()
+        present = datetime.datetime.now()
 
         ticker_full_name = ticker+'_chart'
         if bong_since == '기간(일)':
@@ -1205,7 +1178,9 @@ class Window(QMainWindow):
             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
             # df.index = df.index + pd.Timedelta(hours=9)
         if market == '국내선옵' :
-            ohlcv = self.ex_kis.fetch_futopt_1m_ohlcv(symbol=ticker, limit=int(bong_since))
+            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker, limit=int(bong_since),ohlcv=[],
+                                               now_day=datetime.datetime.strftime(present,"%Y%m%d"),
+                                               now_time=datetime.datetime.strftime(present,"%H%M%S"))
             df = common_def.get_kis_ohlcv(market, ohlcv)
             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
 
