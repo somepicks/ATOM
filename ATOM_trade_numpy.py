@@ -498,7 +498,7 @@ class Trade_np(QThread):
     #     super().__init__()
         # self.conn_stg = conn_stg
         self.market = market
-        self.simul = simul
+        self.simul = simul.isChecked()
         self.df_stg = df_stg
 
         self.cond = QWaitCondition()
@@ -557,9 +557,9 @@ class Trade_np(QThread):
         # self.list_stg_tickers.append('WLD') #전략에서 제외되는 코인 추가
         # self.list_stg_tickers = list(set(self.list_stg_tickers))
         # print(f"거래대상이 '전체'인 전략에서 제외되는 종목: {self.list_stg_tickers}")
-        if self.simul.isChecked() == False:  # 실매매
+        if self.simul == False:  # 실매매
             print(f"{self.red('실매매')}")
-        elif self.simul.isChecked() == True: #모의매매
+        elif self.simul == True: #모의매매
             print(f"{self.cyan('모의매매')}")
 
         if self.market == '국내주식' or self.market == '국내선옵':
@@ -636,14 +636,14 @@ class Trade_np(QThread):
             장종료시간 = 현재시간.strftime('%Y-%m-%d') + 장종료시간 #날짜랑 시간 사이 비울 것
             장종료시간 = common_def.str_to_datetime(장종료시간)
             if self.market == '국내주식':
-                if self.simul.isChecked() == True:  # 모의매매
+                if self.simul == True:  # 모의매매
                     self.ex_kis = common_def.make_exchange_kis('모의주식')
-                elif self.simul.isChecked() == False:  # 실매매
+                elif self.simul == False:  # 실매매
                     self.ex_kis = common_def.make_exchange_kis('실전주식')
             elif self.market == '국내선옵':
-                if self.simul.isChecked() == True:  # 모의매매
+                if self.simul == True:  # 모의매매
                     self.ex_kis = common_def.make_exchange_kis('모의선옵')
-                elif self.simul.isChecked() == True:  # 실매매
+                elif self.simul == True:  # 실매매
                     self.ex_kis = common_def.make_exchange_kis('실전선옵')
 
             dict_asset, df_x = self.ex_kis.fetch_balance()  # 자산, 보유종목
@@ -1237,7 +1237,7 @@ class Trade_np(QThread):
         if self.market == '코인':
             보유수량 = float(보유수량)
             매입금액 = float(매입금액)
-            if self.simul.isChecked() == False:  # 실매매시
+            if self.simul == False:  # 실매매시
                 # while True:
                 ord_open = self.fetch_open_orders(id, ticker)
                 if ord_open == None:  # 체결일 경우
@@ -1274,7 +1274,7 @@ class Trade_np(QThread):
                                             보유수량=보유수량, 체결금액=체결금액, 매입금액=매입금액, 잔고=잔고, 수수료=진입수수료,상태=상태)
 
                 # else: #매수 주문이 있는데 체결이 안되었을 경우
-            elif self.simul.isChecked() == True:  # 모의매매시
+            elif self.simul == True:  # 모의매매시
                 # 진입가 = self.df_trade.loc[stg, '진입가']
                 if (방향 == 'long' and 현재가 <= 진입가) or (방향 == 'short' and 현재가 >= 진입가) or 상태 == '시장가매수':
                     상태 = '매수'
@@ -1384,7 +1384,7 @@ class Trade_np(QThread):
         증거금률 = self.위탁증거금률 / 100 if trade_market == '선물' else 1/레버리지 if trade_market == 'bybit' else 1
         체결 = False # 체결이 됐을 때 만
         if self.market == '코인':
-            if self.simul.isChecked() == False:  # 실매매시
+            if self.simul == False:  # 실매매시
                 ord_open = self.fetch_open_orders(id, ticker)
                 if ord_open == None: # 체결일 경우
                     ord_closed = self.fetch_closed_orders(id, ticker)  # open 주문과 close 주문 2중으로 확인
@@ -1409,7 +1409,7 @@ class Trade_np(QThread):
                             잔고 = float(잔고 + round(체결금액*증거금률) - 청산수수료)
                             self.df_trade.loc[stg, '잔고'] = 잔고
                             fee = 청산수수료
-            elif self.simul.isChecked() == True:  # 모의매매시
+            elif self.simul == True:  # 모의매매시
                 # 청산가 = self.df_trade.loc[stg, '청산가']
                 # print(f"{방향= }, {현재가= }, {청산가= }")
                 if (방향 == 'long' and 현재가 >= 청산가) or (방향 == 'short' and 현재가 <= 청산가) or 상태 == '시장가매도':
@@ -1808,7 +1808,7 @@ class Trade_np(QThread):
             pass
         print(f"order_cancel {stg=} {ticker=}, {id=}, {취소수량=}, {상태= }, {총체결수량= }")
         if self.market == '코인':
-            if self.simul.isChecked() == False:  # 실매매 시
+            if self.simul == False:  # 실매매 시
                 self.ex_bybit.cancel_order(id, ticker + 'USDT', params={})
             success = True
         elif self.market == '국내주식' or self.market == '국내선옵':
@@ -1910,7 +1910,7 @@ class Trade_np(QThread):
             방식 = 'limit'
             if self.market=='코인':
                 price_out = float(self.ex_bybit.price_to_precision(ticker + 'USDT',price_in))
-                if self.simul.isChecked() == True:  # 모의매매
+                if self.simul == True:  # 모의매매
                     if 방향 == 'long' and price_out >= 현재가:
                         price_out = 현재가 + (slippage / 100 * 현재가)
                         fee = self.fee_bybit_market
@@ -1980,7 +1980,7 @@ class Trade_np(QThread):
             # print(f"{ticker= }, {수량= }, {fee= }, {레버리지=}, {금액= }, {진입가= }")
             if 수량 <= 0: raise print(f'수량 이상 {배팅금액= }')
 
-            if self.simul.isChecked() == False: #실매매
+            if self.simul == False: #실매매
                 try:
                     self.ex_bybit.set_leverage(leverage=레버리지, symbol=ticker+'USDT')
                 except:
@@ -2074,7 +2074,7 @@ class Trade_np(QThread):
         매도가, 청산방식, fee, 상태 = self.order_price(ticker, 청산가, 현재가, 방향, 상태)
         print(f"order_sell {stg= }, {ticker= }, {청산가= }, {현재가= }, {방향= }, {수량= }, {매도가= }, {청산방식= }, {fee= }, {상태= }")
         if self.market == '코인':
-            if self.simul.isChecked() == False: #실매매
+            if self.simul == False: #실매매
                 if 방향 == 'long':
                     id = self.order_close(ticker=ticker+'USDT' ,price=매도가, qty=수량, side='sell', type=청산방식)
                 elif 방향 == 'short':
@@ -2292,8 +2292,6 @@ class Trade_np(QThread):
                 ohlcv = []
             ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker,limit=bong_since,ohlcv=ohlcv,now_day=now_day,now_time=now_time)
             globals()[ticker_full_name] = ohlcv
-
-
                 # 시간 단축을 위해 데이터프레임에서 필요없는 팩터 지우기
                 # df_check = common_def.get_kis_ohlcv(self.market,ohlcv)
                 # df_standard, df_check = common_def.detail_to_spread(df_check, dict_stg['봉'], dict_stg['상세봉'])
@@ -2307,7 +2305,14 @@ class Trade_np(QThread):
 
             df = common_def.get_kis_ohlcv(self.market, ohlcv)
             if not check_compare:  # 진입대상인지 비교대상인지 확인 - 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-                df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
+                _, df = common_def.detail_to_spread(df, bong, bong_detail, False)
+                if ticker[:3] == '101':
+                    df['만기일'] = self.dict_market_option['만기일_선물']
+                elif ticker[:3] == '201' or ticker[:3] == '301':
+                    df['만기일'] = self.dict_market_option['만기일_옵션']
+                elif ticker[:3] == '209' or ticker[:3] == '309':
+                    df['만기일'] = self.dict_market_option['만기일_옵션위클리']
+
             else:  # 비교대상의 경우 'BTC_5분봉'
                 # print(ticker)
                 # print(bong)
@@ -2596,7 +2601,7 @@ class Trade_np(QThread):
                 list_table = []
             # today = datetime.datetime.now().date()
             for ticker in ['콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
-                common_def.save_futopt_DB(self.simul.isChecked(),self.ex_kis, ticker,list_table,conn_DB)
+                common_def.save_futopt_DB(self.simul,self.ex_kis, ticker,list_table,conn_DB)
             cursor.close()
             conn_DB.close()
         print('완료')

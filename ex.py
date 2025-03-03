@@ -301,19 +301,128 @@ df = pd.concat([df1, df2])
 
 # 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
 df = df[~df.index.duplicated(keep='last')]
+d = datetime.datetime.now().date()
+i = 1
+i -= 1
+ticker = '101w03'
+print(ticker[:3])
+print(datetime.datetime.today())
+quit()
+# 테스트 날짜로 확인
+test_dates = [
+    "2025-01-01",  # 3월 만기일이 가장 가까움
+    "2025-03-15",  # 3월 만기일 이후, 6월 만기일이 가장 가까움
+    "2025-06-15",  # 6월 만기일 이후, 9월 만기일이 가장 가까움
+    "2025-09-15",  # 9월 만기일 이후, 12월 만기일이 가장 가까움
+    "2025-12-15",  # 12월 만기일 이후, 다음 해 3월 만기일이 가장 가까움
+]
 
-# print(df)
-df_trade = pd.read_sql(f"SELECT * FROM 'stg'", sqlite3.connect('DB/stg_futopt.db')).set_index('전략명')
-stg = "시가_콜"
-df_stg = df_trade.drop(columns=["index", "진입전략", "청산전략", "레버리지", "market", "table", "봉", "봉제한", "방향", "상세봉"]).loc[[stg]]
-df_stg.index=[datetime.datetime.now().strftime("%H:%M:%S")]
-globals()[f'전략_{stg}'] = df_stg
-print(globals()[f'전략_{stg}'])
-time.sleep(1)
-df_stg = df_trade.loc[[stg]][globals()[f'전략_{stg}'].columns]
-df_stg.index=[datetime.datetime.now().strftime("%H:%M:%S")]
-globals()[f'전략_{stg}'] = pd.concat([globals()[f'전략_{stg}'], df_stg])
-print(globals()[f'전략_{stg}'])
+for date in test_dates:
+    nearest, date_str, days = get_nearest_futures_expiry(date)
+    print(f"입력 날짜: {date}")
+    print(f"다음 선물 만기일: {nearest.strftime('%Y-%m-%d')} ({date_str})")
+    print(f"만기일까지 남은 일수: {days}일")
+    print("-" * 30)
+
+
+def get_nearest_options_expiry(input_date):
+    """
+    주어진 날짜로부터 가장 가까운 미래의 옵션 만기일(매월 두 번째 목요일)을 찾습니다.
+
+    Args:
+        input_date: datetime 객체 또는 'YYYY-MM-DD' 형식의 문자열
+
+    Returns:
+        tuple: (만기일 datetime 객체, 만기일 문자열 'YY-MM-DD', 경과일 수)
+    """
+    # 문자열 형식의 날짜를 datetime 객체로 변환
+    if isinstance(input_date, str):
+        try:
+            input_date = datetime.datetime.strptime(input_date, '%Y-%m-%d').date()
+        except ValueError:
+            try:
+                input_date = datetime.datetime.strptime(input_date, '%Y%m%d').date()
+            except ValueError:
+                raise ValueError("날짜 형식은 'YYYY-MM-DD' 또는 'YYYYMMDD'이어야 합니다.")
+    elif isinstance(input_date, datetime.datetime):
+        input_date = input_date.date()
+
+    # 현재 연도와 월
+    current_year = input_date.year
+    current_month = input_date.month
+
+    # 현재 월의 옵션 만기일 계산
+    current_month_expiry = get_options_expiry_date(current_year, current_month)
+
+    # 현재 날짜가 현재 월의 옵션 만기일 이후라면 다음 달 만기일 찾기
+    if input_date > current_month_expiry:
+        # 다음 달 계산
+        if current_month == 12:
+            next_month_year = current_year + 1
+            next_month = 1
+        else:
+            next_month_year = current_year
+            next_month = current_month + 1
+
+        next_expiry = get_options_expiry_date(next_month_year, next_month)
+    else:
+        # 현재 월의 만기일이 아직 지나지 않았으면 해당 월의 만기일 사용
+        next_expiry = current_month_expiry
+
+    # 만기일까지 남은 일수 계산
+    days_until_expiry = (next_expiry - input_date).days
+
+    return next_expiry, next_expiry.strftime('%y-%m-%d'), days_until_expiry
+
+
+def get_options_expiry_date(year, month):
+    """
+    특정 연도와 월의 옵션 만기일(두 번째 목요일)을 계산합니다.
+
+    Args:
+        year: 연도 (정수)
+        month: 월 (정수, 1-12)
+
+    Returns:
+        datetime.date: 해당 월의 옵션 만기일
+    """
+    # 해당 월의 첫 번째 날짜
+    first_day = datetime.date(year, month, 1)
+
+    # 첫 번째 날짜의 요일 (0: 월요일, 1: 화요일, ..., 6: 일요일)
+    first_weekday = first_day.weekday()
+
+    # 첫 번째 목요일까지의 일수 계산 (목요일은 weekday가 3)
+    days_to_first_thursday = (3 - first_weekday) % 7
+    first_thursday = first_day + datetime.timedelta(days=days_to_first_thursday)
+
+    # 두 번째 목요일은 첫 번째 목요일로부터 7일 후
+    second_thursday = first_thursday + datetime.timedelta(days=7)
+
+    return second_thursday
+today = datetime.date.today()
+nearest_expiry, expiry_str, days_left = get_nearest_options_expiry(today)
+print(f"오늘 날짜: {today.strftime('%Y-%m-%d')}")
+print(f"다음 옵션 만기일: {nearest_expiry.strftime('%Y-%m-%d')} ({expiry_str})")
+print(f"만기일까지 남은 일수: {days_left}일")
+print("-" * 30)
+
+# 테스트 날짜로 확인
+test_dates = [
+    "2025-01-01",  # 1월 만기일 전
+    "2025-01-10",  # 1월 만기일 후, 2월 만기일 전
+    "2025-02-20",  # 2월 만기일 후, 3월 만기일 전
+]
+
+for date in test_dates:
+    nearest, date_str, days = get_nearest_options_expiry(date)
+    print(f"입력 날짜: {date}")
+    print(f"다음 옵션 만기일: {nearest.strftime('%Y-%m-%d')} ({date_str})")
+    print(f"만기일까지 남은 일수: {days}일")
+    print("-" * 30)
+
+
+quit()
 # globals()[f"{stg}"] =
 # today = "20250301"
 # expiry_day = "20250304"

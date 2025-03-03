@@ -1,94 +1,136 @@
-import datetime
-import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QTabWidget, QVBoxLayout, QPushButton
-from PyQt5.QtCore import QTimer, QTime, QDateTime
+import pandas as pd
+import matplotlib.pyplot as plt
+import requests
+import time
+from datetime import datetime, timedelta
+import matplotlib.dates as mdates
 
 
-class MyApp(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.initUI()
+def get_funding_rate_history(symbols, limit=100):
+    """
+    바이비트 API를 사용하여 여러 심볼의 펀딩 수수료율 히스토리를 가져오는 함수
 
-    def initUI(self):
-        # QTabWidget 생성
-        self.tab_widget = QTabWidget()
+    Parameters:
+    symbols (list): 펀딩 수수료율을 가져올 심볼 리스트 (예: ["BTCUSDT", "ETHUSDT"])
+    limit (int): 각 심볼당 가져올 데이터 포인트 수 (최대 200)
 
-        # 첫 번째 탭
-        tab1 = QWidget()
-        tab1_layout = QVBoxLayout()
-        self.button1 = QPushButton("첫 번째 탭 버튼")
-        tab1_layout.addWidget(self.button1)
-        tab1.setLayout(tab1_layout)
-        self.button1.clicked.connect(self.del_stg1)
-        # 두 번째 탭 (QPushButton 추가)
-        self.tab2 = QWidget()
-        tab2_layout = QVBoxLayout()
-        self.button2 = QPushButton("두 번째 탭 버튼")
-        tab2_layout.addWidget(self.button2)
-        self.tab2.setLayout(tab2_layout)
-        self.button2.clicked.connect(self.del_stg2)
+    Returns:
+    dict: 심볼별 펀딩 수수료율 데이터프레임을 포함하는 딕셔너리
+    DataFrame: 모든 심볼의 펀딩 수수료율을 포함하는 통합 데이터프레임
+    """
+    base_url = "https://api.bybit.com"
+    endpoint = "/v5/market/funding/history"
 
-        # 세 번째 탭
-        tab3 = QWidget()
-        tab3_layout = QVBoxLayout()
-        self.button3 = QPushButton("첫 번째 탭 버튼")
-        tab3_layout.addWidget(self.button3)
-        self.button3.clicked.connect(self.del_stg3)
+    # 결과를 저장할 딕셔너리와 통합 데이터프레임을 위한 리스트 초기화
+    results = {}
+    all_data = []
 
-        tab3.setLayout(tab3_layout)
+    for symbol in symbols:
+        # API 요청 파라미터 설정
+        params = {
+            'category': 'linear',
+            'symbol': symbol,
+            'limit': limit
+        }
 
-        # 탭 추가
-        self.tab_widget.addTab(tab1, "탭 1")
-        self.tab_widget.addTab(self.tab2, "탭 2")
-        self.tab_widget.addTab(tab3, "탭 3")
+        try:
+            # API 요청
+            response = requests.get(base_url + endpoint, params=params)
+            data = response.json()
 
-        # 메인 레이아웃 설정
-        layout = QVBoxLayout()
-        layout.addWidget(self.tab_widget)
-        self.setLayout(layout)
+            # 응답 확인
+            if data['retCode'] == 0 and 'list' in data['result']:
+                # 데이터 파싱
+                funding_data = data['result']['list']
 
-        # 윈도우 설정
-        self.setWindowTitle("QTabWidget 자동 클릭 예제")
-        self.setGeometry(300, 300, 400, 300)
-        self.show()
+                # 데이터프레임 생성
+                df = pd.DataFrame(funding_data)
 
-        # 특정 시간(오전 8시 50분)에 자동 클릭 설정
-        while True:
-            self.setAutoClickTime(15, 57)
-    def del_stg1(self):
-        print('tab1')
+                # 컬럼 변환
+                df['fundingRate'] = df['fundingRate'].astype(float)
+                df['fundingRateTimestamp'] = pd.to_datetime(df['fundingRateTimestamp'].astype(int), unit='ms')
 
-    def del_stg2(self):
-        print('tab2')
+                # 심볼 정보 추가
+                df['symbol'] = symbol
 
-    def del_stg3(self):
-        print('tab3')
-    def setAutoClickTime(self, hour, minute):
-        print(datetime.datetime.now())
-        """ 지정된 시간(hour, minute)에 버튼 클릭을 실행하는 함수 """
-        now = QDateTime.currentDateTime()
-        target_time = QDateTime(now.date(), QTime(hour, minute, 0))
+                # 결과 저장
+                results[symbol] = df
+                all_data.append(df)
 
-        if now > target_time:
-            # 현재 시간이 목표 시간보다 크면, 다음 날 실행하도록 설정
-            target_time = target_time.addDays(1)
+                # API 호출 사이에 약간의 지연 추가
+                time.sleep(0.5)
+            else:
+                print(f"{symbol} 데이터 가져오기 실패: {data}")
+        except Exception as e:
+            print(f"{symbol} 요청 중 오류 발생: {e}")
 
-        # 목표 시간까지 남은 시간(밀리초 단위) 계산
-        msec_until_target = now.msecsTo(target_time)
-
-        # QTimer 설정
-        QTimer.singleShot(msec_until_target, self.autoClickButton)
-
-    def autoClickButton(self):
-        """ 두 번째 탭의 버튼을 자동으로 클릭하는 함수 """
-        self.tab_widget.setCurrentIndex(1)  # 두 번째 탭으로 변경
-        self.button2.click()  # 버튼 클릭 이벤트 발생
+    # 모든 심볼 데이터를 하나의 데이터프레임으로 통합
+    if all_data:
+        combined_df = pd.concat(all_data, ignore_index=True)
+        return results, combined_df
+    else:
+        return results, pd.DataFrame()
 
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = MyApp()
-    sys.exit(app.exec_())
+def plot_funding_rates(symbol_dfs, symbols):
+    """
+    여러 심볼의 펀딩 수수료율을 하나의 차트에 시각화하는 함수
+
+    Parameters:
+    symbol_dfs (dict): 심볼별 펀딩 수수료율 데이터프레임을 포함하는 딕셔너리
+    symbols (list): 차트에 표시할 심볼 리스트
+    """
+    plt.figure(figsize=(12, 6))
+
+    for symbol in symbols:
+        if symbol in symbol_dfs:
+            df = symbol_dfs[symbol]
+            plt.plot(df['fundingRateTimestamp'], df['fundingRate'].astype(float) * 100, label=symbol)
+
+    plt.title('바이비트 펀딩 수수료율 히스토리 (%)')
+    plt.xlabel('날짜')
+    plt.ylabel('펀딩 수수료율 (%)')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend()
+
+    # x축 날짜 포맷 설정
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    plt.gcf().autofmt_xdate()
+
+    plt.tight_layout()
+    plt.show()
+
+
+# 사용 예시
+symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]  # 관심 있는 심볼 리스트
+symbol_dfs, combined_df = get_funding_rate_history(symbols, limit=100)
+
+# 데이터프레임 출력
+for symbol, df in symbol_dfs.items():
+    print(f"\n{symbol} 펀딩 수수료율:")
+    print(df[['fundingRateTimestamp', 'fundingRate', 'symbol']].head())
+
+# 차트 그리기
+plot_funding_rates(symbol_dfs, symbols)
+
+# 통합 데이터프레임 확인
+print("\n통합 데이터프레임:")
+print(combined_df.head())
+
+# 데이터 분석 - 평균 펀딩 수수료율
+print("\n심볼별 평균 펀딩 수수료율:")
+avg_rates = combined_df.groupby('symbol')['fundingRate'].mean() * 100
+print(avg_rates)
+
+# 데이터 분석 - 최대/최소 펀딩 수수료율
+print("\n심볼별 최대 펀딩 수수료율:")
+max_rates = combined_df.groupby('symbol')['fundingRate'].max() * 100
+print(max_rates)
+
+print("\n심볼별 최소 펀딩 수수료율:")
+min_rates = combined_df.groupby('symbol')['fundingRate'].min() * 100
+print(min_rates)
 
 #
 # import sys

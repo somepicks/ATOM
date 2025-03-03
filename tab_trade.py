@@ -277,12 +277,24 @@ class Window(QMainWindow):
         # print(self.df_manul)
 
     def display_futopt(self):
+        conn = sqlite3.connect('DB/DB_futopt.db')
+        df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn).set_index('날짜')
+        conn.close()
         df_f = self.ex_kis.display_fut()
         today = datetime.datetime.today()
+        expiry_date_fut, expiry_str, days_left,past_expiry_date,past_expiry_date_str = self.ex_kis.get_nearest_futures_expiry(today)
+        expiry_date_fut = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,df_holiday,expiry_date_fut)
+        df_f['만기일'] = expiry_date_fut.strftime('%m-%d')
         QTest.qWait(500)
-        df_c, df_p, past_date, expiry_date = self.ex_kis.display_opt(today)
+        df_c, df_p, past_date, expiry_date_opt = self.ex_kis.display_opt(today)
+        expiry_date_opt = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,df_holiday,expiry_date_opt)
+        df_c['만기일']=expiry_date_opt.strftime('%m-%d')
+        df_p['만기일']=expiry_date_opt.strftime('%m-%d')
         QTest.qWait(500)
-        df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date = self.ex_kis.display_opt_weekly(today)
+        df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date_weekly = self.ex_kis.display_opt_weekly(today)
+        expiry_date_weekly = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,df_holiday,expiry_date_weekly)
+        df_c_weekly['만기일']=expiry_date_weekly.strftime('%m-%d')
+        df_p_weekly['만기일']=expiry_date_weekly.strftime('%m-%d')
         df_f = common_def.convert_column_types(df_f)
         df_c = common_def.convert_column_types(df_c)
         df_p = common_def.convert_column_types(df_p)
@@ -290,13 +302,23 @@ class Window(QMainWindow):
         df_p_weekly = common_def.convert_column_types(df_p_weekly)
         df_f['시가'] = 0
         df_f['거래대금'] = 0
-
         df_combined = common_def.futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,self.COND_MRKT)
-
         # self.set_table_make(self.QT_tickers, df_combined)
         self.dict_market_option['COND_MRKT'] = self.COND_MRKT
 
-        #
+        if today.date() == expiry_date_fut:
+            self.dict_market_option['만기일_선물'] = True
+        else:
+            self.dict_market_option['만기일_선물'] = False
+        if today.date() == expiry_date_opt:
+            self.dict_market_option['만기일_옵션'] = True
+        else:
+            self.dict_market_option['만기일_옵션'] = False
+        if today.date() == expiry_date_weekly:
+            self.dict_market_option['만기일_옵션위클리'] = True
+        else:
+            self.dict_market_option['만기일_옵션위클리'] = False
+
         return df_combined
 
     def select_market(self):  # 국내시장인지 코인인지 선택합니다.

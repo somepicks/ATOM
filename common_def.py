@@ -1,3 +1,5 @@
+from turtledemo.forest import doit1
+
 import talib
 import numpy as np
 import subprocess
@@ -130,7 +132,7 @@ def futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
         df5_with_separator = pd.concat([df_p_weekly_common, create_separator_row(common_columns)], ignore_index=True)
         df_combined = pd.concat([df_combined, df4_with_separator, df5_with_separator], ignore_index=True)
 
-    df_combined = df_combined[['종목코드', '현재가','시가',  '이론가/행사가', '거래량', '거래대금', '전일대비','종목명']]
+    df_combined = df_combined[['종목코드', '현재가','시가',  '이론가/행사가', '거래량', '거래대금', '전일대비','종목명','만기일']]
     return df_combined
 
 def resample_df(df, bong, rule, name, compare):
@@ -359,105 +361,107 @@ def make_exchange_bybit(mock):
     return exchange_ccxt, exchange_pybit
 
 def save_futopt_DB(check_simul,ex_kis,ticker,list_table,conn_DB):
+    if not 'holiday' in list_table:
+        df_holiday = pd.DataFrame()
+    else:
+        df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_DB).set_index('날짜')
     now_day = datetime.datetime.now().date()
-    df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_DB).set_index('날짜')
-    print(f"{ticker=} {now_day= }  {type(now_day)}")
 
     if ticker == '콜옵션' or ticker == '풋옵션':
         df_call, df_put, past_expiry_date, expiry_date = ex_kis.display_opt(now_day)
-        d_day = now_day - past_expiry_date
         cond_mrkt = ticker
-        expiry_date = int(datetime.datetime.strftime(expiry_date, '%Y%m%d'))
-        if not str(expiry_date) in df_holiday.index.tolist():
-            if check_simul:
-                ex = make_exchange_kis('실전주식')
-                df_holiday_new = ex.check_holiday_domestic_stock(now_day.strftime('%Y%m%d'),str(expiry_date))
-            else:
-                df_holiday_new = ex_kis.check_holiday_domestic_stock(now_day.strftime('%Y%m%d'),str(expiry_date))
-            # df_holiday_new = pd.DataFrame(df_holiday_new)
-            df_holiday = pd.concat([df_holiday, df_holiday_new], axis=0)
-            # 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
-            df_holiday = df_holiday[~df_holiday.index.duplicated(keep='last')]
-            df_holiday.to_sql('holiday', conn_DB, if_exists='replace')
-
-        while df_holiday.loc[str(expiry_date), '개장일'] == 'N':  # 만기일이 휴장일인지 확인
-            expiry_date -= 1
         if ticker == '콜옵션':
             df_display = df_call
         elif ticker == '풋옵션':
             df_display = df_put
     elif ticker == '콜옵션_위클리' or ticker == '풋옵션_위클리':
         df_call_weekly, df_put_weekly, cond_mrkt, past_expiry_date, expiry_date = ex_kis.display_opt_weekly(now_day)
-        expiry_date = int(datetime.datetime.strftime(expiry_date, '%Y%m%d'))
-        if not str(expiry_date) in df_holiday.index.tolist():
-            if check_simul:
-                ex = make_exchange_kis('실전주식')
-                df_holiday_new = ex.check_holiday_domestic_stock(now_day.strftime('%Y%m%d'),str(expiry_date))
-            else:
-                df_holiday_new = ex_kis.check_holiday_domestic_stock(now_day.strftime('%Y%m%d'),str(expiry_date))
-            # df_holiday_new = pd.DataFrame(df_holiday_new)
-            df_holiday = pd.concat([df_holiday, df_holiday_new], axis=0)
-            # 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
-            df_holiday = df_holiday[~df_holiday.index.duplicated(keep='last')]
-            df_holiday.to_sql('holiday', conn_DB, if_exists='replace')
-
-        while df_holiday.loc[str(expiry_date), '개장일'] == 'N':  # 만기일이 휴장일인지 확인
-            expiry_date -= 1
-            if expiry_date <= int(datetime.datetime.strftime(past_expiry_date, '%Y%m%d')):
-                print('휴일로인해 저장할 대상이 없음')
-                return
-        d_day = now_day - past_expiry_date
         if ticker == '콜옵션_위클리':
             df_display = df_call_weekly
         elif ticker == '풋옵션_위클리':
             df_display = df_put_weekly
     elif ticker == '선물':
-        df_display = pd.DataFrame()
-    if not df_display.empty and cond_mrkt != '만기주':
+        df_display = ex_kis.display_fut()
+        expiry_date, expiry_str, days_left,past_expiry_date,past_expiry_date_str = ex_kis.get_nearest_futures_expiry(now_day)
+        cond_mrkt = ticker
+    # expiry_date = datetime.datetime.strftime(expiry_date, '%Y%m%d')
+
+
+    if cond_mrkt != '만기주':
         list_ticker = df_display.종목코드.tolist()
+        expiry_date = check_holiday(check_simul,ex_kis,df_holiday,expiry_date)
         past_expiry_date = datetime.datetime.combine(past_expiry_date, datetime.time(15, 45, 0))  # 12:30:45 추가 past_expiry_date+시간
+
         for symbol in list_ticker:
-            ticker_symbol = ticker + '_' + symbol[-3:]
+            if ticker == '선물':
+                ticker_symbol = '선물'
+            else:
+                ticker_symbol = ticker + '_' + symbol[-3:]
             ohlcv = []
+
             if ticker_symbol in list_table: #연속저장 (기존데이터가 있을 경우)
                 df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn_DB).set_index('날짜')
                 df_exist.index = pd.to_datetime(df_exist.index)
                 final_time = df_exist.index[-1]
                 d_day = now_day - final_time.date()
-                # final_day = final_time.strftime("%Y%m%d")
-                # final_HMS = final_time.strftime("%H%M%S")
                 ohlcv = ex_kis.fetch_1m_ohlcv(symbol=symbol, limit=d_day.days, ohlcv=ohlcv,
-                                              now_day=final_time.strftime("%Y%m%d"),now_time=final_time.strftime("%H%M%S"))
+                                              now_day=final_time.strftime("%Y%m%d"),
+                                              now_time=final_time.strftime("%H%M%S"))
                 df = get_kis_ohlcv('국내선옵', ohlcv)
                 df = df[df.index >= final_time]
+                df['만기일'] = expiry_date
                 if df.empty:
                     continue
                 df = pd.concat([df_exist, df])
                 df = df[~df.index.duplicated(keep='last')]
-                print(f"{symbol= }   {ticker_symbol= }   {final_time.date()= }   {d_day.days= }    {expiry_date= }    {past_expiry_date= }   {df.index[-1]= }")
 
-            else:  # 기존 데이터가 없을 경우
-                # print(f"{ticker=} {symbol=}  {now_day= }  {type(now_day)}" )
-                # now_day = now_day.strftime("%Y%m%d")
-                # now_time = datetime.datetime.now().strftime("%H%M%S")
-                ohlcv = ex_kis.fetch_1m_ohlcv(symbol=symbol, limit=d_day.days, ohlcv=ohlcv,now_day=now_day.strftime("%Y%m%d"),now_time=datetime.datetime.now().strftime("%H%M%S"))
+            else:
+                d_day = now_day - past_expiry_date.date()
+                ohlcv = ex_kis.fetch_1m_ohlcv(symbol=symbol, limit=d_day.days, ohlcv=ohlcv,
+                                              now_day=now_day.strftime("%Y%m%d"),
+                                              now_time=datetime.datetime.now().strftime("%H%M%S"))
                 df = get_kis_ohlcv('국내선옵', ohlcv)
-                # df = df[df.index > past_expiry_date + datetime.timedelta(days=1)]
                 df = df[df.index > past_expiry_date]
-                print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_expiry_date= }")
+                df['만기일'] = expiry_date
+                df['종목코드'] = symbol
+            print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_expiry_date= }")
+
 
             # 데이터가 없을경우 해당하는 행 삭제
-
             now = datetime.datetime.now().replace(second=0, microsecond=0)
             df = df.drop(df.loc[df.index == now].index)
-
-            df['만기일'] = expiry_date
             if not df.empty:
                 df.to_sql(ticker_symbol, conn_DB, if_exists='replace')
     else:
         df = pd.DataFrame()
         ticker_symbol = ''
     return df, ticker_symbol
+def check_holiday(check_simul,ex_kis,df_holiday,expiry_date):
+    now_day = datetime.datetime.now().date()
+    if not datetime.datetime.strftime(expiry_date, '%Y%m%d') in df_holiday.index.tolist() or df_holiday.empty:
+        conn_DB = sqlite3.connect('DB/DB_futopt.db')
+        if check_simul:
+            ex_kis = make_exchange_kis('실전선옵')
+        if df_holiday.empty:
+            now_day = now_day - datetime.timedelta(days=10)
+        df_holiday_new = ex_kis.check_holiday_domestic_stock(now_day,expiry_date)
+        df_holiday = pd.concat([df_holiday, df_holiday_new], axis=0)
+        # 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
+        df_holiday = df_holiday[~df_holiday.index.duplicated(keep='last')]
+        df_holiday.to_sql('holiday', conn_DB, if_exists='replace')
+        conn_DB.close()
+    list_index = df_holiday.index.tolist()
+    i = list_index.index(expiry_date.strftime("%Y%m%d"))
+    while i >= -10:
+        holiday = df_holiday.iloc[i, df_holiday.columns.tolist().index('개장일')]
+        if holiday == 'Y':
+            expiry_date = list_index[i]
+            expiry_date = datetime.datetime.strptime(expiry_date, '%Y%m%d').date()
+            return expiry_date
+        else:
+            i -= 1
+    print('금일 휴장일')
+    return now_day
 def make_exchange_kis(trade_type):
     conn = sqlite3.connect('DB/setting.db')
     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
@@ -716,3 +720,9 @@ class CodeEditor(QTextEdit):
         else:
             super(CodeEditor, self).keyPressEvent(event)
 
+# d1 = datetime.datetime.now().date()
+# conn_DB = sqlite3.connect('DB/DB_futopt.db')
+# df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_DB).set_index('날짜')
+# conn_DB.close()
+# d2 = datetime.date(2025,3,13)
+# res = check_holiday(df_holiday,d2)
