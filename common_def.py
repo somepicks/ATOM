@@ -132,7 +132,7 @@ def futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
         df5_with_separator = pd.concat([df_p_weekly_common, create_separator_row(common_columns)], ignore_index=True)
         df_combined = pd.concat([df_combined, df4_with_separator, df5_with_separator], ignore_index=True)
 
-    df_combined = df_combined[['종목코드', '현재가','시가',  '이론가/행사가', '거래량', '거래대금', '전일대비','종목명','만기일']]
+    df_combined = df_combined[['종목코드', '현재가','시가',  '이론가/행사가', '거래량', '거래대금', '전일대비','종목명']]
     return df_combined
 
 def resample_df(df, bong, rule, name, compare):
