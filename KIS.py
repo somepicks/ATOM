@@ -1174,7 +1174,7 @@ class KoreaInvestment:
                     break
         return df_call, df_put, COND_MRKT, past_date, expiry_date
 
-    def get_trading_dates(self,input_date):
+    def get_trading_dates(self, input_date):
         """
         주어진 날짜를 기준으로 다가올 월요일/목요일, 지난 월요일/목요일, 해당 월의 순서, 다가올 요일 정보를 반환합니다.
         두 번째 목요일인 경우 다가올 요일로 '만기'를 반환합니다.
@@ -1201,34 +1201,39 @@ class KoreaInvestment:
         weekday = input_date.weekday()
 
         # 다가올 월요일 또는 목요일 계산
-        days_to_monday = (0 - weekday) % 7  # 다음 월요일까지 일수
-        days_to_thursday = (3 - weekday) % 7  # 다음 목요일까지 일수
-
-        # 오늘이 월요일이거나 목요일이면 7일을 더해 다음 주로 설정
-        if days_to_monday == 0:
-            days_to_monday = 7
-        if days_to_thursday == 0:
-            days_to_thursday = 7
-
-        # 월요일과 목요일 중 더 가까운 날짜 선택
-        if days_to_monday < days_to_thursday:
-            next_date = input_date + datetime.timedelta(days=days_to_monday)
+        # 만약 오늘이 월요일이면 오늘을, 목요일이면 오늘을 반환
+        if weekday == 0:  # 월요일
+            next_date = input_date
             next_day_name = "월"
-        else:
-            next_date = input_date + datetime.timedelta(days=days_to_thursday)
+        elif weekday == 3:  # 목요일
+            next_date = input_date
             next_day_name = "목"
+        else:
+            # 다가올 월요일과 목요일 계산
+            days_to_monday = (0 - weekday) % 7  # 다음 월요일까지 일수
+            days_to_thursday = (3 - weekday) % 7  # 다음 목요일까지 일수
+
+            # 월요일과 목요일 중 더 가까운 날짜 선택
+            if days_to_monday <= days_to_thursday:
+                next_date = input_date + datetime.timedelta(days=days_to_monday)
+                next_day_name = "월"
+            else:
+                next_date = input_date + datetime.timedelta(days=days_to_thursday)
+                next_day_name = "목"
 
         # 지난 월요일 또는 목요일 계산
-        days_since_monday = weekday  # 지난 월요일부터 현재까지 일수
-        days_since_thursday = (weekday - 3) % 7  # 지난 목요일부터 현재까지 일수
-        if days_since_thursday == 0:
-            days_since_thursday = 7
-
-        # 수요일(2) 이하인 경우 지난 월요일을, 목요일(3) 이상인 경우 지난 목요일을 반환
-        if weekday <= 2:  # 월, 화, 수요일인 경우 지난 월요일
-            prev_date = input_date - datetime.timedelta(days=days_since_monday)
-        else:  # 목, 금, 토, 일요일인 경우 지난 목요일
-            prev_date = input_date - datetime.timedelta(days=days_since_thursday)
+        if weekday == 0:  # 오늘이 월요일
+            # 지난 목요일 계산
+            prev_date = input_date - datetime.timedelta(days=4)  # 월요일에서 4일 전이 지난 목요일
+        elif weekday == 3:  # 오늘이 목요일
+            # 지난 월요일 계산
+            prev_date = input_date - datetime.timedelta(days=3)  # 목요일에서 3일 전이 지난 월요일
+        elif weekday < 3:  # 화요일, 수요일
+            # 지난 월요일 계산
+            prev_date = input_date - datetime.timedelta(days=weekday)
+        else:  # 금요일, 토요일, 일요일
+            # 지난 목요일 계산
+            prev_date = input_date - datetime.timedelta(days=(weekday - 3))
 
         # 다가오는 날짜가 해당 월의 몇 번째 해당 요일인지 계산
         first_day_of_month = datetime.date(next_date.year, next_date.month, 1)
@@ -1246,8 +1251,7 @@ class KoreaInvestment:
         # 몇 번째 요일인지 계산
         week_number = ((next_date.day - first_occurrence.day) // 7) + 1
 
-        # 해당 월의 목요일이 몇 번째인지 계산 (목요일이면서 week_number가 2인 경우 확인)
-        # 다가올 날짜가 목요일이고 그 달의 두 번째 목요일인 경우 '만기' 반환
+        # 다가올 날짜가 목요일이고 그 달의 두 번째 목요일인 경우 '만기주' 반환
         if next_day_name == "목" and week_number == 2:
             next_day_name = "만기주"
 
@@ -3750,14 +3754,15 @@ if __name__ == "__main__":
            data = broker_ws.get()
 
     exchange = common_def.make_exchange_kis('모의선옵')
-    conn_DB = sqlite3.connect('DB/DB_futopt.db')
-    cursor = conn_DB.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    try:
-        list_table = np.concatenate(cursor.fetchall()).tolist()
-    except:
-        list_table = []
-    for ticker in ['선물','콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
-        common_def.save_futopt_DB(check_simul=True, ex_kis=exchange, ticker=ticker, list_table=list_table,
-                                  conn_DB=conn_DB)
-        quit()
+    # conn_DB = sqlite3.connect('DB/DB_futopt.db')
+    # cursor = conn_DB.cursor()
+    # cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    # try:
+    #     list_table = np.concatenate(cursor.fetchall()).tolist()
+    # except:
+    #     list_table = []
+    # for ticker in ['선물','콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
+    #     common_def.save_futopt_DB(check_simul=True, ex_kis=exchange, ticker=ticker, list_table=list_table,
+    #                               conn_DB=conn_DB)
+    # print(exchange.display_opt_weekly(datetime.date(2025,2,27)))
+    print(exchange.get_trading_dates(datetime.date(2025,3,7)))

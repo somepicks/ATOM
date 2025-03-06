@@ -1,5 +1,6 @@
 from pybit.unified_trading import HTTP
-from datetime import datetime,timedelta
+# from datetime import datetime,timedelta
+import datetime
 import sqlite3
 import pandas as pd
 from pprint import pprint
@@ -14,6 +15,9 @@ import subprocess
 import ccxt
 import numpy as np
 import os
+
+# from ex import stamp_to_datetime
+
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -82,7 +86,7 @@ class do_trade(QThread):
                         # side = 'Buy'
 
                     self.session.cancel_order(category=category, symbol=symbol, orderId=id)
-                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M')} | 기존주문 취소 {ticker}: {category}")
+                    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | 기존주문 취소 {ticker}: {category}")
 
                     if category == 'spot': # inverse일 경우는 알아서 주문이 나가기 때문에
                         배팅금액 = self.df_open.loc[id, '매수금액']
@@ -99,7 +103,7 @@ class do_trade(QThread):
                         res = self.order_open(category=category, ticker=symbol, side='Buy', orderType="Limit", price=주문가,qty=주문수량)
                         id = res['result']['orderId']
                         self.df_open.loc[id, 'ticker'] = ticker
-                        self.df_open.loc[id, '주문시간'] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        self.df_open.loc[id, '주문시간'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
                         self.df_open.loc[id, '주문수량'] = 주문수량
                         self.df_open.loc[id, 'id'] = id
                         self.df_open.loc[id, '매수금액'] = 주문가 * 주문수량
@@ -107,7 +111,7 @@ class do_trade(QThread):
                         self.df_open.loc[id, '상태'] = '매수주문'
                         self.df_open.loc[id, '구분'] = category
                         self.df_open.loc[id, 'short비율'] = self.rate_short
-                        print(f'{datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동재매수 {ticker}: {주문수량=}, {주문가=}, {주문수량 * 주문가}')
+                        print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동재매수 {ticker}: {주문수량=}, {주문가=}, {주문수량 * 주문가}')
                     QTest.qWait(500)
 
                 self.df_history.loc[time.time(),'보유자산합계'] = self.df_inverse['보유자산합계(USD)'].sum()
@@ -140,11 +144,11 @@ class do_trade(QThread):
             # print(f"{배팅가능금액= }")
             # print(f"{배팅가능합계-배팅가능금액=}")
             진입금액 = math.trunc(배팅가능금액)
-            print(f'{datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입금액=}, {주문가=}, {진입금액 * 주문가}')
+            print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입금액=}, {주문가=}, {진입금액 * 주문가}')
             res = self.order_open(category='inverse', ticker=ticker + 'USD', side='Sell', orderType="Limit", price=주문가,qty=진입금액)
             id = res['result']['orderId']
             self.df_open.loc[id, 'ticker'] = ticker
-            self.df_open.loc[id, '주문시간'] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            self.df_open.loc[id, '주문시간'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
             self.df_open.loc[id, '주문수량'] = 진입금액
             self.df_open.loc[id, 'id'] = id
             self.df_open.loc[id, '매수금액'] = 진입금액
@@ -187,7 +191,7 @@ class do_trade(QThread):
                     QTest.qWait(1000)
 
         elif dict_chegyeol['체결'] == '주문취소':
-            print(f'{datetime.now().strftime("%Y-%m-%d %H:%M")} | 주문취소')
+            print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 주문취소')
             self.df_open.drop(index=id,inplace=True)
 
         elif dict_chegyeol['체결'] == '부분체결':
@@ -224,7 +228,6 @@ class do_trade(QThread):
         # try:
         # 잔고 조회
         res = self.exchange.fetch_balance(params={'type': 'inverse'})
-        # pprint(res)
         # print('=================')
         have_usdt = float(self.fetch_balance(accountType='UNIFIED', ticker='USDT', balance='잔고'))
         all_usdt = float(self.fetch_balance(accountType='UNIFIED', ticker='USDT', balance='보유'))
@@ -237,7 +240,6 @@ class do_trade(QThread):
             print(pd.DataFrame(output))
             pprint(output)
             print(have_usdt)
-            quit()
             for have_ticker in output:
                 # pprint(have_ticker)
                 ticker = have_ticker['coin']
@@ -296,7 +298,7 @@ class do_trade(QThread):
             for order in res:
                 if order['orderId'] == id:
                     if order['orderStatus'] == 'Filled':
-                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M')} | {ticker} - 체결완료")
+                        print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | {ticker} - 체결완료")
 
                         return {'체결': True, '체결가': float(order['avgPrice']), '체결수량': float(order['cumExecQty']),
                                 '수수료': float(order['cumExecFee']), '체결시간': int(int(order['updatedTime'])/1000)}
@@ -381,16 +383,16 @@ class do_trade(QThread):
         return f"{hours}:{minutes}:{seconds}"
     def stamp_to_str(self,t):
         date_time = self.stamp_to_datetime(t)
-        return datetime.strftime(date_time, "%Y-%m-%d %H:%M")
+        return datetime.datetime.strftime(date_time, "%Y-%m-%d %H:%M")
 
     def stamp_to_int(self,stamp_time):
-        dt = datetime.fromtimestamp(stamp_time)
+        dt = datetime.datetime.fromtimestamp(stamp_time)
         dt = dt.strftime('%Y%m%d%H%M')
         return int(dt)
 
     def stamp_to_datetime(self,stamp_time):
         int_time = self.stamp_to_int(stamp_time)
-        return datetime.strptime(str(int_time), '%Y%m%d%H%M')
+        return datetime.datetime.strptime(str(int_time), '%Y%m%d%H%M')
 
     def amount_to_precision(self,category, ticker, amount):
         res = self.fetch_account_info(Account=category,ticker=ticker)
@@ -420,7 +422,8 @@ class Window(QMainWindow):
 
         self.QPB_start.clicked.connect(self.onStartButtonClicked)
         self.QPB_stop.clicked.connect(self.onStopButtonClicked)
-        self.QPB_api_save_bybit.clicked.connect(self.save_api)
+        self.QPB_api_save_bybit.clicked.connect(lambda :self.save_api('bybit'))
+        self.QPB_api_save_binance.clicked.connect(lambda :self.save_api('binance'))
         self.QPB_manual_buy_bybit.clicked.connect(lambda :self.manual_buy('bybit'))
         self.QPB_manual_buy_binance.clicked.connect(lambda :self.manual_buy('binance'))
         self.onStartButtonClicked()
@@ -524,11 +527,17 @@ class Window(QMainWindow):
         QVB_main.addLayout(QHB_api)
 
         QW_main.setLayout(QVB_main)
-    def save_api(self):
-        QLE_api_bybit=self.QLE_api_bybit.text()
-        QLE_secret_bybit=self.QLE_secret_bybit.text()
-        self.df_api.loc['api','value']=QLE_api_bybit
-        self.df_api.loc['secret','value']=QLE_secret_bybit
+    def save_api(self,market):
+        if market == 'bybit':
+            if not self.QLE_api_bybit.text() == '':
+                self.df_api.loc[f'api_{market}','value']=self.QLE_api_bybit.text()
+            if not self.QLE_secret_bybit.text() == '':
+                self.df_api.loc[f'secret_{market}','value']=self.QLE_secret_bybit.text()
+        if market == 'binance':
+            if not self.QLE_api_binance.text() == '':
+                self.df_api.loc[f'api_{market}','value']=self.QLE_api_binance.text()
+            if not self.QLE_secret_binance.text() == '':
+                self.df_api.loc[f'secret_{market}','value']=self.QLE_secret_binance.text()
         self.df_api.to_sql('api', self.conn, if_exists='replace')
         self.QLE_api_bybit.clear()
         self.QLE_secret_bybit.clear()
@@ -554,6 +563,9 @@ class Window(QMainWindow):
             # dic = {'api':'','secret':''}
             self.df_api = pd.DataFrame(index=['api','secret'], columns=['value'])
             self.df_api.to_sql('api', self.conn, if_exists='replace')
+
+
+
         else:
             self.conn = sqlite3.connect(db_file)
             self.df_open = pd.read_sql(f"SELECT * FROM 'open'", self.conn).set_index('index')
@@ -577,9 +589,38 @@ class Window(QMainWindow):
         for symbol in inverse_markets:
             list_bybit_inverse.append(symbol[:symbol.index('/')])
 
+        print(list_bybit_inverse)
+        out = self.exchange.fetch_funding_rate_history(symbol='BTCUSD')
+        df = pd.DataFrame(out)
+        df.drop(columns=['info','symbol'],inplace=True)
+        print(df)
+        since = out[0]['timestamp']
+        origin = datetime.datetime.now()-datetime.timedelta(days=365)
 
-        out = self.exchange.fetch_funding_rate_history('BTCUSD')
-        print(pd.DataFrame(out))
+        print(self.stamp_to_datetime(since/1000))
+        print(origin)
+        if origin < self.stamp_to_datetime(since/1000):
+            print('asdf')
+        quit()
+        since = since - 8*3600*1000*201 #8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+        out = self.exchange.fetch_funding_rate_history(symbol='BTCUSD',since=since)
+        df = pd.DataFrame(out)
+        df.drop(columns=['info','symbol'],inplace=True)
+        print(df)
+        n1=1733443200000
+        n2 = 1733472000000
+        n3 = 1727740800000
+        print((n2-n1)*200)
+        print(n2-n3)
+        print(5760000000/(8*3600000))
+        print(5760000000//8)
+        print(5760000000%8)
+        # df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True, unit='ms')
+        # df['timestamp'] = df['timestamp'].dt.tz_convert("Asia/Seoul")
+        # df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+        # df.set_index('timestamp', inplace=True)
+        # df.index = df.index - pd.Timedelta(hours=9)
+        # print(df.index.dtype)
         quit()
 
 
@@ -730,8 +771,13 @@ class Window(QMainWindow):
         table.horizontalHeader().setStretchLastSection(True)
         # table.verticalHeader().setStretchLastSection(True)
         table.setSortingEnabled(True) #소팅한 상태로 로딩 시 데이터가 이상해져 맨 앞과 뒤에 추가
-
-
+    def stamp_to_datetime(self,stamp_time):
+        int_time = self.stamp_to_int(stamp_time)
+        return datetime.datetime.strptime(str(int_time), '%Y%m%d%H%M')
+    def stamp_to_int(self,stamp_time):
+        dt = datetime.datetime.fromtimestamp(stamp_time)
+        dt = dt.strftime('%Y%m%d%H%M')
+        return int(dt)
     def fetch_ticker(self, Account, ticker):
         return self.session.get_tickers(
             category=Account,
