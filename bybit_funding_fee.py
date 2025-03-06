@@ -1,5 +1,4 @@
 from pybit.unified_trading import HTTP
-# from datetime import datetime,timedelta
 import datetime
 import sqlite3
 import pandas as pd
@@ -15,6 +14,8 @@ import subprocess
 import ccxt
 import numpy as np
 import os
+
+from common_def import stamp_to_datetime
 
 # from ex import stamp_to_datetime
 
@@ -589,38 +590,26 @@ class Window(QMainWindow):
         for symbol in inverse_markets:
             list_bybit_inverse.append(symbol[:symbol.index('/')])
 
-        print(list_bybit_inverse)
-        out = self.exchange.fetch_funding_rate_history(symbol='BTCUSD')
-        df = pd.DataFrame(out)
-        df.drop(columns=['info','symbol'],inplace=True)
-        print(df)
-        since = out[0]['timestamp']
+        out_lately = self.exchange.fetch_funding_rate_history(symbol='BTCUSD')
+        since = out_lately[0]['timestamp']
         origin = datetime.datetime.now()-datetime.timedelta(days=365)
-
-        print(self.stamp_to_datetime(since/1000))
+        while self.stamp_to_datetime(since) > origin:
+            since = since - 8*3600*1000*201 #8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+            out = self.exchange.fetch_funding_rate_history(symbol='BTCUSD',since=since)
+            out.extend(out_lately)
+            out_lately = out
+        print(self.stamp_to_datetime(since))
         print(origin)
-        if origin < self.stamp_to_datetime(since/1000):
-            print('asdf')
-        quit()
-        since = since - 8*3600*1000*201 #8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
-        out = self.exchange.fetch_funding_rate_history(symbol='BTCUSD',since=since)
-        df = pd.DataFrame(out)
+        df = pd.DataFrame(out_lately)
         df.drop(columns=['info','symbol'],inplace=True)
+        df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True, unit='ms')
+        df['timestamp'] = df['timestamp'].dt.tz_convert("Asia/Seoul")
+        df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+        df.set_index('timestamp', inplace=True)
+        df.index = df.index - pd.Timedelta(hours=9)
+        df.index.rename('index', inplace=True)  # 인덱스명 변경
         print(df)
-        n1=1733443200000
-        n2 = 1733472000000
-        n3 = 1727740800000
-        print((n2-n1)*200)
-        print(n2-n3)
-        print(5760000000/(8*3600000))
-        print(5760000000//8)
-        print(5760000000%8)
-        # df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True, unit='ms')
-        # df['timestamp'] = df['timestamp'].dt.tz_convert("Asia/Seoul")
-        # df['timestamp'] = df['timestamp'].dt.tz_localize(None)
-        # df.set_index('timestamp', inplace=True)
-        # df.index = df.index - pd.Timedelta(hours=9)
-        # print(df.index.dtype)
+        # df.to_sql('test',sqlite3.connect('DB/bt.db'),if_exists='replace')
         quit()
 
 
@@ -668,7 +657,7 @@ class Window(QMainWindow):
             res = self.open_order(category=category, ticker=ticker + 'USDT', side='Buy', orderType="Limit", price=주문가, qty=진입수량)
             id = res['result']['orderId']
             self.df_open.loc[id,'ticker'] = ticker
-            self.df_open.loc[id,'주문시간'] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            self.df_open.loc[id,'주문시간'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
             self.df_open.loc[id,'주문수량'] = 진입수량
             self.df_open.loc[id,'id'] = id
             self.df_open.loc[id,'매수금액'] = 주문가*진입수량
@@ -677,7 +666,7 @@ class Window(QMainWindow):
             self.df_open.loc[id,'주문가'] = 주문가
             self.df_open.loc[id,'spot비율'] = float(self.QL_rate_spot.text())
 
-            print(f'{datetime.now().strftime("%Y-%m-%d %H:%M")} | 수동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
+            print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 수동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
             self.df_open.to_sql('open',self.conn,if_exists='replace')
         except Exception as e:
             print(f"오류 발생: 주문 확인요망 API 확인 등.. {e}")
@@ -772,7 +761,10 @@ class Window(QMainWindow):
         # table.verticalHeader().setStretchLastSection(True)
         table.setSortingEnabled(True) #소팅한 상태로 로딩 시 데이터가 이상해져 맨 앞과 뒤에 추가
     def stamp_to_datetime(self,stamp_time):
+        if len(str(int(stamp_time))) == 13:
+            stamp_time = stamp_time / 1000 #밀리초단위일 경우
         int_time = self.stamp_to_int(stamp_time)
+
         return datetime.datetime.strptime(str(int_time), '%Y%m%d%H%M')
     def stamp_to_int(self,stamp_time):
         dt = datetime.datetime.fromtimestamp(stamp_time)
