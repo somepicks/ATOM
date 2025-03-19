@@ -3753,7 +3753,29 @@ if __name__ == "__main__":
         for i in range(3):
            data = broker_ws.get()
 
-    exchange = common_def.make_exchange_kis('모의선옵')
+    # exchange = common_def.make_exchange_kis('모의선옵')
+    exchange,pybit = common_def.make_exchange_bybit()
+    res = exchange.fetch_balance()
+    pprint(res)
+    print('=================')
+    res = res['info']['result']['list'][0]
+    df = pd.DataFrame(res)
+    print(df)
+    print('=================')
+    balance = '보유'
+    ticker = 'BTC'
+    accountType = 'UNIFIED'
+    res = pybit.get_coins_balance(
+        accountType=accountType,  # CONTRACT: Inverse Derivatives Account, UNIFIED: Unified Trading Account
+        coin=ticker,  # BTC
+    )
+    pprint(res)
+    print(res['result']['balance'][0]['walletBalance'])
+    print(res['result']['balance'][0]['transferBalance'])
+    # if balance == '보유':
+    #     return res['result']['balance'][0]['walletBalance']
+    # elif balance == '잔고':
+    #     return res['result']['balance'][0]['transferBalance']
     # conn_DB = sqlite3.connect('DB/DB_futopt.db')
     # cursor = conn_DB.cursor()
     # cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -3765,4 +3787,4 @@ if __name__ == "__main__":
     #     common_def.save_futopt_DB(check_simul=True, ex_kis=exchange, ticker=ticker, list_table=list_table,
     #                               conn_DB=conn_DB)
     # print(exchange.display_opt_weekly(datetime.date(2025,2,27)))
-    print(exchange.get_trading_dates(datetime.date(2025,3,7)))
+    # print(exchange.get_trading_dates(datetime.date(2025,3,7)))

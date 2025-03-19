@@ -334,16 +334,13 @@ def detail_to_compare(df, ticker, bong):
     df = df.drop(columns=df.filter(like='_'+bong).columns)
 #     print(df)
     return df
-def make_exchange_bybit(mock):
+def make_exchange_bybit():
     conn = sqlite3.connect('DB/setting.db')
     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
     conn.close()
-    if mock == True:
-        api = df.loc['BYBIT_mock_api', 'value']
-        secret = df.loc['BYBIT_mock_secret', 'value']
-    else:
-        api = df.loc['BYBIT_api','value']
-        secret = df.loc['BYBIT_secret','value']
+
+    api = df.loc['BYBIT_api','value']
+    secret = df.loc['BYBIT_secret','value']
     exchange_ccxt = ccxt.bybit(config={
         'apiKey': api,
         'secret': secret,
@@ -352,11 +349,9 @@ def make_exchange_bybit(mock):
         })
     exchange_pybit = HTTP(
             testnet = False,
-            api_key = df.loc['BYBIT_mock_api', 'value'],
-            api_secret = df.loc['BYBIT_secret','value'],
+            api_key = api,
+            api_secret = secret,
         )
-    if mock == True:
-        exchange_ccxt.set_sandbox_mode(True)
 
     return exchange_ccxt, exchange_pybit
 

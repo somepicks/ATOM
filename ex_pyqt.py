@@ -1,136 +1,119 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import requests
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
+import sys
 import time
-from datetime import datetime, timedelta
-import matplotlib.dates as mdates
 
 
-def get_funding_rate_history(symbols, limit=100):
-    """
-    바이비트 API를 사용하여 여러 심볼의 펀딩 수수료율 히스토리를 가져오는 함수
+class DoTrade(QThread):
+    # 스레드에서 메인 윈도우로 신호를 보내기 위한 시그널 정의
+    # 예: 거래 상태 업데이트를 위한 시그널
+    update_signal = pyqtSignal(str)
 
-    Parameters:
-    symbols (list): 펀딩 수수료율을 가져올 심볼 리스트 (예: ["BTCUSDT", "ETHUSDT"])
-    limit (int): 각 심볼당 가져올 데이터 포인트 수 (최대 200)
+    def __init__(self):
+        super().__init__()
+        self.trading = False
+        self.buy_requested = False
 
-    Returns:
-    dict: 심볼별 펀딩 수수료율 데이터프레임을 포함하는 딕셔너리
-    DataFrame: 모든 심볼의 펀딩 수수료율을 포함하는 통합 데이터프레임
-    """
-    base_url = "https://api.bybit.com"
-    endpoint = "/v5/market/funding/history"
+    def run(self):
+        self.trading = True
+        while self.trading:
+            # 거래 로직 실행
+            self.update_signal.emit("거래 진행 중...")
 
-    # 결과를 저장할 딕셔너리와 통합 데이터프레임을 위한 리스트 초기화
-    results = {}
-    all_data = []
+            # buy 신호 확인
+            if self.buy_requested:
+                self.buy_stock()
+                self.buy_requested = False
 
-    for symbol in symbols:
-        # API 요청 파라미터 설정
-        params = {
-            'category': 'linear',
-            'symbol': symbol,
-            'limit': limit
-        }
+            time.sleep(1)  # CPU 과부하 방지
 
-        try:
-            # API 요청
-            response = requests.get(base_url + endpoint, params=params)
-            data = response.json()
+    def stop_trading(self):
+        self.trading = False
 
-            # 응답 확인
-            if data['retCode'] == 0 and 'list' in data['result']:
-                # 데이터 파싱
-                funding_data = data['result']['list']
+    # 메인 윈도우의 Buy 버튼에 의해 호출될 메서드
+    def request_buy(self):
+        self.buy_requested = True
+        self.update_signal.emit("매수 요청 수신!")
 
-                # 데이터프레임 생성
-                df = pd.DataFrame(funding_data)
-
-                # 컬럼 변환
-                df['fundingRate'] = df['fundingRate'].astype(float)
-                df['fundingRateTimestamp'] = pd.to_datetime(df['fundingRateTimestamp'].astype(int), unit='ms')
-
-                # 심볼 정보 추가
-                df['symbol'] = symbol
-
-                # 결과 저장
-                results[symbol] = df
-                all_data.append(df)
-
-                # API 호출 사이에 약간의 지연 추가
-                time.sleep(0.5)
-            else:
-                print(f"{symbol} 데이터 가져오기 실패: {data}")
-        except Exception as e:
-            print(f"{symbol} 요청 중 오류 발생: {e}")
-
-    # 모든 심볼 데이터를 하나의 데이터프레임으로 통합
-    if all_data:
-        combined_df = pd.concat(all_data, ignore_index=True)
-        return results, combined_df
-    else:
-        return results, pd.DataFrame()
+    def buy_stock(self):
+        # 실제 매수 로직 구현
+        self.update_signal.emit("매수 실행!")
+        # 매수 관련 작업...
 
 
-def plot_funding_rates(symbol_dfs, symbols):
-    """
-    여러 심볼의 펀딩 수수료율을 하나의 차트에 시각화하는 함수
+class Window(QMainWindow):
+    # DoTrade 스레드로 신호를 보내기 위한 시그널 정의
+    buy_signal = pyqtSignal()
 
-    Parameters:
-    symbol_dfs (dict): 심볼별 펀딩 수수료율 데이터프레임을 포함하는 딕셔너리
-    symbols (list): 차트에 표시할 심볼 리스트
-    """
-    plt.figure(figsize=(12, 6))
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Trading Application")
+        self.setGeometry(300, 300, 400, 200)
 
-    for symbol in symbols:
-        if symbol in symbol_dfs:
-            df = symbol_dfs[symbol]
-            plt.plot(df['fundingRateTimestamp'], df['fundingRate'].astype(float) * 100, label=symbol)
+        # UI 구성
+        self.init_ui()
 
-    plt.title('바이비트 펀딩 수수료율 히스토리 (%)')
-    plt.xlabel('날짜')
-    plt.ylabel('펀딩 수수료율 (%)')
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.legend()
+        # 스레드 인스턴스 생성
+        self.trade_thread = DoTrade()
 
-    # x축 날짜 포맷 설정
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
-    plt.gcf().autofmt_xdate()
+        # 시그널 연결
+        self.QPB_start.clicked.connect(self.start_trading)
+        self.QPB_buy.clicked.connect(self.request_buy)
 
-    plt.tight_layout()
-    plt.show()
+        # 스레드의 시그널을 메인 윈도우의 슬롯에 연결
+        self.trade_thread.update_signal.connect(self.update_status)
+
+        # 메인 윈도우의 시그널을 스레드의 슬롯에 연결
+        self.buy_signal.connect(self.trade_thread.request_buy)
+
+    def init_ui(self):
+        # 중앙 위젯 및 레이아웃 설정
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+
+        # 버튼 생성
+        self.QPB_start = QPushButton("Start Trading", self)
+        self.QPB_buy = QPushButton("Buy", self)
+        self.QPB_buy.setEnabled(False)  # 거래 시작 전에는 비활성화
+
+        # 레이아웃에 버튼 추가
+        layout.addWidget(self.QPB_start)
+        layout.addWidget(self.QPB_buy)
+
+    def start_trading(self):
+        if not self.trade_thread.isRunning():
+            self.trade_thread.start()
+            self.QPB_start.setText("Stop Trading")
+            self.QPB_buy.setEnabled(True)
+        else:
+            self.trade_thread.stop_trading()
+            self.trade_thread.wait()  # 스레드가 완전히 종료될 때까지 대기
+            self.QPB_start.setText("Start Trading")
+            self.QPB_buy.setEnabled(False)
+
+    def request_buy(self):
+        # 스레드로 buy 신호 발생
+        self.buy_signal.emit()
+
+    @pyqtSlot(str)
+    def update_status(self, message):
+        # 스레드로부터 받은 메시지 처리
+        print(message)  # 실제 앱에서는 상태 표시줄이나 로그 창에 표시
+
+    def closeEvent(self, event):
+        # 앱 종료 시 스레드 정리
+        if self.trade_thread.isRunning():
+            self.trade_thread.stop_trading()
+            self.trade_thread.wait()
+        event.accept()
 
 
-# 사용 예시
-symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]  # 관심 있는 심볼 리스트
-symbol_dfs, combined_df = get_funding_rate_history(symbols, limit=100)
-
-# 데이터프레임 출력
-for symbol, df in symbol_dfs.items():
-    print(f"\n{symbol} 펀딩 수수료율:")
-    print(df[['fundingRateTimestamp', 'fundingRate', 'symbol']].head())
-
-# 차트 그리기
-plot_funding_rates(symbol_dfs, symbols)
-
-# 통합 데이터프레임 확인
-print("\n통합 데이터프레임:")
-print(combined_df.head())
-
-# 데이터 분석 - 평균 펀딩 수수료율
-print("\n심볼별 평균 펀딩 수수료율:")
-avg_rates = combined_df.groupby('symbol')['fundingRate'].mean() * 100
-print(avg_rates)
-
-# 데이터 분석 - 최대/최소 펀딩 수수료율
-print("\n심볼별 최대 펀딩 수수료율:")
-max_rates = combined_df.groupby('symbol')['fundingRate'].max() * 100
-print(max_rates)
-
-print("\n심볼별 최소 펀딩 수수료율:")
-min_rates = combined_df.groupby('symbol')['fundingRate'].min() * 100
-print(min_rates)
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Window()
+    window.show()
+    sys.exit(app.exec_())
 
 #
 # import sys

@@ -271,23 +271,175 @@ def bybit_set_tickers(fetch_tickers):
     df = pd.DataFrame.from_dict(data=fetch_tickers, orient='index')  # 딕셔너리로 데이터프레임  만들기 키값으로 행이름을 사용
     return df
 
-# Bybit API에 연결
-bybit = ccxt.bybit({
+################################################################
+
+
+# 바이낸스 API 설정
+api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
+api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
+binance = ccxt.binance(config={
     'apiKey': api_key,
     'secret': api_secret,
     'enableRateLimit': True,
-    'options': {
-        'position_mode': True
-        # 'defaultType': 'inverse',  # spot 또는 future를 설정할 수 있음
-    },
+    'options': {'position_mode': True,
+                # 'defaultType': 'future'
+                },
 })
-# tickers = bybit.fetch_tickers()
-# df = bybit_set_tickers(tickers)
-# print(df['quoteVolume'])
+api_key = "k3l5BpTorsRTHvPmAj"
+api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
+bybit = ccxt.bybit(config={
+    'apiKey': api_key,
+    'secret': api_secret,
+    'enableRateLimit': True,
+    'options': {'position_mode': True, },
+})
 
-with open('token.dat','rb') as file:
-    print(file.read())
-import pandas as pd
+# res = bybit.fetch_closed_orders(symbol='BTCUSD',params={})
+
+ticker = "XRP/USDT"
+res = binance.fetch_balance(params={"type": 'delivery'})
+pprint(res)
+print("============================")
+res = binance.fetch_balance(params={})
+pprint(res)
+# print('=======')
+# res = binance.fapiprivate_post_leverage({"symbol":ticker,"leverage":3})
+# pprint(res)
+# print('=======')
+# try:
+#     res = binance.fapiprivate_post_margintype({"symbol":ticker,"marginType":"ISOLATED"})
+# except:
+#     pass
+# pprint(res)
+# print('=======')
+# res = binance.create_order(symbol=ticker,amount=5,side="buy",type="limit",price=2.22,params={})
+
+# res = binance.create_order(symbol='XRP/USDT',type='limit',side='buy',amount=5,price=2.22,params={})
+# pprint(res)
+quit()
+
+
+
+# spot
+balanceSpot = binance.fetch_balance()['total']
+spot = pd.DataFrame(list(balanceSpot.items()), columns=['name', 'balance'])
+spot = spot[spot['balance'] > 0]
+print(spot)
+print('============')
+
+# coin-m
+balanceCoinm = binance.fetch_balance(params={"type": 'delivery'})['total']
+Coinm = pd.DataFrame(list(balanceCoinm.items()), columns=['name', 'balance'])
+Coinm = Coinm[Coinm['balance'] > 0]
+print(Coinm)
+print('============')
+
+
+
+# spot and coin-m
+total = pd.concat([spot, Coinm])
+total = total[total['balance'] > 0]
+pprint(total)
+print('============')
+quit()
+############################################################
+# 중복데이터 정리
+dfBn = total.drop_duplicates("name", keep=False)
+
+df1 = total[total.duplicated('name', keep = 'first')]
+df2 = total[total.duplicated('name', keep = 'last')]
+
+
+# 분리된 데이터 더하기
+nameBn = []
+amountBn = []
+for coin in df1['name']:
+    nameBn.append(coin)
+    am = df1[df1['name'] == coin]['balance'].values[0] + df2[df2['name'] == coin]['balance'].values[0]
+    amountBn.append(am)
+
+dfz = []
+dfz.append(nameBn)
+dfz.append(amountBn)
+dfz = pd.DataFrame(dfz)
+dfz =dfz.transpose()
+dfz.columns = ['name', 'balance']
+# dfBn: 중복 제거, dfz: 중복된 것들
+dfBn = pd.concat([dfz, dfBn])
+pprint(dfBn)
+print('============')
+
+############################################################
+# 비상장/소액 제거하기
+nameBn = []
+usdBn = []
+amountBn = []
+priceBn = []
+
+# 페어 및 가격 가져오기
+markets = binance.fetch_tickers()
+keys = markets.keys()
+
+for coin in dfBn['name']:
+    amount = dfBn[dfBn['name'] == coin]['balance'].values[0]
+    coin2 = coin + "/USDT"
+    for pair in keys:
+        if pair == coin2: # usdt 페어 있는 경우만
+            price = markets[pair]['last']
+            usd = price * amount
+            if usd > 10: # 10$ 이상만
+                nameBn.append(coin)
+                usdBn.append(usd)
+                amountBn.append(amount)
+                priceBn.append(price)
+
+dfBn = [nameBn, usdBn, amountBn, priceBn]
+dfBn = pd.DataFrame(dfBn)
+dfBn = dfBn.transpose()
+dfBn.columns = ['Name', 'Amount', 'Price', 'USD']
+pprint(dfBn)
+print('============')
+############################################################
+# spot usdt + futures usds
+spot_usdt = balanceSpot['USDT']
+
+balanceUsds = binance.fetch_balance(params={"type": "future"})
+future_usd = balanceUsds['total']['USDT'] + balanceUsds['total']['BUSD']
+
+total_usd = spot_usdt + future_usd
+dfBn.loc[len(dfBn)+1] = ['USD', total_usd, 1, total_usd]
+
+binance_usd = dfBn.sum(axis=0)['USD']
+
+print(dfBn)
+print("Total USD: {0:,.2f} USD".format(binance_usd))
+quit()
+
+
+# res = ex_binance.fetch_ticker('BTC/USDT')['close']
+# balance = binance.fetch_balance()
+# balance_binance = {}
+# for currency, data in balance['total'].items():
+#     if data > 0 and currency in balance:
+#         balance_binance[currency] = balance[currency]
+# pprint(binance)
+# pprint(balance_binance)
+# res = binance.fetch_ticker('BTC/USDT')
+# pprint(res)
+# res = binance.create_order(symbol='BTC/USD', type='limit', side='sell', amount=1,
+#                                              price=85000, params={})
+# response = exchange.sapi_post_futures_transfer({
+#             "asset": 'XRP',
+#             "amount": 100,
+#             "type": 3  # 3: Spot -> COIN-M Futures
+# 1	Spot → USDT-M Futures
+# 2	USDT-M Futures → Spot
+# 3	Spot → COIN-M Futures
+# 4	COIN-M Futures → Spot
+#         })
+# print(response)
+
+
 
 # 예제 데이터프레임 생성
 li_col = ['날짜', '요일', '금융기관업무일', '입출금가능일', '개장일', '지불일']
@@ -304,11 +456,20 @@ df = df[~df.index.duplicated(keep='last')]
 d = datetime.datetime.now().date()
 i = 1
 i -= 1
-ticker = '101w03'
-print(ticker[:3])
-print(datetime.datetime.today())
+def pad_list(lst):
+    """길이가 10보다 작으면 앞쪽을 0으로 채워 10으로 맞춤"""
+    return [0] * (10 - len(lst)) + lst if len(lst) < 10 else lst
+
+# 테스트 예제
+data1 = [1, 2, 3, 4]  # 길이 4 → 앞쪽에 6개 0 추가
+data2 = [5, 6, 7, 8, 9, 10, 11]  # 길이 7 → 앞쪽에 3개 0 추가
+data3 = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21]  # 길이 10 → 그대로 유지
+
+# 적용
+print(pad_list(data1))  # [0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
+print(pad_list(data2))  # [0, 0, 0, 5, 6, 7, 8, 9, 10, 11]
+print(pad_list(data3))  # [12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
 quit()
-# 테스트 날짜로 확인
 test_dates = [
     "2025-01-01",  # 3월 만기일이 가장 가까움
     "2025-03-15",  # 3월 만기일 이후, 6월 만기일이 가장 가까움
@@ -569,8 +730,7 @@ print(dict_buy)
 print(dict_sell)
 import ccxt
 # Bybit API 키와 비밀 키 설정
-api_key = "ZFEksBSBjIHk7drUou"
-api_secret = "MXWVVshe71hnKR4SZEoUH4XqYxLLeV3uFIAI"
+
 
 
 
