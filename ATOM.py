@@ -26,7 +26,7 @@ class MyApp(QWidget):
         self.backtest = tab_backtest.Window(self.chart_table)
         self.optimize = tab_optimize.Window()
         self.trade = tab_trade.Window()
-        self.set = tab_set.Window()
+        # self.set = tab_set.Window()
         self.initUI()
         self.setMinimumSize(600,400)
 
@@ -48,7 +48,7 @@ class MyApp(QWidget):
         self.tabs.addTab(self.optimize, '최적화')
         self.tabs.addTab(self.trade, '트레이딩')
         self.tabs.addTab(self.chart_table, '차트테이블')
-        self.tabs.addTab(self.set, '설정')
+        # self.tabs.addTab(self.set, '설정')
         vbox = QVBoxLayout()
         vbox.addWidget(self.tabs)
         self.setLayout(vbox)

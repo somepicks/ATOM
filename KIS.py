@@ -379,8 +379,11 @@ class KoreaInvestment:
 
         # account number
         self.acc_no = acc_no
+        print(f"{self.acc_no= }")
         self.acc_no_prefix = acc_no.split('-')[0]
+        print(f"{self.acc_no_prefix= }")
         self.acc_no_postfix = acc_no.split('-')[1]
+        print(f"{self.acc_no_postfix= }")
 
         if self.market == '해외선옵' or self.market == '해외주식':
             exchange = '해외'
@@ -439,7 +442,12 @@ class KoreaInvestment:
 
             resp = requests.post(url, headers=headers, data=json.dumps(data))
             resp_data = resp.json()
-            self.access_token = f'Bearer {resp_data["access_token"]}'
+            try:
+                self.access_token = f'Bearer {resp_data["access_token"]}'
+            except Exception as e:
+                print(f"API 오류 발생: {e}")
+                print(f"{resp_data= }")
+
 
             # add extra information for the token verification
             now = datetime.datetime.now()

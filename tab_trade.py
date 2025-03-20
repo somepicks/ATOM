@@ -1,7 +1,8 @@
 import datetime
 import pandas as pd
 from PyQt5.QtWidgets import QMainWindow, QGridLayout, QLineEdit, QLabel, QPushButton, QWidget, QVBoxLayout, \
-    QTableWidget, QSplitter, QApplication, QCheckBox, QTextEdit, QTableWidgetItem, QHeaderView, QComboBox, QAbstractItemView
+    QTableWidget, QSplitter, QApplication, QCheckBox, QTextEdit, QTableWidgetItem, QHeaderView, QComboBox, \
+    QAbstractItemView, QHBoxLayout, QTimeEdit
 from PyQt5.QtCore import Qt, QThread, pyqtSlot, QTimer, QRegExp
 from PyQt5.QtTest import QTest
 from PyQt5.QtGui import QFontMetrics, QFont, QColor, QSyntaxHighlighter, QTextCharFormat
@@ -66,6 +67,9 @@ class Window(QMainWindow):
         self.QT_tickers.cellClicked.connect(lambda: self.cellclick_ticker_table())
         self.QT_tickers.cellDoubleClicked.connect(lambda:self.cell_doubleclick_ticker_table())
         self.QT_tickers.setEditTriggers(QAbstractItemView.NoEditTriggers)  # 더블클릭 시 수정 금지
+        self.QPB_API_save.clicked.connect(self.save_setting)
+        if self.QCB_auto_start.isChecked() == True:
+            self.onStartButtonClicked()
     def set_UI(self):
         self.real_chart = chart_real.Graph(self)
 
@@ -117,6 +121,7 @@ class Window(QMainWindow):
         self.QCB_chart_duration = QComboBox()
         self.QCB_tele = QCheckBox('텔레그램')
         self.QPB_chart_stop = QPushButton('중지')
+
         dict_grid = {
             self.QCB_market: self.QCB_simul,
             self.QCB_stg1: self.QCB_stg5,
@@ -202,7 +207,6 @@ class Window(QMainWindow):
         QSH_main.addWidget(self.QT_tickers)
 
         # QSV_main_main = QSplitter(Qt.Vertical)
-
         # QSH_final = QSplitter(Qt.Horizontal)
         # QSH_final.addWidget(QSV_main)
         # QSH_final.addWidget(self.QT_tickers)
@@ -212,9 +216,41 @@ class Window(QMainWindow):
         # QSV_main.setStretchFactor(0,1)
 
         # QVB_main.addWidget(QSV_main)
+        self.QCB_auto_start = QCheckBox('자동시작')
+        self.QCB_auto_finish = QCheckBox('자동종료')
+        self.QL_finish = QLabel('종료시간')
+        self.QTE_finish = QTimeEdit()
+        self.QTE_finish.setDisplayFormat("HH:mm:ss")  # 24시간제 포맷
+        self.QL_API = QLabel('API:')
+        self.QLE_API = QLineEdit()
+        self.QL_secret = QLabel('SECRET:')
+        self.QLE_secret = QLineEdit()
+        self.QL_account = QLabel('계좌:')
+        self.QLE_account = QLineEdit()
+        self.QL_ID = QLabel('ID:')
+        self.QLE_ID = QLineEdit()
+        self.QPB_API_save = QPushButton('설정 저장')
+
+        QHB_set = QHBoxLayout()
+        QHB_set.addWidget(self.QCB_auto_start)
+        QHB_set.addWidget(self.QCB_auto_finish)
+        QHB_set.addWidget(self.QL_finish)
+        QHB_set.addWidget(self.QTE_finish)
+        QHB_set.addWidget(self.QL_API)
+        QHB_set.addWidget(self.QLE_API)
+        QHB_set.addWidget(self.QL_secret)
+        QHB_set.addWidget(self.QLE_secret)
+        QHB_set.addWidget(self.QL_account)
+        QHB_set.addWidget(self.QLE_account)
+        QHB_set.addWidget(self.QL_ID)
+        QHB_set.addWidget(self.QLE_ID)
+        QHB_set.addWidget(self.QPB_API_save)
+
+
         QVB_main = QVBoxLayout()
         QVB_main.addWidget(QSH_main)
         QVB_main.addWidget(QW_grid)
+        QVB_main.addLayout(QHB_set)
         QW_main.setLayout(QVB_main)
 
 
@@ -275,7 +311,17 @@ class Window(QMainWindow):
 
         self.df_manul = pd.DataFrame(index=['수동매매'],columns=li_col)
         # print(self.df_manul)
-
+        if not os.path.isfile('DB/setting.db'):  # stg_file.db 파일이 없으면
+            self.conn_set = sqlite3.connect('DB/setting.db')
+            self.df_set = pd.DataFrame()
+            self.df_set.loc['자동시작','check'] = False
+            self.df_set.loc['자동시작마켓','check'] = False
+            self.df_set.loc['자동종료','check'] = False
+            self.df_set.loc['자동종료시간','value'] = self.QTE_finish.text()
+            self.df_set.to_sql('set', self.conn_set, if_exists='replace')
+        else:
+            self.conn_set = sqlite3.connect('DB/setting.db')
+            self.df_set = pd.read_sql(f"SELECT * FROM 'set'", self.conn_set).set_index('index')
     def display_futopt(self):
         conn = sqlite3.connect('DB/DB_futopt.db')
         df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn).set_index('날짜')
@@ -335,7 +381,7 @@ class Window(QMainWindow):
             self.QTE_stg_buy.clear()
             self.QTE_stg_sell.clear()
             stg_file = 'DB/stg_bybit.db'
-            self.ex_bybit,self.ex_pybit  = common_def.make_exchange_bybit(False)  # do_trade에서 exchange를 넘겨주는 방법은 안될까
+            self.ex_bybit,self.ex_pybit  = common_def.make_exchange_bybit()  # do_trade에서 exchange를 넘겨주는 방법은 안될까
             fetch_tickers = self.ex_bybit.fetch_tickers()
             df_tickers = self.bybit_set_tickers(fetch_tickers)
             df_tickers = df_tickers[df_tickers.index.str[-10:]=='/USDT:USDT']
@@ -756,7 +802,30 @@ class Window(QMainWindow):
                 except Exception as e:
                     print(f"Error with column '{column}  {type(column)}': {e}")
         self.reset_stg_table()
-
+    def save_setting(self):
+        self.df_set.loc['자동시작','check'] = self.QCB_auto_start.isChecked()
+        self.df_set.loc['자동시작마켓','value'] = self.QCB_market.text()
+        self.df_set.loc['자동종료','check'] = self.QCB_auto_finish.isChecked()
+        self.df_set.loc['자동종료시간','value'] = self.QTE_finish.text()
+        if not self.QLE_API.text() == '':
+            if (self.QCB_market.text() == '국내주식' or self.QCB_market.text() == '국내선옵') and self.QCB_simul.isChecked() == True:
+                self.df_set.loc[f'{self.QCB_market.text()}_모의_API','value'] = self.QLE_API.text()
+            else:
+                self.df_set.loc[f'{self.QCB_market.text()}_API','value'] = self.QLE_API.text()
+        if not self.QLE_secret.text() == '':
+            if (self.QCB_market.text() == '국내주식' or self.QCB_market.text() == '국내선옵') and self.QCB_simul.isChecked() == True:
+                self.df_set.loc[f'{self.QCB_market.text()}_모의_SECRET','value'] = self.QLE_secret.text()
+            else:
+                self.df_set.loc[f'{self.QCB_market.text()}_SECRET','value'] = self.QLE_secret.text()
+        if not self.QLE_account.text() == '':
+            if (self.QCB_market.text() == '국내주식' or self.QCB_market.text() == '국내선옵') and self.QCB_simul.isChecked() == True:
+                self.df_set.loc[f'{self.QCB_market.text()}_모의_ACCOUNT', 'value'] = self.QLE_account.text()
+            else:
+                self.df_set.loc[f'{self.QCB_market.text()}_ACCOUNT', 'value'] = self.QLE_account.text()
+        if not self.QLE_ID.text() == '':
+            if (self.QCB_market.text() == '국내주식' or self.QCB_market.text() == '국내선옵'):
+                self.df_set.loc[f'{self.QCB_market.text()}_ID','value'] = self.QLE_ID.text()
+        self.df_set.to_sql('set', self.conn_set, if_exists='replace')
     def del_stg(self):
         if self.QCB_stgs.currentText() != '':
             self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')

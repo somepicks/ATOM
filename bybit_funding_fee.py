@@ -761,7 +761,7 @@ class Window(QMainWindow):
     #     subprocess.Popen('python timesync.py')
 
     def init_file(self):
-        db_file = 'Funding_Strategy.db'
+        db_file = 'DB/Funding_Strategy.db'
         if not os.path.isfile(db_file):
             self.conn = sqlite3.connect(db_file)
             li = ['market','ticker', '구분', '주문가', '주문수량', '주문금액(USD)', '수수료', '수익률',
@@ -1251,27 +1251,37 @@ class Window(QMainWindow):
     def make_exchange_bybit_ccxt(self):
         api = self.df_set.loc['api_bybit','key']
         secret = self.df_set.loc['secret_bybit','key']
-        bybit = ccxt.bybit(config={
-            'apiKey': api,
-            'secret': secret,
-            'enableRateLimit': True,
-            'options': {'position_mode': True, },
-        })
-        print(bybit)
-        bybit.load_markets()
+        print(api)
+        print(secret)
+        if api == None or secret == None or np.isnan(api) or np.isnan(secret):
+            print('bybit API 확인 필요')
+            bybit = None
+        else:
+            bybit = ccxt.bybit(config={
+                'apiKey': api,
+                'secret': secret,
+                'enableRateLimit': True,
+                'options': {'position_mode': True, },
+            })
+            print(bybit)
+            bybit.load_markets()
         return bybit
 
     def make_exchange_binance(self):
         api = self.df_set.loc['api_binance', 'key']
         secret = self.df_set.loc['secret_binance', 'key']
-        binance = ccxt.binance(config={
-            'apiKey': api,
-            'secret': secret,
-            'enableRateLimit': True,
-            'options': {'position_mode': True, },
-        })
-        print(binance)
-        binance.load_markets()
+        if api == None or secret == None or np.isnan(api) or np.isnan(secret):
+            print('binance API 확인 필요')
+            binance = None
+        else:
+            binance = ccxt.binance(config={
+                'apiKey': api,
+                'secret': secret,
+                'enableRateLimit': True,
+                'options': {'position_mode': True, },
+            })
+            print(binance)
+            binance.load_markets()
         return binance
 
 

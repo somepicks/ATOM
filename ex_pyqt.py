@@ -4,6 +4,42 @@ import sys
 import time
 
 
+
+
+
+import sys
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTimeEdit
+from PyQt5.QtCore import QTime
+
+class TimeEditDemo(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.initUI()
+
+    def initUI(self):
+        layout = QVBoxLayout()
+
+        self.timeEdit = QTimeEdit(self)
+        self.timeEdit.setTime(QTime.currentTime())  # 현재 시간으로 설정
+        self.timeEdit.setDisplayFormat("HH:mm:ss")  # 24시간제 포맷
+        self.timeEdit.setMinimumTime(QTime(9, 0, 0))  # 최소 시간 설정 (오전 9시)
+        self.timeEdit.setMaximumTime(QTime(18, 0, 0))  # 최대 시간 설정 (오후 6시)
+
+        layout.addWidget(self.timeEdit)
+        self.setLayout(layout)
+
+        self.setWindowTitle("QTimeEdit Example")
+        print(self.timeEdit.text())
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    demo = TimeEditDemo()
+    demo.show()
+    sys.exit(app.exec_())
+
+
+
+
 class DoTrade(QThread):
     # 스레드에서 메인 윈도우로 신호를 보내기 위한 시그널 정의
     # 예: 거래 상태 업데이트를 위한 시그널

@@ -339,20 +339,23 @@ def make_exchange_bybit():
     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
     conn.close()
 
-    api = df.loc['BYBIT_api','value']
-    secret = df.loc['BYBIT_secret','value']
-    exchange_ccxt = ccxt.bybit(config={
-        'apiKey': api,
-        'secret': secret,
-        'enableRateLimit': True,
-        'options': {'position_mode': True,},
-        })
-    exchange_pybit = HTTP(
-            testnet = False,
-            api_key = api,
-            api_secret = secret,
-        )
-
+    if '코인_API' in df.index.tolist() and  '코인_SECRET' in df.index.tolist() :
+        api = df.loc['코인_API','value']
+        secret = df.loc['코인_SECRET','value']
+        exchange_ccxt = ccxt.bybit(config={
+            'apiKey': api,
+            'secret': secret,
+            'enableRateLimit': True,
+            'options': {'position_mode': True,},
+            })
+        exchange_pybit = HTTP(
+                testnet = False,
+                api_key = api,
+                api_secret = secret,
+            )
+    else:
+        exchange_ccxt = None
+        exchange_pybit = None
     return exchange_ccxt, exchange_pybit
 
 def save_futopt_DB(check_simul,ex_kis,ticker,list_table,conn_DB):
@@ -462,38 +465,59 @@ def make_exchange_kis(trade_type):
     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
     conn.close()
     if trade_type == '실전주식':
-        key = df.loc['KIS_stock_api','value']
-        secret = df.loc['KIS_stock_secret','value']
-        acc_no = df.loc['KIS_stock_account','value']
-        mock = False
+        try:
+            key = df.loc['국내주식_API','value']
+            secret = df.loc['국내주식_SECRET','value']
+            acc_no = df.loc['국내주식_ACCOUNT','value']
+            mock = False
+        except:
+            return None
         # broker = mojito.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no)
     elif trade_type == '모의주식':
-        key = df.loc['KIS_stock_mock_api','value']
-        secret = df.loc['KIS_stock_mock_secret','value']
-        acc_no = df.loc['KIS_stock_mock_account','value']
-        mock = True
+        try:
+            key = df.loc['국내주식_모의_API','value']
+            secret = df.loc['국내주식_모의_SECRET','value']
+            acc_no = df.loc['국내주식_모의_ACCOUNT','value']
+            mock = True
+        except:
+            return None
     elif trade_type == '실전선옵':
-        key = df.loc['KIS_futopt_api','value']
-        secret = df.loc['KIS_futopt_secret','value']
-        acc_no = df.loc['KIS_futopt_account','value']
-        mock = False
+        try:
+            key = df.loc['국내선옵_API','value']
+            secret = df.loc['국내선옵_SECRET','value']
+            acc_no = df.loc['국내선옵_ACCOUNT','value']
+            mock = False
+        except:
+            return None
     elif trade_type == '모의선옵':
-        key = df.loc['KIS_futopt_mock_api','value']
-        secret = df.loc['KIS_futopt_mock_secret','value']
-        acc_no = df.loc['KIS_futopt_mock_account','value']
-        mock = True
-    elif trade_type == '실전해외선옵':
-        key = df.loc['KIS_futopt_oversea_api','value']
-        secret = df.loc['KIS_futopt_oversea_secret','value']
-        acc_no = df.loc['KIS_futopt_oversea_account','value']
-        mock = False
-    elif trade_type == '모의해외선옵':
-        key = df.loc['KIS_futopt_oversea_mock_api','value']
-        secret = df.loc['KIS_futopt_oversea_mock_secret','value']
-        acc_no = df.loc['KIS_futopt_oversea_mock_account','value']
-        mock = True
+        try:
+            key = df.loc['국내선옵_모의_API','value']
+            secret = df.loc['국내선옵_모의_SECRET','value']
+            acc_no = df.loc['국내선옵_모의_ACCOUNT','value']
+            mock = True
+        except:
+            return None
+    elif trade_type == '해외선옵':
+        try:
+            key = df.loc['해외선옵_API','value']
+            secret = df.loc['해외선옵_SECRET','value']
+            acc_no = df.loc['해외선옵_ACCOUNT','value']
+            mock = False
+        except:
+            return None
+    elif trade_type == '모의해외선옵': # 지원안함
+        try:
+            key = df.loc['KIS_futopt_oversea_mock_api','value']
+            secret = df.loc['KIS_futopt_oversea_mock_secret','value']
+            acc_no = df.loc['KIS_futopt_oversea_mock_account','value']
+            mock = True
+        except:
+            return None
 
     market = trade_type[2:]
+    print(key)
+    print(secret)
+    print(acc_no)
     exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
     return exchange
 def export_sql(df,text):
