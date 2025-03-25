@@ -297,11 +297,18 @@ bybit = ccxt.bybit(config={
 # res = bybit.fetch_closed_orders(symbol='BTCUSD',params={})
 
 ticker = "XRP/USDT"
-res = binance.fetch_balance(params={"type": 'delivery'})
+# print("============================")
+res = bybit.fetch_balance()
 pprint(res)
-print("============================")
-res = binance.fetch_balance(params={})
-pprint(res)
+print('asdf')
+df_set = pd.DataFrame(index=['auto_start', 'rate_short', 'rate_spot', 'funding_time', 'api_bybit', 'secret_bybit',
+                                  'api_binance', 'secret_binance'],
+                           columns=['check', 'val', 'key'])
+df_set.loc['auto_start', 'check'] = False
+a = df_set.loc['api_bybit','key']
+if a== None:
+    print(1)
+quit()
 # print('=======')
 # res = binance.fapiprivate_post_leverage({"symbol":ticker,"leverage":3})
 # pprint(res)
