@@ -13,23 +13,26 @@ import ccxt
 import os
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-
+from pprint import pprint
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
 pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
-pd.options.display.float_format = '{:.5f}'.format
+# pd.options.display.float_format = '{:.6f}'.format
 
 class do_trade(QThread):
     qt_have = pyqtSignal(pd.DataFrame)
+    qt_inverse = pyqtSignal(pd.DataFrame)
     qt_open = pyqtSignal(pd.DataFrame)
     qt_closed = pyqtSignal(pd.DataFrame)
-    qt_history = pyqtSignal(pd.DataFrame)
+    qt_future = pyqtSignal(pd.DataFrame)
+    qt_set = pyqtSignal(pd.DataFrame)
     val_light = pyqtSignal(bool)
     val_wallet = pyqtSignal(str)
     val_time = pyqtSignal(str)
-    def __init__(self,parent,session,ex_bybit,ex_binance,df_open,df_closed,df_history,list_bybit_inverse,df_set):
+    def __init__(self,parent,session,ex_bybit,ex_binance,df_open,df_closed,list_bybit_inverse,
+                 df_inverse,df_set):
         super().__init__(parent)
         self.cond = QWaitCondition()
         self.bool_light = False
@@ -40,7 +43,9 @@ class do_trade(QThread):
         self.wallet = '0'
         self.df_open = df_open
         self.df_closed = df_closed
-        self.df_history = df_history
+        self.df_inverse_past = df_inverse
+        self.list_compare_col = df_inverse.columns.to_list()
+
         self.df_set = df_set
         self.list_bybit_inverse = list_bybit_inverse
         # self.rate_short = float(rate_short)
@@ -50,83 +55,34 @@ class do_trade(QThread):
 
     def run(self):
         while self._status:
-            # t = self.funding_time - int(time.time())
-            # self.text_time = (self.count_down(t))
-            self.fetch_have_ticker()
-            print(self.df_inverse)
-            print(self.df_inverse.dtypes)
-            raise
+            self.fetch_inverse()
+            self.fetch_future()
+            # print(self.df_inverse.dtypes)
+            funding_time = pd.to_datetime(self.df_set.loc['funding_time','val'])
+            current_t = datetime.datetime.now().replace(microsecond=0)
+            self.text_time = funding_time-current_t
+            # days를 제외한 시간, 분, 초만 계산
+            hours, remainder = divmod(self.text_time.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            self.text_time = f"{hours:02}:{minutes:02}:{seconds:02}"
             if not self.df_open.empty:
                 for id in self.df_open.index.tolist():
                     if self.df_open.loc[id, '상태'] == '매수주문' or self.df_open.loc[id, '상태'] == '부분체결':
                         self.chegyeol_buy(id)
-            for idx in self.df_inverse.index.tolist():
-                self.buy_auto(idx)
-                pass
-        #     if t > 0:
-        #         for id in self.df_open.index.tolist():
-        #             ticker = self.df_open.loc[id,'ticker']
-        #             category = self.df_open.loc[id,'구분']
-        #             if not self.df_open.empty:
-        #                 if self.df_open.loc[id, '상태'] == '매수주문' or self.df_open.loc[id, '상태'] == '부분체결':
-        #                     self.chegyeol_buy(ticker, id, category)
-        #             # QTest.qWait(500)
-        #         list_tickers = self.df_inverse['ticker'].tolist()
-        #         list_tickers = [x for x in list_tickers if x!='USDT']
-        #         for ticker in list_tickers:
-        #             self.buy_manual(ticker)
-        #
-        #
-        #     elif t < 0:
-        #         self.time_sync()
-        #         self.get_funding_time()
-        #         for id in self.df_open.index.tolist():
-        #
-        #             category = self.df_open.loc[id, '구분']
-        #             id = self.df_open.loc[id, 'id']
-        #             ticker = self.df_open.loc[id, 'ticker']
-        #
-        #
-        #             if category == 'inverse':
-        #                 symbol = ticker + 'USD'
-        #                 # side = 'Sell'
-        #             elif category == 'spot':
-        #                 symbol = ticker + 'USDT'
-        #                 # side = 'Buy'
-        #
-        #             self.session.cancel_order(category=category, symbol=symbol, orderId=id)
-        #             print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | 기존주문 취소 {ticker}: {category}")
-        #
-        #             if category == 'spot': # inverse일 경우는 알아서 주문이 나가기 때문에
-        #                 배팅금액 = self.df_open.loc[id, '매수금액']
-        #                 현재가 = float(self.fetch_ticker(Account=category, ticker=symbol)['lastPrice'])
-        #                 rate_spot = self.df_open.loc[id, 'spot비율']
-        #                 주문가 = 현재가 + (현재가 * rate_spot / 100)
-        #                 주문가 = self.price_to_precision(category=category, ticker=symbol, price=주문가)
-        #
-        #                 fee = 0.1
-        #                 레버리지 = 1
-        #                 주문수량 = (100 - (fee * 레버리지)) / 100 * 배팅금액 / 주문가
-        #                 주문수량 = self.amount_to_precision(category, symbol, 주문수량)
-        #
-        #                 res = self.order_open(category=category, ticker=symbol, side='Buy', orderType="Limit", price=주문가,qty=주문수량)
-        #                 id = res['result']['orderId']
-        #                 self.df_open.loc[id, 'ticker'] = ticker
-        #                 self.df_open.loc[id, '주문시간'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-        #                 self.df_open.loc[id, '주문수량'] = 주문수량
-        #                 self.df_open.loc[id, 'id'] = id
-        #                 self.df_open.loc[id, '매수금액'] = 주문가 * 주문수량
-        #                 self.df_open.loc[id, '주문가'] = 주문가
-        #                 self.df_open.loc[id, '상태'] = '매수주문'
-        #                 self.df_open.loc[id, '구분'] = category
-        #                 self.df_open.loc[id, 'short비율'] = self.rate_short
-        #                 print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동재매수 {ticker}: {주문수량=}, {주문가=}, {주문수량 * 주문가}')
-        #             QTest.qWait(500)
-        #
-        #         self.df_history.loc[time.time(),'보유자산합계'] = self.df_inverse['보유코인합계(USD)'].sum()
-        #         self.df_history.loc[time.time(),'배팅가능합계'] = self.df_inverse['배팅가능합계(USD)'].sum()
-        #         self.qt_history.emit(self.df_history)
-        #
+            if not self.df_inverse_past.equals(self.df_inverse_fetch):
+                for idx in self.df_inverse.index.tolist():
+                    self.buy_auto(idx)
+                self.qt_inverse.emit(self.df_inverse_fetch)
+            # for idx in self.df_inverse.index.tolist():
+                # if funding_time > current_t:
+                #     if self.df_set.loc['funding_time','check'] == False:
+                #         self.buy_auto(idx)
+                #         self.df_set.loc['funding_time', 'check'] = True
+                #         self.qt_set.emit(self.df_set)
+                # else:
+                #     self.df_set.loc['funding_time', 'val'] = self.get_funding_time(datetime.datetime.now().replace(microsecond=0))
+                #     self.df_set.loc['funding_time', 'check'] = False
+                #     self.qt_set.emit(self.df_set)
             self.active_light()
             QTest.qWait(1000)
         self._status = False
@@ -134,10 +90,10 @@ class do_trade(QThread):
     def buy_auto(self,idx):
         market = self.df_inverse.loc[idx,'market']
         주문최소금액 = self.df_inverse.loc[idx,'주문최소금액(USD)']
-        현재가 = self.df_inverse.loc[idx,'현재가(inverse)']
+        현재가 = self.df_inverse.loc[idx,'현재가']
         보유코인합계 = self.df_inverse.loc[idx,'보유코인합계(USD)']
         배팅코인합계 = self.df_inverse.loc[idx,'배팅가능합계(USD)']
-        배팅가능 = self.df_inverse.loc[idx,'배팅가능']
+        배팅가능 = self.df_inverse.loc[idx,'free(qty)']
         ticker = self.df_inverse.loc[idx,'ticker']
         # print(market)
         if self.df_set.loc['rate_short','val'] == None:
@@ -146,12 +102,11 @@ class do_trade(QThread):
             rate_short = float(self.df_set.loc['rate_short','val'])
         안전마진 = 5 # 잔고가 펀딩비로 받는 금액의 5배 이상 있을 경우에만 진행
         funding_rate = 0.01/100
-        # 배팅가능수량 = self.df_inverse.loc[idx,'배팅가능'] #contract 여유 잔고수량 불러오기
-        # 진입수량 = self.df_inverse.loc[idx,'진입수량'] #contract 진입수량 불러오기
+        # 배팅가능수량 = self.df_inverse.loc[idx,'free(qty)'] #contract 여유 잔고수량 불러오기
+        # 진입수량 = self.df_inverse.loc[idx,'used(qty)'] #contract 진입수량 불러오기
         price = 현재가 + (현재가 * (rate_short) / 100)
         여유돈 = 보유코인합계*funding_rate*안전마진
         배팅가능금액 = 배팅코인합계 - 여유돈
-#         print(self.df_inverse)
 #         print(f"{market= }   {배팅가능금액= }  {배팅코인합계= }   {여유돈= }   {보유코인합계= }   {funding_rate= }")
         if market == 'bybit':
             진입수량 = math.trunc(배팅가능금액) #소수점 절사
@@ -182,7 +137,7 @@ class do_trade(QThread):
             df_open.loc[id, 'id'] = id
             df_open.loc[id, '매수금액'] = 주문금액
             df_open.loc[id, '상태'] = '매수주문'
-            df_open.loc[id, '구분'] = 'inverse'
+            df_open.loc[id, 'category'] = 'inverse'
             df_open.loc[id, '주문가'] = 주문가
             print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
             self.df_open = pd.concat([self.df_open, df_open], axis=0).astype(self.df_open.dtypes)
@@ -194,14 +149,14 @@ class do_trade(QThread):
         category = 'spot'
         현재가 = self.common_def.fetch_ticker(market=market,ticker=ticker + '/USDT')['close']
         주문가 = 현재가 + (현재가 * rate_spot / 100)
-        주문가 = self.common_def.price_to_precision(market=market,category=category, ticker=ticker + '/USDT', price=주문가)
+        주문가 = self.common_def.price_to_precision(market=market,category=category, ticker=ticker, price=주문가)
         fee = 0.1
         레버리지 = 1
         진입수량 = (100 - (fee * 레버리지)) / 100 * 배팅금액 / 주문가
-        진입수량 = self.common_def.amount_to_precision(market=market, symbol=ticker + '/USDT', amount=진입수량)
+        진입수량 = self.common_def.amount_to_precision(market=market, category=category,ticker=ticker, amount=진입수량)
         df = self.df_inverse.loc[self.df_inverse['market']==market]
         # print(df)
-        보유현금 = df['USDT(잔고)'].tolist()[0]
+        보유현금 = df['free(USDT)'].tolist()[0]
         필요분 = (진입수량*주문가)+(진입수량*주문가)*0.001 #수수료 포함
         if 보유현금 < 필요분:
             print(f"USDT 부족 - 보유한 USDT: {보유현금}, 필요한 USDT {필요분}")
@@ -215,9 +170,9 @@ class do_trade(QThread):
         df_open.loc[id, '주문수량'] = 진입수량
         df_open.loc[id, 'spot비율'] = rate_spot
         df_open.loc[id, 'id'] = id
-        df_open.loc[id, '매수금액'] = 주문가 * 진입수량
+        df_open.loc[id, '매수금액'] = 배팅금액
         df_open.loc[id, '상태'] = '매수주문'
-        df_open.loc[id, '구분'] = 'spot'
+        df_open.loc[id, 'category'] = 'spot'
         df_open.loc[id, '주문가'] = 주문가
         # df_open.loc[id, 'spot비율'] = rate_spot
 
@@ -236,7 +191,7 @@ class do_trade(QThread):
         self.df_set = df_set
     def chegyeol_buy(self, id):
         ticker = self.df_open.loc[id, 'ticker']
-        category = self.df_open.loc[id, '구분']
+        category = self.df_open.loc[id, 'category']
         market = self.df_open.loc[id, 'market']
 
         주문시간 = self.df_open.loc[id,'주문시간']
@@ -266,9 +221,13 @@ class do_trade(QThread):
             self.df_open.drop(index=id, inplace=True)
 
         elif 주문시간 + datetime.timedelta(hours=8) < datetime.datetime.now(): #주문시간에서 8시간 동안 체결안되면 취소
-            print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 주문취소')
+            print(f'주문취소 - {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | {ticker= }  {category= } {qty= }')
             self.common_def.order_cancel(market,category,ticker,id)
             self.df_open.drop(index=id,inplace=True)
+            if category == 'spot':
+                rate_spot = float(self.df_set.loc['rate_spot','val'])
+                배팅금액 = self.df_open.loc[id, '매수금액']
+                self.buy_manual(market=market,ticker=ticker,배팅금액=배팅금액,rate_spot=rate_spot)
 
         elif dict_chegyeol['체결'] == '부분체결':
             self.df_open.loc[id,'상태'] = '부분체결'
@@ -278,17 +237,14 @@ class do_trade(QThread):
         self.val_light.emit(self.bool_light)
         self.bool_light = not self.bool_light
         self.val_wallet.emit(self.wallet)
-        self.val_time.emit(self.text_time)
+        self.val_time.emit(str(self.text_time))
         self.qt_have.emit(self.df_inverse)
         self.qt_open.emit(self.df_open)
         self.qt_closed.emit(self.df_closed)
+        self.qt_future.emit(self.df_future)
 
 
-    # def fetch_ticker(self, Account, ticker):
-    #     return self.session.get_tickers(
-    #         category=Account,
-    #         symbol=ticker,
-    #     )['result']['list'][0]
+
     def toggle_status(self):
         self._status = not self._status
         if self._status:
@@ -297,51 +253,87 @@ class do_trade(QThread):
         elif not self._status:
             self.bool_light = False
             self.val_light.emit(self.bool_light)
-    def fetch_have_ticker(self):
-        # li_col = ['market','ticker','진입수량', '배팅가능', '수량합계', '현재가(inverse)', '현재가(linear)',
+    def fetch_inverse(self):
+        # li_col = ['market','ticker','used(qty)', 'free(qty)', 'total(qty)', '현재가', '현재가(linear)',
         #           '보유코인합계(USD)', '배팅가능합계(USD)','주문최소금액(USD)']
         # self.df_inverse = pd.DataFrame(columns=li_col)
         self.df_inverse = pd.DataFrame()
+        self.df_inverse_fetch = pd.DataFrame()
         # try:
         # 잔고 조회
-
-        # balance_bybit = self.ex_bybit.fetch_balance().copy()
-        # balance = self.ex_binance.fetch_balance()
-
-        # have_usdt = float(self.fetch_balance(accountType='UNIFIED', ticker='USDT', balance='잔고'))
-        # all_usdt = float(self.fetch_balance(accountType='UNIFIED', ticker='USDT', balance='보유'))
-
-
         for market in ['bybit','binance']:
             if market == 'bybit' and self.ex_bybit == None:
-                return
+                continue #None일 경우 건너뛰기
             if market == 'binance' and self.ex_binance == None:
-                return
+                continue
             balance, usdt_free, usdt_total = self.fetch_balance(market)
             # have_usdt = float(self.fetch_balance(accountType='UNIFIED', ticker='USDT', balance='잔고'))
             # all_usdt = float(self.fetch_balance(accountType='UNIFIED', ticker='USDT', balance='보유'))
             for ticker in balance:
                 if not ticker == 'USDT':
-                    self.df_inverse.loc[f"{market}_{ticker}", '배팅가능'] = balance[ticker]['free']
-                    self.df_inverse.loc[f"{market}_{ticker}", '진입수량'] = balance[ticker]['used']
-                    self.df_inverse.loc[f"{market}_{ticker}", '수량합계'] = balance[ticker]['total']
-                    self.df_inverse.loc[f"{market}_{ticker}", '주문최소금액(USD)'] = balance[ticker]['주문최소금액']
+                    # self.df_inverse.loc[f"{market}_{ticker}", 'category'] = balance[ticker]['category']
+                    self.df_inverse.loc[f"{market}_{ticker}", 'free(qty)'] = balance[ticker]['free']
+                    # self.df_inverse.loc[f"{market}_{ticker}", 'free(qty)'] = 0.0002
+                    self.df_inverse.loc[f"{market}_{ticker}", 'used(qty)'] = balance[ticker]['used']
+                    self.df_inverse.loc[f"{market}_{ticker}", 'total(qty)'] = balance[ticker]['total']
+                    self.df_inverse.loc[f"{market}_{ticker}", '주문최소금액(USD)'] = round(balance[ticker]['주문최소금액'])
                     self.df_inverse.loc[f"{market}_{ticker}", 'ticker'] = ticker
                     self.df_inverse.loc[f"{market}_{ticker}", 'market'] = market
-                    self.df_inverse.loc[f"{market}_{ticker}", '현재가(inverse)'] = balance[ticker]['현재가(inverse)']
-                    self.df_inverse.loc[f"{market}_{ticker}", '현재가(linear)'] = balance[ticker]['현재가(linear)']
-                    self.df_inverse.loc[f"{market}_{ticker}", 'USDT(잔고)'] = usdt_free
-                    self.df_inverse.loc[f"{market}_{ticker}", 'USDT(총보유)'] = usdt_total
-                # print(self.df_inverse)
-        self.wallet = str(round(self.df_inverse['USDT(잔고)'].sum()))
-        self.df_inverse['배팅가능합계(USD)'] = self.df_inverse['배팅가능'] * self.df_inverse['현재가(inverse)']
-        self.df_inverse['보유코인합계(USD)'] = (self.df_inverse['진입수량'] * self.df_inverse['현재가(inverse)'])+self.df_inverse['배팅가능합계(USD)']
-        self.df_inverse['보유코인합계(USD)'] = self.df_inverse['보유코인합계(USD)'].round(2)
-        self.df_inverse['배팅가능합계(USD)'] = self.df_inverse['배팅가능합계(USD)'].round(2)
-        self.df_inverse = self.df_inverse[self.df_inverse['주문최소금액(USD)']<self.df_inverse['보유코인합계(USD)']]
-    def fetch_order(self,market,ticker, id, category):
+                    self.df_inverse.loc[f"{market}_{ticker}", '현재가'] = balance[ticker]['현재가']
+                    # self.df_inverse.loc[f"{market}_{ticker}", '현재가(linear)'] = balance[ticker]['현재가(linear)']
+                    self.df_inverse.loc[f"{market}_{ticker}", 'free(USDT)'] = usdt_free
+                    self.df_inverse.loc[f"{market}_{ticker}", 'total(USDT)'] = usdt_total
+                    self.df_inverse.loc[f"{market}_{ticker}", '배팅가능합계(USD)'] = round(balance[ticker]['free']*balance[ticker]['현재가'],1)
+                    self.df_inverse.loc[f"{market}_{ticker}", '보유코인합계(USD)'] = round(balance[ticker]['total']*balance[ticker]['현재가'],1)
+        if not self.df_inverse.empty:
+            self.wallet = str(round(self.df_inverse['free(USDT)'].sum()))
+            self.df_inverse = self.df_inverse[self.df_inverse['주문최소금액(USD)']<self.df_inverse['보유코인합계(USD)']]
+            self.df_inverse_fetch = self.df_inverse[self.list_compare_col]
+    def fetch_future(self):
+        self.df_future = pd.DataFrame()
+        common_col = ['unrealizedPnl', 'contracts','liquidationPrice', 'side', 'markPrice', 'entryPrice','매수금액','market','symbol']
+        for market in ['bybit','binance']:
+            if market == 'bybit':
+                if not self.ex_bybit == None:
+                    res = self.ex_bybit.fetch_positions()
+                    for data in res:
+                        data['매수금액'] = data['collateral']
+                        # del data['info']
+                    df = pd.DataFrame(res)
+                    df.index = 'bybit_' + df['symbol'].copy()
+                    df['market'] = 'bybit'
+                    # df['수익률'] = df['손익'] / df['매수금액'] * 100
+                    # df = df[['symbol', '현재가', '레버리지', '방향', '수익률', '손익', '보유수량', '매수금액', '진입가', '청산가', 'marginMode']]
+                    df = df[common_col]
+
+                    self.df_future = pd.concat([self.df_future,df],axis=0)
+                    # print(self.df_future)
+            if market == 'binance':
+                if not self.ex_binance == None:
+                    res = self.ex_binance.fetch_positions()
+                    for data in res:
+                        data['매수금액'] = float(data['info']['isolatedWallet'])
+                        # del data['info']
+                    df = pd.DataFrame(res)
+                    df.index = 'binance_' + df['symbol'].copy()
+                    df['market'] = 'binance'
+                    df = df[common_col]
+                    # df.rename(columns={'unrealizedPnl': '손익', 'leverage': '레버리지', 'contracts': '보유수량',
+                    #                    'liquidationPrice': '청산가',
+                    #                    'side': '방향', 'markPrice': '현재가', 'entryPrice': '진입가'}, inplace=True)
+                    self.df_future = pd.concat([self.df_future,df],axis=0, ignore_index=True)
+        if not self.df_future.empty:
+            self.df_future['symbol'] = self.df_future['symbol'].str.split('/').str[0] #/기준 왼쪽만 남겨서 BTC만 추출
+            self.df_future.rename(columns={'unrealizedPnl': '손익', 'contracts': '보유수량',
+                               'liquidationPrice': '청산가','symbol': 'ticker',
+                               'side': '방향', 'markPrice': '현재가', 'entryPrice': '진입가'},
+                                inplace=True)
+            # print(self.df_future)
+            self.df_future['수익률'] = self.df_future['손익'] / self.df_future['매수금액'] * 100
+
+    def fetch_order(self, market, ticker, id, category):
         # print(f"{market= }    {id=}    {ticker= }   {category= }")
-        주문수량 = self.df_open.loc[id,'주문수량']
+        주문수량 = self.df_open.loc[id, '주문수량']
         ord_open = self.fetch_open_orders(market, ticker, category, id)
         if ord_open == None:  # 체결일 경우
             ord_closed = self.fetch_closed_orders(market, id, ticker, category)  # open 주문과 close 주문 2중으로 확인
@@ -358,58 +350,14 @@ class do_trade(QThread):
                 총체결금액 = float(ord_closed['cost'])
                 체결시간 = self.common_def.stamp_to_str(ord_closed['timestamp'])
                 if 주문수량 >= 체결수량:
-                    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | {ticker} - 체결완료")
+                    print(f"체결완료 - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | {ticker= }  {category= } {체결수량=} ")
                 return {'체결': True, '체결가': 진입가, '체결수량':체결수량, '수수료':진입수수료,'체결시간':체결시간}
 
         else:
             return {'체결': False}
 
 
-            # if category == 'spot':
-            #     ticker = ticker+'USDT'
-            # elif category == 'inverse':
-            #     ticker = ticker+'USD'
-            #
-            # res = self.session.get_open_orders(
-            #     category=category,
-            #     symbol=ticker,
-            #     openOnly=0,
-            #     limit=10,
-            # )['result']['list']
-            # if res == []:
-            #     execution = True
-            # else:
-            #     for order in res:
-            #         if not order['orderId'] == id:
-            #             execution = True
-            #         else:
-            #             return {'체결': False}
-            # if execution == True:
-            #     res = self.session.get_order_history(
-            #         category=category,  # spot, linear, inverse, option
-            #         limit=10
-            #     )['result']['list']
-            #     # pprint(res)
-            #     for order in res:
-            #         if order['orderId'] == id:
-            #             if order['orderStatus'] == 'Filled':
-            #                 print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | {ticker} - 체결완료")
-            #
-            #                 return {'체결': True, '체결가': float(order['avgPrice']), '체결수량': float(order['cumExecQty']),
-            #                         '수수료': float(order['cumExecFee']), '체결시간': int(int(order['updatedTime'])/1000)}
-            #             elif order['orderStatus'] == 'Cancelled':
-            #                 return {'체결':'주문취소'}
-            #             elif order['orderStatus'] == 'PartiallyFilledCanceled':
-            #                 return {'체결':'부분체결'}
-            #             else:
-            #                 print('알 수 없음')
-            #                 return {'체결':'주문취소'}
-
-        # else:
-        #     print('asdf')
-        # return {'체결': False}
     def fetch_open_orders(self,market,ticker,category,id):  # 미체결주문 조회
-
         # try:
         if market == 'bybit':
             if category == 'spot':
@@ -484,42 +432,7 @@ class do_trade(QThread):
         #     order={'id':None,'info':{'orderStatus':None}}
         #     # order = []
         #     return order
-    # def order_open(self, category, ticker, side, orderType, price, qty):
-    #     if category == 'spot':
-    #         rate = 0
-    #     elif category == 'inverse':
-    #         rate = 1
-    #     else:
-    #         raise
-    #     res = self.session.place_order(
-    #         category=category,  # spot, linear, inverse, option
-    #         symbol=ticker,
-    #         side=side,  # Buy, Sell
-    #         orderType=orderType,  # Market, Limit
-    #         qty=qty,
-    #         price=price,
-    #         timeInForce="PostOnly",
-    #         # orderLinkId="spot-test-postonly",
-    #         isLeverage=rate,  # 0(default): false then spot trading, 1: true then margin trading
-    #         orderFilter="Order",
-    #     )
-    #     return res
-    # def fetch_account_info_bybit(self, Account, symbol):
-    #     return self.session.get_instruments_info(
-    #         category=Account,  # spot, linear, inverse, option
-    #         symbol=symbol, # BTC, BTCUSDT, BTCUSD
-    #     )['result']['list'][0]
-    # def internal_transfer(self, ticker, qty, fromAccount, toAccount):
-    #     id = str(uuid.uuid1())
-    #     print(id)
-    #     res = self.session.create_internal_transfer(
-    #         transferId=id,
-    #         coin=ticker,  # BTC
-    #         amount=qty,
-    #         fromAccountType=fromAccount,  # UNIFIED (spot 계좌)
-    #         toAccountType=toAccount,  # CONTRACT (inverse 계좌)
-    #     )
-    #     return id, res
+
     def fetch_balance(self,market):
         if market == 'bybit':
             res = self.ex_bybit.fetch_balance()
@@ -545,69 +458,35 @@ class do_trade(QThread):
                                                                                  symbol=currency + 'USD')
                         balance[currency]['주문최소금액'] = float(balance_bybit['lotSizeFilter']['minOrderQty'])  # inverse 최소주문USDT구하기
 
-                        balance[currency]['현재가(inverse)']= self.common_def.fetch_ticker(market,currency + 'USD')['close']
-                        balance[currency]['현재가(linear)']= self.common_def.fetch_ticker(market,currency + 'USDT')['close']
+                        balance[currency]['현재가']= self.common_def.fetch_ticker(market,currency + 'USD')['close']
+                        # balance[currency]['현재가(linear)']= self.common_def.fetch_ticker(market,currency + 'USDT')['close']
+                        # balance[currency]['category'] = 'inverse/spot'
                     elif currency == 'USDT':
-                        # balance[currency] = res[currency]
                         usdt_free = res[currency]['free']
                         usdt_total = res[currency]['total']
                 if market == 'binance':
-#                 held_coins[currency] = data
                     balance[currency] = res[currency]
 
-                    # if not currency == 'USDT':
                     ticker_info = markets_binance[f'{currency}/USD:{currency}']
                     balance[currency]['주문최소금액'] = ticker_info['limits']['amount']['min']
-                    balance[currency]['현재가(inverse)'] = self.common_def.fetch_ticker(market, currency + 'USD_PERP')['close']
-                    balance[currency]['현재가(linear)'] = self.common_def.fetch_ticker(market, currency + '/USDT')['close']
-
-
-            # elif currency != 'USDT':
-
-        # have_usdt = res['USDT']['free']
-        # all_usdt = res['USDT']['total']
-        # pprint(balance)
+                    balance[currency]['현재가'] = self.common_def.fetch_ticker(market, currency + 'USD_PERP')['close']
+#                     balance[currency]['category'] = 'inverse/spot'
+                    # balance[currency]['현재가(linear)'] = self.common_def.fetch_ticker(market, currency + '/USDT')['close']
         return balance, usdt_free, usdt_total
-        # res = self.session.get_coins_balance(
-        #     accountType=accountType,  # CONTRACT: Inverse Derivatives Account, UNIFIED: Unified Trading Account
-        #     coin=ticker, # BTC
-        # )
-        # if balance == '보유':
-        #     return res['result']['balance'][0]['walletBalance']
-        # elif balance == '잔고':
-        #     return res['result']['balance'][0]['transferBalance']
-
-    # def get_funding_time(self,now: datetime):
-    #     # while True:
-    #     #     self.funding_time = int(int((self.session.get_funding_rate_history(
-    #     #         category="inverse",
-    #     #         symbol="BTCUSD",
-    #     #         limit=1,
-    #     #     )['result']['list'][0]['fundingRateTimestamp']))/1000)+3600*8
-    #     #     time.sleep(1)
-    #     #     if self.funding_time_old != self.funding_time:
-    #     #         self.funding_time_old = self.funding_time
-    #     #         break
-    #
-    #     funding_hours = [1, 9, 17]  # 펀딩비 시간
-    #     today = now.replace(minute=0, second=0, microsecond=0)
-    #
-    #     # 현재 시간 이후의 가장 가까운 펀딩비 시간을 찾음
-    #     for hour in funding_hours:
-    #         funding_time = today.replace(hour=hour)
-    #         if funding_time > now:
-    #             return funding_time
-    #
-    #     # 오늘 모든 펀딩비 시간이 지났다면 다음 날 첫 번째 펀딩비 시간 반환
-    #     return today + datetime.timedelta(days=1, hours=funding_hours[0] - today.hour)
 
 
-    def count_down(self,t):
-        hours = str(t // 3600)
-        remaining_seconds = t % 3600
-        minutes = str(remaining_seconds // 60)
-        seconds = str(remaining_seconds % 60)
-        return f"{hours}:{minutes}:{seconds}"
+    def get_funding_time(self,now: datetime):
+        funding_hours = [1, 9, 17]  # 펀딩비 시간
+        today = now.replace(minute=0, second=0, microsecond=0)
+        # 현재 시간 이후의 가장 가까운 펀딩비 시간을 찾음
+        for hour in funding_hours:
+            funding_time = today.replace(hour=hour)
+            if funding_time > now:
+                return funding_time
+        # 오늘 모든 펀딩비 시간이 지났다면 다음 날 첫 번째 펀딩비 시간 반환
+        funding_time = today + datetime.timedelta(days=1, hours=funding_hours[0] - today.hour)
+        return funding_time
+
 
 
 class Window(QMainWindow):
@@ -649,7 +528,8 @@ class Window(QMainWindow):
         QW_main = QWidget()
         self.setWindowTitle(f'Funding Bybit')
 
-        self.QT_trade_have = QTableWidget()
+        self.QT_trade_inverse = QTableWidget()
+        self.QT_trade_future = QTableWidget()
         self.QT_trade_history = QTableWidget()
         self.QT_trade_open = QTableWidget()
 
@@ -735,7 +615,8 @@ class Window(QMainWindow):
                                "border-color: black; font: 12pt 나눔고딕; "
         self.QT_trade_history.setStyleSheet(StyleSheet_Qtable)
         self.QT_trade_open.setStyleSheet(StyleSheet_Qtable)
-        self.QT_trade_have.setStyleSheet(StyleSheet_Qtable)
+        self.QT_trade_inverse.setStyleSheet(StyleSheet_Qtable)
+        self.QT_trade_future.setStyleSheet(StyleSheet_Qtable)
         # self.QPB_start.setStyleSheet("border-style: solid;border-width: 1px;border-color: #0080ff")
         self.QPB_start.setStyleSheet(" background-color: #cccccc;")
         self.QPB_stop.setStyleSheet("background-color: #cccccc;")
@@ -744,12 +625,15 @@ class Window(QMainWindow):
         self.setCentralWidget(QW_main)
 
         QSV_main = QSplitter(Qt.Vertical)
+        QSH_table_up = QSplitter(Qt.Horizontal)
         QSH_table = QSplitter(Qt.Horizontal)
         QSH_history_table = QSplitter(Qt.Horizontal)
 
         QSH_table.addWidget(self.QT_trade_open)
         QSH_table.addWidget(self.QT_trade_history)
-        QSV_main.addWidget(self.QT_trade_have)
+        QSH_table_up.addWidget(self.QT_trade_inverse)
+        QSH_table_up.addWidget(self.QT_trade_future)
+        QSV_main.addWidget(QSH_table_up)
         QSV_main.addWidget(QSH_history_table)
         QSV_main.addWidget(QSH_table)
         QSV_main.addWidget(QW_grid)
@@ -762,98 +646,69 @@ class Window(QMainWindow):
     def save_api(self,market):
         if market == 'bybit':
             if not self.QLE_api_bybit.text() == '':
-                self.df_set.loc[f'api_{market}','key']=self.QLE_api_bybit.text()
+                self.df_set.loc[f'api_{market}','val']=self.QLE_api_bybit.text()
             if not self.QLE_secret_bybit.text() == '':
-                self.df_set.loc[f'secret_{market}','key']=self.QLE_secret_bybit.text()
+                self.df_set.loc[f'secret_{market}','val']=self.QLE_secret_bybit.text()
             self.QLE_api_bybit.clear()
             self.QLE_secret_bybit.clear()
         if market == 'binance':
             if not self.QLE_api_binance.text() == '':
-                self.df_set.loc[f'api_{market}','key']=self.QLE_api_binance.text()
+                self.df_set.loc[f'api_{market}','val']=self.QLE_api_binance.text()
             if not self.QLE_secret_binance.text() == '':
-                self.df_set.loc[f'secret_{market}','key']=self.QLE_secret_binance.text()
+                self.df_set.loc[f'secret_{market}','val']=self.QLE_secret_binance.text()
             self.QLE_api_binance.clear()
             self.QLE_secret_binance.clear()
         self.df_set.to_sql('set', self.conn, if_exists='replace')
-    # def time_sync(self):
-    #     subprocess.Popen('python timesync.py')
 
     def init_file(self):
         db_file = 'DB/Funding_Strategy.db'
         if not os.path.isfile(db_file):
             self.conn = sqlite3.connect(db_file)
-            li = ['market','ticker', '구분', '주문가', '주문수량', '매수금액', '수수료', '수익률',
-                  '주문시간', '체결시간', '체결가', '체결수량',
-                  'id', '상태', '펀딩비', 'spot비율', 'short비율']
+            li = ['market','ticker', 'category', '주문가', '주문수량', '매수금액', '수수료', '수익률',
+                  '주문시간', '체결시간', '체결가', '체결수량','id', '상태', '펀딩비', 'spot비율',
+                  'short비율']
             self.df_open = pd.DataFrame(columns=li)
             self.df_closed = pd.DataFrame(columns=li)
             self.df_closed.to_sql('closed', self.conn, if_exists='replace')
             self.df_open.to_sql('open', self.conn, if_exists='replace')
 
-            li_col = ['보유자산합계', '배팅가능합계']
-            self.df_history = pd.DataFrame(columns=li_col)
-            self.df_history.to_sql('history', self.conn, if_exists='replace')
-            # dic = {'api':'','secret':''}
-            # self.df_set = pd.DataFrame(index=['api','secret'], columns=['key'])
-            # self.df_set.to_sql('api', self.conn, if_exists='replace')
+            # li_col = ['보유자산합계', '배팅가능합계']
+            # self.df_history = pd.DataFrame(columns=li_col)
+            # self.df_history.to_sql('history', self.conn, if_exists='replace')
+
+            self.list_compare_col = ['market', 'ticker', 'free(qty)', 'used(qty)', 'total(qty)', 'free(USDT)', 'total(USDT)']
+            self.df_inverse = pd.DataFrame(index=[], columns=self.list_compare_col)
+            self.df_inverse.to_sql('inverse', self.conn, if_exists='replace')
 
             self.df_set = pd.DataFrame(index=['auto_start','rate_short','rate_spot','funding_time','api_bybit','secret_bybit',
                                               'api_binance','secret_binance'],
-                                       columns=['check','val','key'])
+                                       columns=['check','val'])
             self.df_set.loc['auto_start','check'] = False
-            self.df_set.loc['funding_time','val'] = self.get_funding_time(datetime.datetime.now())
-            self.df_set.loc['api_bybit','key'] = None
-            self.df_set.loc['secret_bybit','key'] = None
-            self.df_set.loc['api_binance','key'] = None
-            self.df_set.loc['secret_binance','key'] = None
+            self.df_set.loc['funding_time','val'] = self.get_funding_time(datetime.datetime.now().replace(microsecond=0))
+            self.df_set.loc['funding_time','check'] = False
+            self.df_set.loc['api_bybit','val'] = None
+            self.df_set.loc['secret_bybit','val'] = None
+            self.df_set.loc['api_binance','val'] = None
+            self.df_set.loc['secret_binance','val'] = None
             self.df_set.to_sql('set', self.conn, if_exists='replace')
 
         else:
             self.conn = sqlite3.connect(db_file)
-            # cursor = self.conn.cursor()
-            # cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            # try:
-            #     list_table = np.concatenate(cursor.fetchall()).tolist()
-            # except:
-            #     list_table = []
-            # list_list = ['open','closed','history','api','set']
-            # list_cha = set(list_list)-set(list_table)
-            # for table in list_cha:
-            #     if not table in ['closed','open']:
-            #         li = ['market', 'ticker', '구분', '주문가', '주문수량', '매수금액', '수수료', '수익률',
-            #               '주문시간', '체결시간', '체결가', '체결수량',
-            #               'id', '상태', '펀딩비', 'spot비율', 'short비율']
-            #         self.df_open = pd.DataFrame(columns=li)
-            #         self.df_closed = pd.DataFrame(columns=li)
-            #         self.df_closed.to_sql('closed', self.conn, if_exists='replace')
-            #         self.df_open.to_sql('open', self.conn, if_exists='replace')
-            #     elif not table in ['api','set']:
-            #         li_col = ['보유자산합계', '배팅가능합계']
-            #         self.df_history = pd.DataFrame(columns=li_col)
-            #         self.df_history.to_sql('history', self.conn, if_exists='replace')
-            #         # dic = {'api':'','secret':''}
-            #         self.df_set = pd.DataFrame(index=['api', 'secret'], columns=['value'])
-            #         self.df_set.to_sql('api', self.conn, if_exists='replace')
-            #
-            #         self.df_set = pd.DataFrame(index=['auto_start'], columns=['check'])
-            #         self.df_set.to_sql('set', self.conn, if_exists='replace')
             self.df_open = pd.read_sql(f"SELECT * FROM 'open'", self.conn).set_index('index')
             self.df_closed = pd.read_sql(f"SELECT * FROM 'closed'", self.conn).set_index('index')
-            self.df_history = pd.read_sql(f"SELECT * FROM 'history'", self.conn).set_index('index')
+            self.df_inverse = pd.read_sql(f"SELECT * FROM 'inverse'", self.conn).set_index('index')
+            # self.list_compare_col = self.df_inverse.columns.to_list()
             self.df_set = pd.read_sql(f"SELECT * FROM 'set'", self.conn).set_index('index')
+            funding_time = pd.to_datetime(self.df_set.loc['funding_time', 'val'])
+            current_t = datetime.datetime.now().replace(microsecond=0)
+            if funding_time < current_t:
+                self.df_set.loc['funding_time', 'val'] = self.get_funding_time(datetime.datetime.now().replace(microsecond=0))
+                self.df_set.loc['funding_time', 'check'] = False
+                self.df_set.to_sql('set', self.conn, if_exists='replace')
 
-        # self.df_set.loc['rate_short', 'val'] = float(self.QL_rate_short)
-        # self.df_set.loc['rate_spot', 'val'] = float(self.QL_rate_spot)
-        #
-        # self.QL_rate_short.setText()
-        # self.QL_rate_spot.setText()
         self.df_open_old = self.df_open.copy()
         self.df_closed_old = self.df_closed.copy()
-        # self.df_inverse = pd.DataFrame(columns=['배팅가능','진입수량','수량합계',
-        #                                         '주문최소금액(USD)','ticker','market',
-        #                                         '현재가(inverse)','현재가(linear)',
-        #                                         'USDT(잔고)','USDT(총보유)'],
-        #                                 index=[])
+
     def fetch_inverse_list_bybit(self):
         # 바이비트 inverse 종목 정리
         list_bybit_inverse = []
@@ -962,33 +817,6 @@ class Window(QMainWindow):
             # 가중 평균 상위 10개 선택
             dict_data[ticker] = out_lately
 
-
-            # if len(top_10_weighted) < 10:  # 10개 미만이면 그냥 추가
-            #     top_10_weighted[ticker] = w_avg
-            # else:
-            #     # 현재 딕셔너리에서 가장 낮은 가중 평균값 찾기
-            #     min_key = min(top_10_weighted, key=top_10_weighted.get)
-            #     min_value = top_10_weighted[min_key]
-            #
-            #     if w_avg > min_value:  # 새로운 값이 기존 최솟값보다 크면 교체
-            #         del top_10_weighted[min_key]  # 기존 최솟값 제거
-            #         top_10_weighted[ticker] = w_avg  # 새 값 추가
-            # # 단순 평균 상위 10개 선택
-            # if len(top_10_simple) < 10:
-            #     top_10_simple[ticker] = s_avg
-            # else:
-            #     min_key = min(top_10_simple, key=top_10_simple.get)
-            #     min_value = top_10_simple[min_key]
-            #     if s_avg > min_value:
-            #         del top_10_simple[min_key]
-            #         top_10_simple[ticker] = s_avg
-
-
-        # pprint(dict_data)
-
-
-        # if ticker == 'BTC':
-        #     dates = [datetime.datetime.utcfromtimestamp(ts / 1000) for ts in timestamps]
 
         # 1. 각 티커별 fundingRate의 단순평균값 계산
         simple_avg = {}
@@ -1120,49 +948,6 @@ class Window(QMainWindow):
         print("\n단순평균과 가중평균 상위 10개의 교집합에 대한 데이터:")
         print(intersection_df)
 
-
-        # quit()
-        # # 가중 평균 기준으로 정렬
-        # top_10_weighted = dict(sorted(top_10_weighted.items(), key=lambda x: x[1], reverse=True))
-        # # 단순 평균 기준으로 정렬
-        # top_10_simple = dict(sorted(top_10_simple.items(), key=lambda x: x[1], reverse=True))
-        # # 교집합 구하기 (두 딕셔너리에서 공통되는 key 추출)
-        # intersection_keys = set(top_10_weighted.keys()).intersection(set(top_10_simple.keys()))
-        # # 교집합에 해당하는 값만 딕셔너리에 저장
-        # result = {key: (top_10_weighted[key], top_10_simple[key]) for key in intersection_keys}
-        #
-        # # 출력
-        # print("📌 교집합에 해당하는 객체들:")
-        # plt.figure(figsize=(8, 5))
-        # for key, (w_avg, s_avg) in result.items():
-        #     print(f"{key}: 가중 평균 = {w_avg:.6f}, 단순 평균 = {s_avg:.6f}")
-        #     data = dict_data[key]
-        #     data = pad_list(data,len(dates))
-        #
-        #     # plt.plot(dates, data, marker='o', linestyle='-', label=f"{key}_{round(w_avg*10000,1)}_{round(s_avg*10000,1)}")
-        #     plt.plot(dates, data, label=f"{key}_{round((w_avg+s_avg)/2*100,3)}")
-        #
-        #
-        # # plt.plot(dates, data, marker='s', linestyle='-', label=f"{ticker}")
-        # # plt.plot(dates, data, marker='^', linestyle='-', label=f"{ticker}")
-        # plt.xlabel("Time")
-        # plt.ylabel("Funding Rate")
-        # plt.title("Funding Rate Comparison")
-        # plt.axhline(0, color='gray', linestyle='--')
-        # plt.legend()
-        # plt.grid()
-        # plt.show()
-
-
-            # df = pd.DataFrame(out_lately)
-            # df.drop(columns=['info', 'symbol', 'datetime'], inplace=True)
-            # df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True, unit='ms')
-            # df['timestamp'] = df['timestamp'].dt.tz_convert("Asia/Seoul")
-            # df['timestamp'] = df['timestamp'].dt.tz_localize(None)
-            # df.set_index('timestamp', inplace=True)
-            # df.index = df.index - pd.Timedelta(hours=9)
-            # df.index.rename('index', inplace=True)  # 인덱스명 변경
-            # print(df)
     def setting(self):
         # self.df_set = pd.DataFrame(index=['auto_start'], columns=['check'])
         self.df_set.loc['auto_start','check'] = self.QCB_auto.isChecked()
@@ -1170,19 +955,20 @@ class Window(QMainWindow):
     def onStartButtonClicked(self):
         list_bybit_inverse = self.fetch_inverse_list_bybit()
         list_binance_inverse = self.fetch_inverse_list_binance()
-
         self.thread = do_trade(self,self.session,self.ex_bybit,self.ex_binance,self.df_open,self.df_closed,
-                               self.df_history,list_bybit_inverse,self.df_set)
+                               list_bybit_inverse,self.df_inverse,self.df_set)
         self.thread.start()
 
         self.thread.qt_open.connect(self.qtable_open)
         self.thread.qt_closed.connect(self.qtable_closed)
-        self.thread.qt_history.connect(self.qtable_history)
+        # self.thread.qt_history.connect(self.qtable_history)
         self.thread.qt_have.connect(self.qtable_have)
         self.thread.val_light.connect(self.effect_start)
         self.thread.val_wallet.connect(self.QL_wallet.setText)
         self.thread.val_time.connect(self.QL_time.setText)
-
+        self.thread.qt_set.connect(self.save_set)
+        self.thread.qt_future.connect(self.qtable_future)
+        self.thread.qt_inverse.connect(self.qtable_inverse)
         self.set_signal.connect(self.thread.change_set)
         self.buy_signal.connect(self.thread.buy_manual)
     @pyqtSlot()
@@ -1205,31 +991,32 @@ class Window(QMainWindow):
         rate_spot = float(self.QL_rate_spot.text())
         self.buy_signal.emit(market,ticker,배팅금액,rate_spot)
 
-    # def pybit_open_order1(self, ):
-    #     res = self.session.place_order(
-    #         category="inverse",
-    #         symbol="BTCUSD",
-    #         side="Sell",
-    #         orderType="Market",
-    #         qty="1",
-    #     )
-    #     return res
+    def save_set(self,df):
+        df.to_sql('set',self.conn,if_exists='replace')
 
 
     def qtable_have(self,df):
-        df['배팅가능'] = df['배팅가능'].apply(lambda int_num: "{:,}".format(int_num))
-        df['현재가(inverse)'] = df['현재가(inverse)'].apply(lambda int_num: "{:,}".format(int_num))
-        df['현재가(linear)'] = df['현재가(linear)'].apply(lambda int_num: "{:,}".format(int_num))
-        # df['보유코인합계(USD)'] = df['보유코인합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
-        # df['배팅가능합계(USD)'] = df['배팅가능합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
-        self.set_table_make(self.QT_trade_have, df)
-
+        if not df.empty:
+            df['free(qty)'] = df['free(qty)'].apply(lambda int_num: "{:,}".format(int_num))
+            df['현재가'] = df['현재가'].apply(lambda int_num: "{:,}".format(int_num))
+            # df['현재가(linear)'] = df['현재가(linear)'].apply(lambda int_num: "{:,}".format(int_num))
+            df['보유코인합계(USD)'] = df['보유코인합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
+            df['배팅가능합계(USD)'] = df['배팅가능합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
+            df = df[['market', 'ticker', 'free(qty)', 'used(qty)', 'total(qty)', '현재가', '배팅가능합계(USD)','보유코인합계(USD)', '주문최소금액(USD)', 'free(USDT)', 'total(USDT)']]
+            self.set_table_make(self.QT_trade_inverse, df)
+    def qtable_inverse(self,df):
+        df.to_sql('inverse', self.conn, if_exists='replace')
+    def qtable_future(self,df):
+        if not df.empty:
+            df = df[['market','ticker','보유수량', '매수금액', '현재가', '방향', '수익률', '손익',
+                     '진입가', '청산가']]
+            self.set_table_make(self.QT_trade_future, df)
     def qtable_open(self,df):
         df_compare = df[['상태','id']]
         if not self.df_open_old.equals(df_compare):
             df.to_sql('open',self.conn,if_exists='replace')
             self.df_open_old = df_compare.copy()
-        df_active = df[['market','ticker', '주문시간', '주문수량', '매수금액', '주문가', '상태', '구분', 'spot비율','short비율','id']]
+        df_active = df[['market','ticker', '주문시간', '주문수량', '매수금액', '주문가', '상태', 'category', 'spot비율','short비율','id']]
         if not df_active['매수금액'].isna().any():
             df_active['매수금액'] = df_active['매수금액'].apply(lambda int_num: "{:,}".format(int_num))
         df_active['주문가'] = df_active['주문가'].apply(lambda int_num: "{:,}".format(int_num))
@@ -1240,15 +1027,15 @@ class Window(QMainWindow):
             df.to_sql('closed', self.conn, if_exists='replace')
             self.df_closed_old = df.copy()
         df_active = df[['market','ticker', '체결시간', '주문수량', 'id', '수수료', '매수금액', '주문가', '상태',
-                  '구분', 'spot비율','short비율']]
+                  'category', 'spot비율','short비율']]
         df_active['매수금액'] = df_active['매수금액'].apply(lambda int_num: "{:,}".format(int_num))
         df_active['주문가'] = df_active['주문가'].apply(lambda int_num: "{:,}".format(int_num))
         self.set_table_make(self.QT_trade_history, df_active)
 
-    def qtable_history(self, df):
-        if not self.df_history.equals(df): # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위라래로 붙임
-            df.to_sql('history', self.conn, if_exists='replace')
-            self.df_history_old = df.copy()
+    # def qtable_history(self, df):
+    #     if not self.df_history.equals(df): # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위라래로 붙임
+    #         df.to_sql('history', self.conn, if_exists='replace')
+    #         self.df_history_old = df.copy()
 
     def set_table_make(self, table,df):
         table.setSortingEnabled(False)
@@ -1275,19 +1062,9 @@ class Window(QMainWindow):
         table.setSortingEnabled(True) #소팅한 상태로 로딩 시 데이터가 이상해져 맨 앞과 뒤에 추가
 
 
-    # def make_exchange_bybit(self):
-    #     api = self.df_set.loc['api_bybit','key']
-    #     secret = self.df_set.loc['secret_bybit','key']
-    #     exchange = HTTP(
-    #         testnet=False,
-    #         api_key=api,
-    #         api_secret=secret,
-    #     )
-    #     return exchange
-
     def make_exchange_bybit_ccxt(self):
-        api = self.df_set.loc['api_bybit','key']
-        secret = self.df_set.loc['secret_bybit','key']
+        api = self.df_set.loc['api_bybit','val']
+        secret = self.df_set.loc['secret_bybit','val']
         if api == None or secret == None:
                 # or np.isnan(api) or np.isnan(secret)):
             print('bybit API 확인 필요')
@@ -1300,7 +1077,6 @@ class Window(QMainWindow):
                 'enableRateLimit': True,
                 'options': {'position_mode': True, },
             })
-            print(bybit)
             bybit.load_markets()
 
             session = HTTP(
@@ -1308,11 +1084,12 @@ class Window(QMainWindow):
                 api_key=api,
                 api_secret=secret,
             )
+            print(bybit)
         return bybit, session
 
     def make_exchange_binance(self):
-        api = self.df_set.loc['api_binance', 'key']
-        secret = self.df_set.loc['secret_binance', 'key']
+        api = self.df_set.loc['api_binance', 'val']
+        secret = self.df_set.loc['secret_binance', 'val']
         if api == None or secret == None:
             # or np.isnan(api) or np.isnan(secret):
             print('binance API 확인 필요')
@@ -1336,7 +1113,8 @@ class Window(QMainWindow):
             if funding_time > now:
                 return funding_time
         # 오늘 모든 펀딩비 시간이 지났다면 다음 날 첫 번째 펀딩비 시간 반환
-        return today + datetime.timedelta(days=1, hours=funding_hours[0] - today.hour)
+        funding_time = today + datetime.timedelta(days=1, hours=funding_hours[0] - today.hour)
+        return funding_time
 
 
 
@@ -1447,43 +1225,50 @@ class common_def():
         date_time = self.stamp_to_datetime(t)
         return datetime.datetime.strftime(date_time, "%Y-%m-%d %H:%M")
 
-    def amount_to_precision(self,market, symbol, amount):
+    def amount_to_precision(self,market, category, ticker, amount):
         if market == 'bybit':
+            if category == 'spot':
+                symbol = ticker + '/USDT'
+            elif category == 'inverse':
+                symbol = ticker + 'USD'
             return float(self.ex_bybit.amount_to_precision(symbol=symbol,amount=amount))
-            # res = self.fetch_account_info_bybit(Account=category,symbol=ticker)
-            # qty_min = res['lotSizeFilter']['basePrecision'].index('1')-1
-            # qty = round(amount,qty_min)
-            # if qty < float(res['lotSizeFilter']['minOrderQty']):
-            #     print(f"최소주문수량 미만 (최소주문수량: {res['lotSizeFilter']['minOrderQty']}, > 주문수량: {qty}")
-            #     raise
-            # return qty
         elif market == 'binance':
+            if category == 'spot':
+                symbol = ticker + '/USDT'
+            elif category == 'inverse':
+                symbol = ticker + 'USD'
             return float(self.ex_binance.amount_to_precision(symbol=symbol, amount=amount))
+        # res = self.fetch_account_info_bybit(Account=category,symbol=ticker)
+        # qty_min = res['lotSizeFilter']['basePrecision'].index('1')-1
+        # qty = round(amount,qty_min)
+        # if qty < float(res['lotSizeFilter']['minOrderQty']):
+        #     print(f"최소주문수량 미만 (최소주문수량: {res['lotSizeFilter']['minOrderQty']}, > 주문수량: {qty}")
+        #     raise
+        # return qty
     def price_to_precision(self, market, category, ticker, price):
         if market == 'bybit':
             if category == 'spot':
-                symbol = ticker+'USDT'
+                symbol = ticker + 'USDT'
             elif category == 'inverse':
-                symbol = ticker+'USD'
-            return float(self.ex_bybit.price_to_precision(symbol=symbol,price=price))
-            # if category == 'spot':
-            #     res = self.fetch_account_info_bybit(Account=category,symbol=ticker)
-            #     price_min = res['priceFilter']['tickSize'].index('1')-1
-            #     return round(price,price_min)
-            # elif category == 'inverse':
-            #     res = self.fetch_account_info_bybit(Account=category,symbol=ticker)
-            #     price_step = res['priceFilter']['tickSize']
-            #     point = price_step.index('.')
-            #     price = round(price, point)
-            #     j = round(price % float(price_step), point)
-            #     return price-j
+                symbol = ticker + 'USD'
+            return float(self.ex_bybit.price_to_precision(symbol=symbol, price=price))
         elif market == 'binance':
             if category == 'spot':
                 symbol = ticker+'/USDT'
             elif category == 'inverse':
                 symbol = ticker+'/USD'
             return float(self.ex_binance.price_to_precision(symbol=symbol,price=price))
-
+        # if category == 'spot':
+        #     res = self.fetch_account_info_bybit(Account=category,symbol=ticker)
+        #     price_min = res['priceFilter']['tickSize'].index('1')-1
+        #     return round(price,price_min)
+        # elif category == 'inverse':
+        #     res = self.fetch_account_info_bybit(Account=category,symbol=ticker)
+        #     price_step = res['priceFilter']['tickSize']
+        #     point = price_step.index('.')
+        #     price = round(price, point)
+        #     j = round(price % float(price_step), point)
+        #     return price-j
     def transfer_to_inverse_wallet(self,market, currency, amount):
         if market == 'bybit':
             while True:

@@ -285,6 +285,23 @@ binance = ccxt.binance(config={
                 # 'defaultType': 'future'
                 },
 })
+res = binance.fetch_positions()
+pprint(res)
+for data in res:
+    data['매수금액'] = float(data['info']['isolatedWallet'])
+    del data['info']
+df = pd.DataFrame(res)
+df.index = 'binance_'+df['symbol'].copy()
+df.rename(columns={'unrealizedPnl': '손익','leverage':'레버리지','contracts':'보유수량','liquidationPrice':'청산가',
+                   'side':'방향','markPrice':'현재가','entryPrice':'진입가'}, inplace=True)
+print(df)
+df['수익률'] = df['손익']/df['매수금액']*100
+df = df[['symbol','현재가','레버리지','방향','수익률','손익','보유수량','매수금액','진입가','청산가','marginMode']]
+print(df)
+df['symbol'] = df['symbol'].str.split('/').str[0]
+print(df)
+quit()
+print('==============================================')
 api_key = "k3l5BpTorsRTHvPmAj"
 api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
 bybit = ccxt.bybit(config={
@@ -293,7 +310,23 @@ bybit = ccxt.bybit(config={
     'enableRateLimit': True,
     'options': {'position_mode': True, },
 })
+print('============================')
+res = bybit.fetch_positions()
+pprint(res)
 
+for data in res:
+    del data['info']
+df = pd.DataFrame(res)
+df.index = df['symbol'].copy()
+df.rename(columns={'unrealizedPnl': '손익','leverage':'레버리지','contracts':'보유수량','liquidationPrice':'청산가',
+                   'collateral':'매수금액','side':'방향','markPrice':'현재가','entryPrice':'진입가'}, inplace=True)
+df['수익률'] = df['손익']/df['매수금액']*100
+df = df[['symbol','현재가','레버리지','방향','수익률','손익','보유수량','매수금액','진입가','청산가','marginMode']]
+print(df)
+# df = pd.DataFrame(position)
+# print(df)
+
+quit()
 # res = bybit.fetch_closed_orders(symbol='BTCUSD',params={})
 
 ticker = "XRP/USDT"
