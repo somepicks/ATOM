@@ -272,7 +272,23 @@ def bybit_set_tickers(fetch_tickers):
     return df
 
 ################################################################
+df = pd.DataFrame( {
+    '2020': [2500, 1500, 3000],
+    '2021': [2700, 1800, 3600],
+    '2022': [3000, 2400, 4200],
+    '2023': [3500, 3000, 5600]
+    })
 
+df1 = pd.DataFrame( {
+    '2020': [2500, 1500, 3000],
+    '2021': [2700, 1800, 3600],
+    '2022': [3000, 2400, 4200],
+    '2023': [3500, 3000, 5600]
+    })
+
+if df.equals(df1):
+    print(df)
+quit()
 
 # 바이낸스 API 설정
 api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
@@ -300,6 +316,7 @@ df = df[['symbol','현재가','레버리지','방향','수익률','손익','보�
 print(df)
 df['symbol'] = df['symbol'].str.split('/').str[0]
 print(df)
+
 quit()
 print('==============================================')
 api_key = "k3l5BpTorsRTHvPmAj"

@@ -69,10 +69,14 @@ class do_trade(QThread):
                 for id in self.df_open.index.tolist():
                     if self.df_open.loc[id, '상태'] == '매수주문' or self.df_open.loc[id, '상태'] == '부분체결':
                         self.chegyeol_buy(id)
-            if not self.df_inverse_past.equals(self.df_inverse_fetch):
-                for idx in self.df_inverse.index.tolist():
-                    self.buy_auto(idx)
-                self.qt_inverse.emit(self.df_inverse_fetch)
+            # if not self.df_inverse_past.equals(self.df_inverse_fetch):
+            #     for idx in self.df_inverse.index.tolist():
+            #         self.buy_auto(idx)
+            #     self.df_inverse_past = self.df_inverse_fetch
+            #     self.qt_inverse.emit(self.df_inverse_past)
+            for idx in self.df_inverse.index.tolist():
+                self.buy_auto(idx)
+
             # for idx in self.df_inverse.index.tolist():
                 # if funding_time > current_t:
                 #     if self.df_set.loc['funding_time','check'] == False:
@@ -92,7 +96,7 @@ class do_trade(QThread):
         주문최소금액 = self.df_inverse.loc[idx,'주문최소금액(USD)']
         현재가 = self.df_inverse.loc[idx,'현재가']
         보유코인합계 = self.df_inverse.loc[idx,'보유코인합계(USD)']
-        배팅코인합계 = self.df_inverse.loc[idx,'배팅가능합계(USD)']
+        배팅가능합계 = self.df_inverse.loc[idx,'배팅가능합계(USD)']
         배팅가능 = self.df_inverse.loc[idx,'free(qty)']
         ticker = self.df_inverse.loc[idx,'ticker']
         # print(market)
@@ -106,8 +110,7 @@ class do_trade(QThread):
         # 진입수량 = self.df_inverse.loc[idx,'used(qty)'] #contract 진입수량 불러오기
         price = 현재가 + (현재가 * (rate_short) / 100)
         여유돈 = 보유코인합계*funding_rate*안전마진
-        배팅가능금액 = 배팅코인합계 - 여유돈
-#         print(f"{market= }   {배팅가능금액= }  {배팅코인합계= }   {여유돈= }   {보유코인합계= }   {funding_rate= }")
+        배팅가능금액 = 배팅가능합계 - 여유돈
         if market == 'bybit':
             진입수량 = math.trunc(배팅가능금액) #소수점 절사
             주문금액 = 진입수량
@@ -119,6 +122,7 @@ class do_trade(QThread):
             # 진입수량 = self.common_def.amount_to_precision(market=market,symbol=ticker+'USDT',amount=진입수량)
             order = True if 진입수량 > 주문최소금액 else False
 
+        # print(f"{market= }   {배팅가능금액= }  {배팅가능합계= }   {여유돈= }   {보유코인합계= }   {funding_rate= } {진입수량= }   {주문금액= }")
         # if 배팅가능수량 * 주문가 > 주문최소금액: #최소수량보다 잔고가 많을경우마다 주문하면 마이너스피 일 때는 갖고있는 잔고에서 매번 수수료가 나가기 때문
         if order : # 현재 잔고가 진입수량*펀딩비율*5배 보다 많아야 매수 조건 성립 (최소수량보다 잔고가 많을경우마다 주문하면 마이너스피 일 때는 갖고있는 잔고에서 매번 수수료가 나가기 때문)
             df_open = pd.DataFrame()
@@ -185,6 +189,10 @@ class do_trade(QThread):
         #     print('바이낸스 매수')
         # except Exception as e:
         #     print(f"오류 발생: 주문 확인요망 API 확인 등.. {e}")
+        if self.df_open.empty:
+            print('self.df_open.empty')
+        if df_open.empty:
+            print('df_open.empty')
         self.df_open = pd.concat([self.df_open, df_open], axis=0).astype(self.df_open.dtypes)
         self.qt_open.emit(self.df_open)
     def change_set(self,df_set):
@@ -555,7 +563,7 @@ class Window(QMainWindow):
         self.QPB_chart_binance = QPushButton('펀딩비율바이낸스')
         self.QCB_auto = QCheckBox('오토스타트')
         if self.df_set.loc['auto_start', 'check'] == True or self.df_set.loc['auto_start', 'check'] == False :
-            if self.df_set.loc['auto_start','check'] == 1:
+            if self.df_set.loc['auto_start','check'] == 1 or self.df_set.loc['auto_start','check'] == 1.0:
                 check = True
             else:
                 check = False
@@ -676,7 +684,7 @@ class Window(QMainWindow):
             # self.df_history = pd.DataFrame(columns=li_col)
             # self.df_history.to_sql('history', self.conn, if_exists='replace')
 
-            self.list_compare_col = ['market', 'ticker', 'free(qty)', 'used(qty)', 'total(qty)', 'free(USDT)', 'total(USDT)']
+            self.list_compare_col = ['market', 'ticker', 'free(qty)', 'free(USDT)', 'total(USDT)']
             self.df_inverse = pd.DataFrame(index=[], columns=self.list_compare_col)
             self.df_inverse.to_sql('inverse', self.conn, if_exists='replace')
 
@@ -685,7 +693,7 @@ class Window(QMainWindow):
                                        columns=['check','val'])
             self.df_set.loc['auto_start','check'] = False
             self.df_set.loc['funding_time','val'] = self.get_funding_time(datetime.datetime.now().replace(microsecond=0))
-            self.df_set.loc['funding_time','check'] = False
+            # self.df_set.loc['funding_time','check'] = False
             self.df_set.loc['api_bybit','val'] = None
             self.df_set.loc['secret_bybit','val'] = None
             self.df_set.loc['api_binance','val'] = None
@@ -703,7 +711,7 @@ class Window(QMainWindow):
             current_t = datetime.datetime.now().replace(microsecond=0)
             if funding_time < current_t:
                 self.df_set.loc['funding_time', 'val'] = self.get_funding_time(datetime.datetime.now().replace(microsecond=0))
-                self.df_set.loc['funding_time', 'check'] = False
+                # self.df_set.loc['funding_time', 'check'] = False
                 self.df_set.to_sql('set', self.conn, if_exists='replace')
 
         self.df_open_old = self.df_open.copy()
@@ -1160,6 +1168,7 @@ class common_def():
             res = self.ex_bybit.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
                                              price=price, params=params)
         elif market == 'binance':
+
             if category == 'spot':
                 params = {}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
                 symbol = ticker +'/USDT'
@@ -1169,8 +1178,10 @@ class common_def():
                 symbol = ticker +'USD_PERP'
                 leverage = 1
 #             print(f"{market= }   {symbol= }   {orderType= }   {side= }    {qty= }   {price= }")
-            self.ex_binance.set_leverage(leverage=leverage, symbol=symbol)
-
+            try:
+                self.ex_binance.set_leverage(leverage=leverage, symbol=symbol)
+            except:
+                pass
             res = self.ex_binance.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
                                              price=price, params=params)
         QTest.qWait(1000)
