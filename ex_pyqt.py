@@ -150,8 +150,6 @@ if __name__ == "__main__":
     window = Window()
     window.show()
     sys.exit(app.exec_())
-
-#
 # import sys
 # import time
 # from PyQt5.QtCore import QThread, pyqtSignal

@@ -271,69 +271,105 @@ def bybit_set_tickers(fetch_tickers):
     df = pd.DataFrame.from_dict(data=fetch_tickers, orient='index')  # 딕셔너리로 데이터프레임  만들기 키값으로 행이름을 사용
     return df
 
+
+
 ################################################################
-df = pd.DataFrame( {
-    '2020': [2500, 1500, 3000],
-    '2021': [2700, 1800, 3600],
-    '2022': [3000, 2400, 4200],
-    '2023': [3500, 3000, 5600]
-    })
 
-df1 = pd.DataFrame( {
-    '2020': [2500, 1500, 3000],
-    '2021': [2700, 1800, 3600],
-    '2022': [3000, 2400, 4200],
-    '2023': [3500, 3000, 5600]
-    })
-
-if df.equals(df1):
-    print(df)
-quit()
 
 # 바이낸스 API 설정
+# dt = datetime.datetime.strptime('2015-07-15','%Y-%m-%d')
+# print(dt)
+# print(type(dt))
+#
+# quit()
 api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
 api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
 binance = ccxt.binance(config={
     'apiKey': api_key,
     'secret': api_secret,
     'enableRateLimit': True,
-    'options': {'position_mode': True,
-                # 'defaultType': 'future'
+    'options': {
+                # 'position_mode': True,  #롱 & 숏을 동시에 유지하면서 리스크 관리(헷징)할 때
+                'defaultType': 'future'
                 },
 })
-res = binance.fetch_positions()
-pprint(res)
-for data in res:
-    data['매수금액'] = float(data['info']['isolatedWallet'])
-    del data['info']
-df = pd.DataFrame(res)
-df.index = 'binance_'+df['symbol'].copy()
-df.rename(columns={'unrealizedPnl': '손익','leverage':'레버리지','contracts':'보유수량','liquidationPrice':'청산가',
-                   'side':'방향','markPrice':'현재가','entryPrice':'진입가'}, inplace=True)
-print(df)
-df['수익률'] = df['손익']/df['매수금액']*100
-df = df[['symbol','현재가','레버리지','방향','수익률','손익','보유수량','매수금액','진입가','청산가','marginMode']]
-print(df)
-df['symbol'] = df['symbol'].str.split('/').str[0]
-print(df)
+#
+# res_spot = binance.fetch_balance()
+# # pprint(res_spot)
+# print('=====================')
+# res = binance.fetch_balance(params={"type": 'delivery'})
+# pprint(res)
+#
+#
+#
+#
+# quit()
+# print('==============================================')
+# api_key = "k3l5BpTorsRTHvPmAj"
+# api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
+# bybit = ccxt.bybit(config={
+#     'apiKey': api_key,
+#     'secret': api_secret,
+#     'enableRateLimit': True,
+#     'options': {'position_mode': True, },
+# })
 
+
+
+
+
+dict_bong_stamp = {'1분봉': 1 * 60, '3분봉': 3 * 60, '5분봉': 5 * 60, '15분봉': 15 * 60, '30분봉': 30 * 60,
+                   '60분봉': 60 * 60, '4시간봉': 240 * 60, '일봉': 1440 * 60,
+                   '주봉': 10080 * 60}
+dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '1h', '4시간봉': '4h',
+             '일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
+ohlcv = []
+i=0
+ticker = 'BTC'
+bong = '1분봉'
+
+bong_since = 10 #10일 전 데이터부터 추출
+present = datetime.datetime.now()
+date_old = present.date() - datetime.timedelta(days=int(bong_since))
+stamp_date_old = common_def.datetime_to_stamp(date_old)
+
+list_ohlcv = binance.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong],
+                                          limit=10000, since=int(stamp_date_old * 1000))  # 밀리초로 전달
+while True:
+    try:
+        list_ohlcv = binance.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong],
+                                          limit=10000, since=int(stamp_date_old * 1000))  # 밀리초로 전달
+        # pprint(list_ohlcv)
+        ohlcv = ohlcv + list_ohlcv
+        stamp_date_old = list_ohlcv[-1][0] / 1000 + dict_bong_stamp[bong]  # 다음봉 시간 계산
+
+        if stamp_date_old > time.time():
+            print('asdf')
+            break
+    except:
+        time.sleep(1)
+        i += 1
+        if i > 9:
+            print(f' {ticker=}, {bong=}, {i}회 이상 fetch_ohlcv 조회 에러')
+            break
+df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
+df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
+df['날짜'] = df['날짜'].dt.tz_localize(None)
+df.set_index('날짜', inplace=True)
+df = common_def.convert_df(df)
+# df.index = df.index - pd.Timedelta(hours=9)
+print(df)
 quit()
-print('==============================================')
-api_key = "k3l5BpTorsRTHvPmAj"
-api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
-bybit = ccxt.bybit(config={
-    'apiKey': api_key,
-    'secret': api_secret,
-    'enableRateLimit': True,
-    'options': {'position_mode': True, },
-})
+
 print('============================')
 res = bybit.fetch_positions()
 pprint(res)
 
 for data in res:
     del data['info']
-df = pd.DataFrame(res)
+
+quit()
 df.index = df['symbol'].copy()
 df.rename(columns={'unrealizedPnl': '손익','leverage':'레버리지','contracts':'보유수량','liquidationPrice':'청산가',
                    'collateral':'매수금액','side':'방향','markPrice':'현재가','entryPrice':'진입가'}, inplace=True)

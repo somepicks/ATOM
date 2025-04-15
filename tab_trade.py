@@ -1219,7 +1219,7 @@ class Window(QMainWindow):
         stamp_date_old = common_def.datetime_to_stamp(date_old)
         ohlcv = []
         if market == '코인' :
-            df = common_def.get_bybit_ohlcv(self.ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong,bong_detail)
+            ohlcv = common_def.get_bybit_ohlcv(self.ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong,bong_detail)
             df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
             df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
             df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")

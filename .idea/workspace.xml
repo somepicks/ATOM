@@ -8,6 +8,8 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/bybit_funding_fee.py" beforeDir="false" afterPath="$PROJECT_DIR$/bybit_funding_fee.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex_pyqt.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_pyqt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -71,7 +73,7 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
 }</component>
-  <component name="RunManager" selected="Python.bybit_funding_fee">
+  <component name="RunManager" selected="Python.ex">
     <configuration name="KIS" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -184,10 +186,10 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.bybit_funding_fee" />
         <item itemvalue="Python.ex" />
-        <item itemvalue="Python.tab_trade" />
+        <item itemvalue="Python.bybit_funding_fee" />
         <item itemvalue="Python.ex_pyqt" />
+        <item itemvalue="Python.tab_trade" />
         <item itemvalue="Python.KIS" />
       </list>
     </recent_temporary>
@@ -392,7 +394,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743563159944</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1743979053488</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1743979053488</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
