@@ -89,6 +89,9 @@ class do_trade(QThread):
                 self.shutdown_signal.emit()
                 break
                 # os.system("shutdown /s /t 0")
+            ####################################
+            #선물 진입
+
         self._status = False
 
     def buy_auto(self,idx):
@@ -138,7 +141,11 @@ class do_trade(QThread):
             df_open.loc[id, '주문가'] = 주문가
             print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
             if not self.df_open.empty:
+                print("=============")
+                print(self.df_open)
+                print(df_open)
                 self.df_open = pd.concat([self.df_open, df_open], axis=0).astype(self.df_open.dtypes)
+                print("**************")
             else:
                 self.df_open = df_open.copy()
             self.qt_open.emit(self.df_open)
@@ -206,7 +213,7 @@ class do_trade(QThread):
         주문시간 = self.df_open.loc[id,'주문시간']
         qty = self.df_open.loc[id,'주문수량']
         주문시간 = datetime.datetime.strptime(주문시간,'%Y-%m-%d %H:%M')
-        dict_chegyeol = self.fetch_order(market, ticker, id , category)
+        dict_chegyeol = self.fetch_order(market=market, ticker=ticker, id=id , category=category,qty=qty)
         if dict_chegyeol['체결'] == True:
             print(f"{ticker}  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간{dict_chegyeol['체결시간']}")
             self.df_closed.loc[id] = self.df_open.loc[id].copy()
@@ -242,12 +249,54 @@ class do_trade(QThread):
             self.df_open.loc[id,'상태'] = '부분체결'
 
     def buy_future(self,idx):
-
         market = self.df_inverse.loc[idx,'market']
         ticker = self.df_inverse.loc[idx,'ticker']
         df = self.get_df(market, ticker, '4시간봉',10) #10일 전부터의 데이터 불러오기
-        print(df)
-        quit()
+        buy_signal = self.get_buy_signal(df,market,ticker)
+        print(self.df_inverse)
+        if buy_signal == True:
+            print(f" 매수신호 - {datetime.datetime.now()}   {ticker= }")
+            if market == 'bybit':
+                bet = self.df_inverse.loc[idx,'used(qty)']/25
+                price = self.df_inverse.loc[idx,'현재가']
+                category = 'inverse'
+                res = self.common_def.order_open(market=market,category=category,ticker=ticker,side='buy',orderType='market',price=price,qty=bet)
+                id = res['id']
+                while True:
+                    time.sleep(1)
+                    dict_chegyeol = self.fetch_order(market=market,ticker=ticker,id=id,category=category,qty=bet)
+                    if dict_chegyeol['체결'] == True:
+                        print(f"{ticker=},  {category=},  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간: {dict_chegyeol['체결시간']}")
+                        break
+                category = 'spot'
+                현재가 = self.common_def.fetch_ticker(market=market,ticker=ticker + '/USDT')['close']
+                price = res['close']  # 현물가격조회
+                qty = bet / 현재가
+                # res = amount_to_precision(bybit, 'bybit', 'spot', ticker, qty)
+                qty = self.common_def.amount_to_precision(market=market, category=category, ticker=ticker, amount=qty)
+                self.common_def.order_open(market=market,category=category,ticker=ticker,side='sell',orderType='market',price=price,qty=qty)
+                while True:
+                    time.sleep(1)
+                    dict_chegyeol = self.fetch_order(market=market, ticker=ticker, id=id, category=category, qty=qty)
+                    if dict_chegyeol['체결'] == True:
+                        print(f"{ticker=},  {category=},  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간: {dict_chegyeol['체결시간']}")
+                        break
+
+                self.common_def.order_open(market=market,category='future',ticker=ticker,side='buy',orderType='market',price=price,qty=qty)
+        # print(df)
+        # quit()
+
+    def get_buy_signal(self,df,market,ticker):
+        if (df.loc[df.index[-3],'RSI14'] > 30) and (df.loc[df.index[-2],'RSI14'] < 30):
+            return True
+        if (df.loc[df.index[-3],'RSI18'] > 30) and (df.loc[df.index[-2],'RSI18'] < 30):
+            return True
+        if (df.loc[df.index[-3],'RSI30'] > 30) and (df.loc[df.index[-2],'RSI30'] < 30):
+            return True
+        if df.loc[df.index[-3],'이평20'] < df.loc[df.index[-3],'이평60']:
+            if df.loc[df.index[-2],'이평20'] > df.loc[df.index[-2],'이평60']:
+                return True
+        return False
 
     def active_light(self):
         self.val_light.emit(self.bool_light)
@@ -259,8 +308,6 @@ class do_trade(QThread):
         self.qt_closed.emit(self.df_closed)
         self.qt_future.emit(self.df_future)
 
-
-
     def toggle_status(self):
         self._status = not self._status
         if self._status:
@@ -269,6 +316,7 @@ class do_trade(QThread):
         elif not self._status:
             self.bool_light = False
             self.val_light.emit(self.bool_light)
+
     def fetch_inverse(self):
         # li_col = ['market','ticker','used(qty)', 'free(qty)', 'total(qty)', '현재가', '현재가(linear)',
         #           '보유코인합계(USD)', '배팅가능합계(USD)','주문최소금액(USD)']
@@ -350,9 +398,10 @@ class do_trade(QThread):
             # print(self.df_future)
             self.df_future['수익률'] = self.df_future['손익'] / self.df_future['매수금액'] * 100
 
-    def fetch_order(self, market, ticker, id, category):
+    def fetch_order(self, market, ticker, id, category, qty):
         # print(f"{market= }    {id=}    {ticker= }   {category= }")
-        주문수량 = self.df_open.loc[id, '주문수량']
+        # 주문수량 = self.df_open.loc[id, '주문수량']
+        주문수량 = qty
         ord_open = self.fetch_open_orders(market, ticker, category, id)
         if ord_open == None:  # 체결일 경우
             ord_closed = self.fetch_closed_orders(market, id, ticker, category)  # open 주문과 close 주문 2중으로 확인
@@ -369,9 +418,8 @@ class do_trade(QThread):
                 총체결금액 = float(ord_closed['cost'])
                 체결시간 = self.common_def.stamp_to_str(ord_closed['timestamp'])
                 if 주문수량 >= 체결수량:
-                    print(f"체결완료 - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | {ticker= }  {category= } {체결수량=} ")
+                    print(f"체결완료 - {ticker= }  {category= } {체결수량=} ")
                 return {'체결': True, '체결가': 진입가, '체결수량':체결수량, '수수료':진입수수료,'체결시간':체결시간}
-
         else:
             return {'체결': False}
 
@@ -1151,20 +1199,25 @@ class Window(QMainWindow):
             bybit = None
             session = None
         else:
-            bybit = ccxt.bybit(config={
-                'apiKey': api,
-                'secret': secret,
-                'enableRateLimit': True,
-                'options': {'position_mode': True, },
-            })
-            bybit.load_markets()
+            try:
+                bybit = ccxt.bybit(config={
+                    'apiKey': api,
+                    'secret': secret,
+                    'enableRateLimit': True,
+                    'options': {'position_mode': True, },
+                })
+                bybit.load_markets()
 
-            session = HTTP(
-                testnet=False,
-                api_key=api,
-                api_secret=secret,
-            )
-            print(bybit)
+                session = HTTP(
+                    testnet=False,
+                    api_key=api,
+                    api_secret=secret,
+                )
+                print(bybit)
+            except:
+                print("에러 - make_exchange_bybit_ccxt ")
+                bybit = None
+                session = None
         return bybit, session
 
     def make_exchange_binance(self):
@@ -1198,6 +1251,8 @@ class Window(QMainWindow):
 
     def show_shutdown_dialog(self):
         self.onStopButtonClicked()
+        print('프로그램 종료')
+        self.close() #프로그램 종료
         # 종료 알람 다이얼로그 표시
         self.shutdown_dialog = ShutdownDialog()
         self.shutdown_dialog.exec_()
@@ -1242,6 +1297,7 @@ class common_def():
                 params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
                 symbol = ticker +'USD'
                 leverage = 1
+            # elif
             try:
                 self.ex_bybit.set_leverage(leverage=leverage, symbol=symbol)
             except:
@@ -1490,12 +1546,12 @@ class ShutdownDialog(QDialog):
         button_layout = QHBoxLayout()
 
         # 종료 버튼
-        self.shutdown_button = QPushButton('윈도우종료')
+        self.shutdown_button = QPushButton('윈도우절전모드')
         self.shutdown_button.clicked.connect(self.shutdown_now)
         button_layout.addWidget(self.shutdown_button)
 
         # 취소 버튼
-        self.cancel_button = QPushButton('종료취소')
+        self.cancel_button = QPushButton('취소')
         self.cancel_button.clicked.connect(self.cancel_shutdown)
         button_layout.addWidget(self.cancel_button)
 
@@ -1516,8 +1572,10 @@ class ShutdownDialog(QDialog):
     def shutdown_now(self):
         self.shutdown_timer.stop()
         # 윈도우 종료 명령 실행
-        print('윈도우 종료')
-        os.system("shutdown /s /t 0")
+        # print('윈도우 종료')
+        # os.system("shutdown /s /t 0") #죵료
+        print('윈도우 절전모드')
+        os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0") #절전모드
         self.close()
 
     def cancel_shutdown(self):

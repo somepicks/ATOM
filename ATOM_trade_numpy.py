@@ -2608,25 +2608,25 @@ class Trade_np(QThread):
         quit()
     def order_open(self, ticker, price, qty, side, type, leverage):
         try:
-            if side == 'buy':  # 지정가 open long
+            if side == 'buy':  # open long
                 params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
                 #type = 'limit', side = 'buy'
-                res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
-                                                 price=price, params=params)
-            elif side == 'sell':  # 지정가 open short
+                # res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
+                #                                  price=price, params=params)
+            elif side == 'sell':  # open short
                 params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-                res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
-                                                 price=price, params=params)
             else:
                 print('에라 오픈')
                 raise
+            res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
+                                             price=price, params=params)
         except:
             print(f"에러 order_open  -  {ticker= }, {price= }, {qty= }, {side= }, {type= }, {leverage= }")
-            if side == 'buy':  # 지정가 open long
+            if side == 'buy':  # open long
                 params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
                 res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
                                                  price=price, params=params)
-            elif side == 'sell':  # 지정가 open short
+            elif side == 'sell':  # open short
                 params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
                 res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
                                                  price=price, params=params)

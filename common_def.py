@@ -40,7 +40,7 @@ def convert_df(df):
     df['이격도60이평'] = df['종가'].shift(1) / df['이평60'].shift(1) * 100
     df['밴드상'], df['밴드중'], df['밴드하'] = talib.BBANDS(df['종가'].shift(1), 20, 2)
     df['고저평균대비등락율'] = ((df['종가'] / ((df['고가'] + df['저가']) / 2) - 1) * 100).round(2)
-    df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
+    # df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
     return df
 def convert_df_compare(df):
     # print(convert_df)
