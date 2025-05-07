@@ -251,40 +251,65 @@ class do_trade(QThread):
     def buy_future(self,idx):
         market = self.df_inverse.loc[idx,'market']
         ticker = self.df_inverse.loc[idx,'ticker']
+        min_inverse = self.df_inverse.loc[idx,'주문최소금액(USD)']
         df = self.get_df(market, ticker, '4시간봉',10) #10일 전부터의 데이터 불러오기
         buy_signal = self.get_buy_signal(df,market,ticker)
-        print(self.df_inverse)
+        # print(self.df_inverse)
         if buy_signal == True:
-            print(f" 매수신호 - {datetime.datetime.now()}   {ticker= }")
+            print(f" 매수신호 - {datetime.datetime.now()}  {market=}  {ticker= }")
             if market == 'bybit':
-                bet = self.df_inverse.loc[idx,'used(qty)']/25
-                price = self.df_inverse.loc[idx,'현재가']
-                category = 'inverse'
-                res = self.common_def.order_open(market=market,category=category,ticker=ticker,side='buy',orderType='market',price=price,qty=bet)
-                id = res['id']
-                while True:
-                    time.sleep(1)
-                    dict_chegyeol = self.fetch_order(market=market,ticker=ticker,id=id,category=category,qty=bet)
-                    if dict_chegyeol['체결'] == True:
-                        print(f"{ticker=},  {category=},  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간: {dict_chegyeol['체결시간']}")
-                        break
-                category = 'spot'
-                현재가 = self.common_def.fetch_ticker(market=market,ticker=ticker + '/USDT')['close']
-                price = res['close']  # 현물가격조회
-                qty = bet / 현재가
-                # res = amount_to_precision(bybit, 'bybit', 'spot', ticker, qty)
-                qty = self.common_def.amount_to_precision(market=market, category=category, ticker=ticker, amount=qty)
-                self.common_def.order_open(market=market,category=category,ticker=ticker,side='sell',orderType='market',price=price,qty=qty)
-                while True:
-                    time.sleep(1)
-                    dict_chegyeol = self.fetch_order(market=market, ticker=ticker, id=id, category=category, qty=qty)
-                    if dict_chegyeol['체결'] == True:
-                        print(f"{ticker=},  {category=},  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간: {dict_chegyeol['체결시간']}")
-                        break
+                symbol = f'{ticker}/USDT:USDT'
+                market_info = self.ex_bybit.load_markets()[symbol]  # future 최소주문금액 조회
+            elif market == 'binance':
+                symbol = f'{ticker}/USDT'
+                market_info = self.ex_binance.load_markets()[symbol]
 
-                self.common_def.order_open(market=market,category='future',ticker=ticker,side='buy',orderType='market',price=price,qty=qty)
-        # print(df)
-        # quit()
+
+            min_qty = market_info['limits']['amount']['min']
+
+            if self.df_inverse.loc[idx,'used(qty)'] < min_qty:
+                return # 보유수량이 최소주문수량보다 작을 경우 pass
+
+            future_leverage = 2
+
+            bet = self.df_inverse.loc[idx,'used(qty)']/20 # 1/n 만큼만 배팅
+            if min_qty > bet*future_leverage: #최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
+                bet = min_qty/future_leverage
+
+
+
+            min_cont = self.df_inverse.loc[idx,'주문최소금액(USD)']
+
+            price = self.df_inverse.loc[idx,'현재가']
+            bet = bet * price
+            category = 'inverse'
+            res = self.common_def.order_open(market=market,category=category,ticker=ticker,side='buy',
+                                             orderType='market',price=price,qty=bet)
+            id = res['id']
+            while True:
+                time.sleep(1)
+                dict_chegyeol = self.fetch_order(market=market,ticker=ticker,id=id,category=category,qty=bet)
+                if dict_chegyeol['체결'] == True:
+                    print(f"{ticker=},  {category=},  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간: {dict_chegyeol['체결시간']}")
+                    break
+            category = 'spot'
+            현재가 = self.common_def.fetch_ticker(market=market,ticker=ticker + '/USDT')['close']
+            price = res['close']  # 현물가격조회
+            qty = bet / 현재가
+            # res = amount_to_precision(bybit, 'bybit', 'spot', ticker, qty)
+            qty = self.common_def.amount_to_precision(market=market, category=category, ticker=ticker, amount=qty)
+            self.common_def.order_open(market=market,category=category,ticker=ticker,side='sell',
+                                       orderType='market',price=price,qty=qty)
+            while True:
+                time.sleep(1)
+                dict_chegyeol = self.fetch_order(market=market, ticker=ticker, id=id, category=category, qty=qty)
+                if dict_chegyeol['체결'] == True:
+                    print(f"{ticker=},  {category=},  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간: {dict_chegyeol['체결시간']}")
+                    break
+
+            self.common_def.order_open(market=market,category='future',ticker=ticker,side='buy',
+                                       orderType='market',price=price,qty=qty)
+
 
     def get_buy_signal(self,df,market,ticker):
         if (df.loc[df.index[-3],'RSI14'] > 30) and (df.loc[df.index[-2],'RSI14'] < 30):
@@ -542,6 +567,7 @@ class do_trade(QThread):
     def fetch_balance(self,market):
         if market == 'bybit':
             res = self.ex_bybit.fetch_balance()
+
 
         elif market == 'binance':
             res_spot = self.ex_binance.fetch_balance()
@@ -1297,7 +1323,12 @@ class common_def():
                 params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
                 symbol = ticker +'USD'
                 leverage = 1
-            # elif
+            elif category == 'future':
+                symbol = ticker + 'USDT'
+                if side == 'buy':
+                    params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+                elif side == 'sell':  # 지정가 open short
+                    params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             try:
                 self.ex_bybit.set_leverage(leverage=leverage, symbol=symbol)
             except:
@@ -1316,7 +1347,13 @@ class common_def():
                 params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
                 symbol = ticker +'USD_PERP'
                 leverage = 1
-            # print(f"{market= }   {symbol= }   {orderType= }   {side= }    {qty= }   {price= }")
+            elif category == 'future':
+                symbol = ticker + 'USDT'
+                if side == 'buy':
+                    pass
+                    # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+                elif side == 'sell':  # 지정가 open short
+                    pass
             try:
                 self.ex_binance.set_leverage(leverage=leverage, symbol=symbol)
             except:
@@ -1533,7 +1570,7 @@ class ShutdownDialog(QDialog):
         main_layout = QVBoxLayout()
 
         # 안내 메시지
-        self.message_label = QLabel('시스템이 10초 후에 종료됩니다.')
+        self.message_label = QLabel('시스템이 30초 후에 종료됩니다.')
         self.message_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.message_label)
 

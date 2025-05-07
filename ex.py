@@ -241,23 +241,23 @@ def amount_to_precision(exchange, market, category, ticker, amount):
             symbol = ticker + 'USD'
         return float(exchange.amount_to_precision(symbol=symbol, amount=amount))
 
-def order_open(exchange,market, category, ticker, side, orderType, price, qty): #ccxt
+def order_open(exchange,market, category, ticker, side, orderType, price, qty,leverage=1): #ccxt
     if market == 'bybit':
         if category == 'spot':
             params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             symbol = ticker + '/USDT'
-            leverage = 1
+            # leverage = 1
         elif category == 'inverse':
             params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             symbol = ticker + 'USD'
-            leverage = 1
+#             leverage = 1
         elif category == 'future':
             symbol = ticker + 'USDT'
             if side == 'buy':
                 params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             elif side == 'sell':  # 지정가 open short
                 params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-            leverage = 3
+            # leverage = 3
         try:
             exchange.set_leverage(leverage=leverage, symbol=symbol)
         except:
@@ -265,15 +265,24 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty): 
         res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
                                          price=price, params=params)
     elif market == 'binance':
-
         if category == 'spot':
             params = {}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             symbol = ticker + '/USDT'
             leverage = 1
         elif category == 'inverse':
-            params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            # params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            params = {}
             symbol = ticker + 'USD_PERP'
             leverage = 1
+        elif category == 'future':
+            symbol = ticker + 'USDT'
+            if side == 'buy':
+                pass
+                # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            elif side == 'sell':  # 지정가 open short
+                pass
+                # params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            # leverage = 3
         # print(f"{market= }   {symbol= }   {orderType= }   {side= }    {qty= }   {price= }")
         try:
             exchange.set_leverage(leverage=leverage, symbol=symbol)
@@ -357,9 +366,9 @@ def bybit_set_tickers(fetch_tickers):
 # print(type(dt))
 #
 # quit()
-# api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
-# api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
-# binance = ccxt.binance(config={
+api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
+api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
+# binance_futures = ccxt.binance(config={
 #     'apiKey': api_key,
 #     'secret': api_secret,
 #     'enableRateLimit': True,
@@ -368,18 +377,59 @@ def bybit_set_tickers(fetch_tickers):
 #                 'defaultType': 'future'
 #                 },
 # })
-#
+
 # res_spot = binance.fetch_balance()
 # # pprint(res_spot)
 # print('=====================')
 # res = binance.fetch_balance(params={"type": 'delivery'})
 # pprint(res)
+
+
+
+# # 시장 데이터 로드
+# markets = binance_futures.load_markets()
 #
+# # 선물 BTCUSDT 심볼 정보 가져오기
+# symbol = 'BTC/USDT'  # 바이낸스 선물에서는 이런 형식 사용
+# market_info = markets[symbol]
 #
+# pprint(market_info)
+# # 최소 주문 수량 확인
+# min_amount = market_info['limits']['amount']['min']
+# print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}{type(min_amount)}")
+
+# binance = ccxt.binance(config={
+#     'apiKey': api_key,
+#     'secret': api_secret,
+#     'enableRateLimit': True,
+#     'options': {'position_mode': True, },
+#     })
+# ticker = 'BTC'
+# symbol = ticker +'/USDT'
+# markets = binance.load_markets()
+# market_info = markets[symbol]
 #
+# # 최소 주문 수량 확인
+# min_amount = market_info['limits']['amount']['min']
+# print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}")
+
+
+
+
+# # 시장 데이터 로드
+# markets = binance_futures.load_markets()
+# symbol = 'BTC/USDT'
+# market_info = markets[symbol]
 #
+# # 최소 주문 수량 확인
+# min_amount = market_info['limits']['amount']['min']
+# print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}")
+# id = order_open(exchange=binance ,market='bybit' , category='inverse' , ticker= ticker, side='buy' ,
+#                 orderType= 'market', price= 88000, qty=10 )
+# pprint(id)
+
 # quit()
-# print('==============================================')
+print('==============================================')
 api_key = "k3l5BpTorsRTHvPmAj"
 api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
 bybit = ccxt.bybit(config={
@@ -389,6 +439,25 @@ bybit = ccxt.bybit(config={
     'options': {'position_mode': True, },
 })
 
+
+ticker = 'SOL'
+0.0419282
+94436
+leverage = 2
+used = 8.67714
+현재가 = 145.73
+주문최소금액 = 1
+# min_qty = 0.001
+bet = used/20
+market_info = bybit.load_markets()[f'{ticker}/USDT:USDT']
+min_qty = market_info['limits']['amount']['min']
+print(f"1- 보유금액: {used*현재가}   {min_qty= }")
+if min_qty > bet*leverage:
+    bet = min_qty/leverage
+    print(f"{min_qty=} {bet= }")
+print(f"{bet =}")
+bet = bet * 현재가
+print(f"{bet =}")
 # id = order_open(exchange=bybit ,market='bybit' , category='inverse' , ticker= 'BTC', side='buy' ,
 #                 orderType= 'market', price= 88000, qty=10 )
 # pprint(id)
@@ -396,6 +465,7 @@ bybit = ccxt.bybit(config={
 # id = 'b64e1da7-220a-4a38-aa70-27242a496b1b'
 ticker = 'BTC'
 bet = 10
+quit()
 # while True:
 #     time.sleep(1)
 #     res = fetch_order(bybit,'bybit',ticker,id,'inverse',10)
@@ -428,21 +498,25 @@ symbol = 'BTC/USDT'
 # 마켓 정보 불러오기
 
 # 선물 심볼은 'BTC/USDT' (spot처럼 보이지만 bybitusdm 객체에서는 선물)
-markets = bybit.load_markets()
+market_info = bybit.load_markets()[f'{ticker}/USDT:USDT']
 
 # 선물 BTCUSDT 심볼 정보 가져오기
-symbol = 'BTC/USDT:USDT'  # 선물 계약 심볼 형식
-market_info = markets[symbol]
+# symbol = 'BTC/USDT:USDT'  # 선물 계약 심볼 형식
+# market_info = markets[symbol]
 
 # 최소 주문 수량 확인
+pprint(market_info)
 min_amount = market_info['limits']['amount']['min']
 print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}")
 price = res['close']#선물가격조회
 print(price)
 qty = amount_to_precision(bybit,'bybit','spot',ticker,bet / price)
+leverage = 3
 print(qty)
+if min_amount > qty:
+    print(f'min: {min_amount}')
 res = order_open(exchange=bybit ,market='bybit' , category=category , ticker= 'BTC', side='buy' ,
-                orderType= 'market', price= price, qty=qty)
+                orderType= 'market', price= price, qty=qty, leverage=leverage)
 pprint(res)
 id = res['id']
 print(f"{id= }")
