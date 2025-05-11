@@ -458,6 +458,12 @@ if min_qty > bet*leverage:
 print(f"{bet =}")
 bet = bet * 현재가
 print(f"{bet =}")
+min_cont = 100
+if min_cont > bet:
+    print("min_cont > bet")
+    if
+    bet = min_cont
+print(f"{bet/min_cont= }")
 # id = order_open(exchange=bybit ,market='bybit' , category='inverse' , ticker= 'BTC', side='buy' ,
 #                 orderType= 'market', price= 88000, qty=10 )
 # pprint(id)

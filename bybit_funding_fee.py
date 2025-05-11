@@ -251,10 +251,13 @@ class do_trade(QThread):
     def buy_future(self,idx):
         market = self.df_inverse.loc[idx,'market']
         ticker = self.df_inverse.loc[idx,'ticker']
-        min_inverse = self.df_inverse.loc[idx,'주문최소금액(USD)']
+        # min_inverse = self.df_inverse.loc[idx,'주문최소금액(USD)']
+        min_cont = self.df_inverse.loc[idx,'주문최소금액(USD)']
+        used_qty = self.df_inverse.loc[idx, 'used(qty)']
         df = self.get_df(market, ticker, '4시간봉',10) #10일 전부터의 데이터 불러오기
         buy_signal = self.get_buy_signal(df,market,ticker)
         # print(self.df_inverse)
+        future_leverage = 2
         if buy_signal == True:
             print(f" 매수신호 - {datetime.datetime.now()}  {market=}  {ticker= }")
             if market == 'bybit':
@@ -264,21 +267,17 @@ class do_trade(QThread):
                 symbol = f'{ticker}/USDT'
                 market_info = self.ex_binance.load_markets()[symbol]
 
-
             min_qty = market_info['limits']['amount']['min']
 
-            if self.df_inverse.loc[idx,'used(qty)'] < min_qty:
-                return # 보유수량이 최소주문수량보다 작을 경우 pass
+            if used_qty < min_qty or used_qty < min_cont:
+                return # 보유수량이 선물 최소주문수량보다 작거나 인버스 주문최소금액보다 작을 경우 pass
 
-            future_leverage = 2
-
-            bet = self.df_inverse.loc[idx,'used(qty)']/20 # 1/n 만큼만 배팅
+            bet = used_qty/20 # 1/n 만큼만 배팅
             if min_qty > bet*future_leverage: #최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
                 bet = min_qty/future_leverage
 
 
 
-            min_cont = self.df_inverse.loc[idx,'주문최소금액(USD)']
 
             price = self.df_inverse.loc[idx,'현재가']
             bet = bet * price
