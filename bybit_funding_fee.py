@@ -267,20 +267,31 @@ class do_trade(QThread):
                 symbol = f'{ticker}/USDT'
                 market_info = self.ex_binance.load_markets()[symbol]
 
-            min_qty = market_info['limits']['amount']['min']
-
-            if used_qty < min_qty or used_qty < min_cont:
-                return # 보유수량이 선물 최소주문수량보다 작거나 인버스 주문최소금액보다 작을 경우 pass
-
-            bet = used_qty/20 # 1/n 만큼만 배팅
-            if min_qty > bet*future_leverage: #최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
-                bet = min_qty/future_leverage
-
-
-
-
+            min_qty_future = market_info['limits']['amount']['min']
             price = self.df_inverse.loc[idx,'현재가']
-            bet = bet * price
+            bet_qty = used_qty/20   # 1/n 만큼만 배팅
+
+            if used_qty*future_leverage < min_qty_future:
+                print(f"최소주문 미달 [used_qty*future_leverage < min_qty_future] {used_qty= }  |  {future_leverage= }  |  {min_qty_future= }")
+                return      # 보유수량이 선물 최소주문수량보다 작거나 인버스 주문최소금액보다 작을 경우 pass
+            elif used_qty * price < min_cont:
+                print(f"최소주문 미달 [used_qty * price < min_cont] {used_qty= }  |  {price= }  |  {min_cont= }")
+                return
+
+
+            if min_qty_future * price > min_cont:
+                if min_qty_future > bet_qty*future_leverage: #최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
+                    bet_qty = min_qty_future/future_leverage
+                bet = bet_qty * price
+            else:
+                if min_cont > bet_qty / future_leverage * price:
+                    bet = min_cont
+                else:
+                    bet = bet_qty / future_leverage * price
+
+            bet = math.ceil(bet) # 소수점일경우 올림해서 정수로 변환
+
+
             category = 'inverse'
             res = self.common_def.order_open(market=market,category=category,ticker=ticker,side='buy',
                                              orderType='market',price=price,qty=bet)
