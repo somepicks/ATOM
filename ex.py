@@ -368,21 +368,21 @@ def bybit_set_tickers(fetch_tickers):
 # quit()
 api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
 api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
-# binance_futures = ccxt.binance(config={
-#     'apiKey': api_key,
-#     'secret': api_secret,
-#     'enableRateLimit': True,
-#     'options': {
-#                 # 'position_mode': True,  #롱 & 숏을 동시에 유지하면서 리스크 관리(헷징)할 때
-#                 'defaultType': 'future'
-#                 },
-# })
+binance_futures = ccxt.binance(config={
+    'apiKey': api_key,
+    'secret': api_secret,
+    'enableRateLimit': True,
+    'options': {
+                # 'position_mode': True,  #롱 & 숏을 동시에 유지하면서 리스크 관리(헷징)할 때
+                'defaultType': 'future'
+                },
+})
 
-# res_spot = binance.fetch_balance()
-# # pprint(res_spot)
-# print('=====================')
-# res = binance.fetch_balance(params={"type": 'delivery'})
-# pprint(res)
+res_spot = binance_futures.fetch_balance()
+# pprint(res_spot)
+print('=====================')
+res = binance_futures.fetch_balance(params={"type": 'delivery'})
+pprint(res)
 
 
 
@@ -428,7 +428,7 @@ api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
 #                 orderType= 'market', price= 88000, qty=10 )
 # pprint(id)
 
-# quit()
+quit()
 print('==============================================')
 api_key = "k3l5BpTorsRTHvPmAj"
 api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
@@ -461,7 +461,6 @@ print(f"{bet =}")
 min_cont = 100
 if min_cont > bet:
     print("min_cont > bet")
-    if
     bet = min_cont
 print(f"{bet/min_cont= }")
 # id = order_open(exchange=bybit ,market='bybit' , category='inverse' , ticker= 'BTC', side='buy' ,

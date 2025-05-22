@@ -44,9 +44,9 @@ class MyApp(QWidget):
 
     def initUI(self):
         self.tabs = QTabWidget()
+        self.tabs.addTab(self.trade, '트레이딩')
         self.tabs.addTab(self.backtest, '백테스트')
         self.tabs.addTab(self.optimize, '최적화')
-        self.tabs.addTab(self.trade, '트레이딩')
         self.tabs.addTab(self.chart_table, '차트테이블')
         # self.tabs.addTab(self.set, '설정')
         vbox = QVBoxLayout()
