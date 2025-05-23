@@ -1,41 +1,29 @@
-# from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QVBoxLayout, QWidget
-# from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
-# import sys
-# import time
-#
-#
-#
-#
-#
-# import sys
-# from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTimeEdit
-# from PyQt5.QtCore import QTime
-#
-# class TimeEditDemo(QWidget):
-#     def __init__(self):
-#         super().__init__()
-#
-#         self.initUI()
-#
-#     def initUI(self):
-#         layout = QVBoxLayout()
-#
-#         self.timeEdit = QTimeEdit(self)
-#         self.timeEdit.setTime(QTime.currentTime())  # 현재 시간으로 설정
-#         self.timeEdit.setDisplayFormat("HH:mm:ss")  # 24시간제 포맷
-#         self.timeEdit.setMinimumTime(QTime(9, 0, 0))  # 최소 시간 설정 (오전 9시)
-#         self.timeEdit.setMaximumTime(QTime(18, 0, 0))  # 최대 시간 설정 (오후 6시)
-#
-#         layout.addWidget(self.timeEdit)
-#         self.setLayout(layout)
-#
-#         self.setWindowTitle("QTimeEdit Example")
-#         print(self.timeEdit.text())
-# if __name__ == "__main__":
-#     app = QApplication(sys.argv)
-#     demo = TimeEditDemo()
-#     demo.show()
-#     sys.exit(app.exec_())
+import sys
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
+from PyQt5.QtCore import QTimer
+
+class MyWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.button = QPushButton("Click Me")
+        self.button.clicked.connect(self.on_button_clicked)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.button)
+        self.setLayout(layout)
+
+        # 2초(2000ms) 후에 버튼 클릭 시그널 보내기
+        QTimer.singleShot(2000, self.button.click)
+
+    def on_button_clicked(self):
+        print("Button was clicked!")
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MyWindow()
+    window.show()
+    sys.exit(app.exec_())
 #
 #
 #

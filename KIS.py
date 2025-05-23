@@ -534,6 +534,9 @@ class KoreaInvestment:
                     nowday = df['bass_dt'].tolist()[-1]
                     del output[-1]
                     QTest.qWait(800)
+            elif resp['msg1'] == '모의투자 TR 이 아닙니다.':
+                print(f"API 확인 필요: {resp}")
+                raise
             else:
                 pprint(resp)
                 print(nowday)
