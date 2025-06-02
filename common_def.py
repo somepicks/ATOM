@@ -422,7 +422,7 @@ def save_futopt_DB(check_simul,ex_kis,ticker,list_table,conn_DB):
                 df = df[df.index > past_expiry_date]
                 df['만기일'] = expiry_date
                 df['종목코드'] = symbol
-            print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_expiry_date= }")
+            # print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_expiry_date= }")
 
 
             # 데이터가 없을경우 해당하는 행 삭제

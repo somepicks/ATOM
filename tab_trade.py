@@ -2,7 +2,7 @@ import datetime
 import pandas as pd
 from PyQt5.QtWidgets import QMainWindow, QGridLayout, QLineEdit, QLabel, QPushButton, QWidget, QVBoxLayout, \
     QTableWidget, QSplitter, QApplication, QCheckBox, QTextEdit, QTableWidgetItem, QHeaderView, QComboBox, \
-    QAbstractItemView, QHBoxLayout, QTimeEdit
+    QAbstractItemView, QHBoxLayout, QTimeEdit,QDialog
 from PyQt5.QtCore import Qt, QThread, pyqtSlot, QTimer, QRegExp, QTime
 from PyQt5.QtTest import QTest
 from PyQt5.QtGui import QFontMetrics, QFont, QColor, QSyntaxHighlighter, QTextCharFormat
@@ -1084,16 +1084,23 @@ class Window(QMainWindow):
             if self.ex_kis == None:
                 return print('ERROR- 시작할 수 없음: 국내선옵 API 확인')
 
+        time_only = datetime.datetime.strptime(self.df_set.loc['자동종료시간','value'], "%H:%M:%S").time()
+        finish_time = datetime.datetime.combine(datetime.date.today(), time_only)
+
+
         self.dict_market_option['list_tickers'] = self.df_tickers['종목코드'].tolist()
         self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(),self.ex_kis,self.ex_bybit,self.ex_pybit, self.QCB_simul, self.df_stg,
                                                 self.QCB_chart_duration.currentText(),self.QCB_tele.isChecked(),
-                                                self.dict_market_option)
+                                                self.dict_market_option,self.QCB_auto_finish.isChecked(),finish_time)
         self.thread.start()
         # self.QPB_start.setText({True: "정지", False: "시작"}[self.thread.status])
         self.thread.qt_open.connect(self.qtable_open)
         self.thread.qt_closed.connect(self.qtable_closed)
         self.thread.val_light.connect(self.effect_start)
         self.thread.save_history.connect(self.save_sql)
+
+        self.thread.shutdown_signal.connect(self.show_shutdown_dialog)
+
 
     @pyqtSlot()
     def slot_clicked_button(self):
@@ -1461,7 +1468,17 @@ class Window(QMainWindow):
         df_chart_table = self.chart_table.df_to_show(df, market)
         self.chart_table.chart_show(market, ticker)
 
+    def show_shutdown_dialog(self):
+        # self.onStopButtonClicked()
+        print('프로그램 종료')
+        # self.close() #프로그램 종료
+        # 종료 알람 다이얼로그 표시
+        self.shutdown_dialog = ShutdownDialog()
+        self.shutdown_dialog.exec_()
 
+        # 다이얼로그가 닫힌 후 버튼 상태 복원
+        # self.start_button.setEnabled(True)
+        # self.start_button.setText('시작')
 
     # def stamp_to_int(self, stamp_time):
     #     dt = datetime.datetime.fromtimestamp(stamp_time)
@@ -1511,15 +1528,85 @@ class Window(QMainWindow):
                     pass
                 print('pushed down')
 
-
-
-
-
-
     def BTN_effect(self, QPB):
         QPB.setEnabled(False)
         QTest.qWait(250)
         QPB.setEnabled(True)
+
+
+
+class ShutdownDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.seconds_left = 30
+        self.shutdown_timer = QTimer()
+        self.shutdown_timer.timeout.connect(self.update_timer)
+
+        self.init_ui()
+        self.start_timer()
+
+    def init_ui(self):
+        self.setWindowTitle('윈도우 종료 알림')
+        self.setFixedSize(300, 150)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+
+        # 레이아웃 설정
+        main_layout = QVBoxLayout()
+
+        # 안내 메시지
+        self.message_label = QLabel('시스템이 30초 후에 종료됩니다.')
+        self.message_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.message_label)
+
+        # 타이머 표시
+        self.timer_label = QLabel(f'남은 시간: {self.seconds_left}초')
+        self.timer_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.timer_label)
+
+        # 버튼 컨테이너
+        button_layout = QHBoxLayout()
+
+        # 종료 버튼
+        self.shutdown_button = QPushButton('윈도우종료')
+        self.shutdown_button.clicked.connect(self.shutdown_now)
+        button_layout.addWidget(self.shutdown_button)
+
+        # 취소 버튼
+        self.cancel_button = QPushButton('취소')
+        self.cancel_button.clicked.connect(self.cancel_shutdown)
+        button_layout.addWidget(self.cancel_button)
+
+        main_layout.addLayout(button_layout)
+        self.setLayout(main_layout)
+
+    def start_timer(self):
+        self.shutdown_timer.start(1000)  # 1초마다 타이머 업데이트
+
+    def update_timer(self):
+        self.seconds_left -= 1
+        self.timer_label.setText(f'남은 시간: {self.seconds_left}초')
+
+        if self.seconds_left <= 0:
+            self.shutdown_timer.stop()
+            self.shutdown_now()
+
+    def shutdown_now(self):
+        self.shutdown_timer.stop()
+        # 윈도우 종료 명령 실행
+
+        print('윈도우 종료')
+        os.system("shutdown /s /t 0") #윈도우 죵료
+
+        # print('윈도우 절전모드')
+        # os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0") #윈도우 절전모드
+        self.close()
+
+    def cancel_shutdown(self):
+        self.shutdown_timer.stop()
+        print('윈도우 종료 취소')
+        self.close()
+
 
 if __name__ == "__main__":
     # pg.setConfigOption('background', 'k')

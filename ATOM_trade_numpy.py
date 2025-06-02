@@ -3,8 +3,10 @@ from time import strftime
 from colorama import init, Fore, Style
 import pandas as pd
 from pandas import to_numeric
-from PyQt5.QtWidgets import QMainWindow,QGridLayout,QLineEdit,QLabel,QPushButton,QWidget,QVBoxLayout,QTableWidget,QSplitter,QApplication,QCheckBox,QTextEdit,QTableWidgetItem,QHeaderView,QComboBox
-from PyQt5.QtCore import Qt,QThread,pyqtSignal,QWaitCondition,QMutex
+from PyQt5.QtWidgets import (QMainWindow,QGridLayout,QLineEdit,QLabel,QPushButton,QWidget,QVBoxLayout,
+                             QTableWidget,QSplitter,QApplication,QCheckBox,QTextEdit,QTableWidgetItem,
+                             QHeaderView,QComboBox,QDialog,QHBoxLayout)
+from PyQt5.QtCore import Qt,QThread,pyqtSignal,QWaitCondition,QMutex,QTimer
 from PyQt5.QtTest import QTest
 from PyQt5.QtGui import QFontMetrics,QFont
 from PyQt5 import QtWidgets, QtCore
@@ -491,8 +493,10 @@ class Trade_np(QThread):
     save_history = pyqtSignal(str,pd.DataFrame)
     val_light = pyqtSignal(bool,pd.DataFrame,pd.DataFrame)
 
+    shutdown_signal = pyqtSignal()
 
-    def __init__(self, parent, market,ex_kis,ex_bybit,ex_pybit, simul, df_stg, chart_duration, tele, dict_market_option):
+    def __init__(self, parent, market,ex_kis,ex_bybit,ex_pybit, simul, df_stg, chart_duration, tele,
+                 dict_market_option,auto_finish,finish_time):
         super().__init__(parent)
     # def __init__(self,market,simul,df_stg):
     #     super().__init__()
@@ -508,6 +512,8 @@ class Trade_np(QThread):
         self.mutex = QMutex()
         self._status = True
         self.light = False
+        self.auto_finish = auto_finish
+        self.finish_time = finish_time
         self.wait()
         if chart_duration == '기간(일)': chart_duration = 1
         self.duration = int(chart_duration)
@@ -2573,7 +2579,7 @@ class Trade_np(QThread):
 
     def market_finish(self):
         print(f'장 마감 {datetime.datetime.now()=}')
-        print(self.df_trade)
+        # print(self.df_trade)
         for stg in self.df_trade.index:
             print('===============================')
             상태 = self.df_trade.loc[stg, '상태']
@@ -2614,8 +2620,17 @@ class Trade_np(QThread):
                 common_def.save_futopt_DB(self.simul,self.ex_kis, ticker,list_table,conn_DB)
             cursor.close()
             conn_DB.close()
-        print('완료')
-        quit()
+        print(f'{datetime.datetime.now()}  :  완료  {self.auto_finish= }')
+        if self.auto_finish == True:
+            self.shutdown_signal.emit()
+            # while True:
+            #     if datetime.datetime.now() > self.finish_time:
+            #         print(f'{datetime.datetime.now()}  :  자동종료')
+            #         self.shutdown_signal.emit()
+            #         quit()
+        else:
+            print(f'{datetime.datetime.now()}  :  종료')
+            quit()
     def order_open(self, ticker, price, qty, side, type, leverage):
         try:
             if side == 'buy':  # open long
