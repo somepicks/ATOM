@@ -27,9 +27,7 @@ import numpy as np
 from PyQt5 import QtTest
 from PyQt5.QtTest import *
 from dateutil.relativedelta import relativedelta
-import common_def
-import calendar
-# from user_agent import generate_user_agent, generate_navigator
+
 
 
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
@@ -1966,7 +1964,7 @@ class KoreaInvestment:
             i = 0
             while True:
                 data = self.fetch_balance_domestic()
-                if data['msg1'] == '정상처리 되었습니다.'or data['msg1'] == '모의투자 조회가 완료되었습니다.                                                 ':
+                if data['msg1'][:18] == '조회 되었습니다. (마지막 자료)'or data['msg1'][:16] == '모의투자 조회가 완료되었습니다':
                     break
                 else:
                     # time.sleep(0.5)
@@ -2029,8 +2027,13 @@ class KoreaInvestment:
                                  'sll_buy_dvsn_name':'매도매수구분명','trad_pfls_amt':'매매손익금액'}, inplace=True)
                     df_instock = df_instock[['잔고수량','체결평균단가','평가금액','정산단가','지수종가','청산가능수량','매입금액',
                                              '평가손익','상품번호','상품명','상품유형코드','종목코드','매도매수구분명','매매손익금액']]
-                    df_instock.set_index('종목코드', inplace=True)
+                    # df_instock.set_index('종목코드', inplace=True) #인덱스를 종목코드로 변경
             # return output
+                if not df_instock.empty:
+                    df_instock = self.convert_column_types(df_instock)
+                    df_instock = df_instock[df_instock['청산가능수량'] > 0]
+                    df_instock
+
             return dict_amount, df_instock
         if self.exchange == '해외':
             output = {}
@@ -2057,7 +2060,6 @@ class KoreaInvestment:
                 dict_amount['통화코드'] = data['output']['crcy_cd']
                 dict_amount['예수금잔액'] = int(float(data['output']['fm_dnca_rmnd']))
                 dict_amount['계좌번호'] = f"{self.acc_no_prefix}-{self.acc_no_postfix}"
-                pprint(data['output'])
                 df_instock = pd.DataFrame(data['output'],index=[0])
                 if not df_instock.empty:
                     df_instock.rename(
@@ -2146,7 +2148,6 @@ class KoreaInvestment:
 
             res = requests.get(url, headers=headers, params=params)
             data = res.json()
-            # pprint(data)
             # data['tr_cont'] = res.headers['tr_cont']
             return data
 
@@ -3547,8 +3548,15 @@ class KoreaInvestment:
         else:
             raise '없음'
 
-    def hogaUnitCalc_per(self, jang, hogaPrice):
+    def convert_column_types(self,df):  # 데이터프레임 중 숫자로 바꿀 수 있는데이터는 숫자로 변환
+        for col in df.columns:
+            try:
+                df[col] = pd.to_numeric(df[col], errors='raise')
+            except ValueError:
+                pass
+        return df
 
+    def hogaUnitCalc_per(self, jang, hogaPrice):
         minPrice = 1
         if hogaPrice < 10:
             minPrice = 10
@@ -3720,6 +3728,12 @@ class KoreaInvestment:
     #     return df_trend
 
 if __name__ == "__main__":
+    import common_def
+    conn_set = sqlite3.connect('DB/setting.db')
+    df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_set).set_index('index')
+    exchange = common_def.make_exchange_kis(df_set=df_set,trade_type='실전선옵')
+    res,df = exchange.fetch_balance()
+    print(df)
     def nth_weekday(the_date, nth_week, week_day):
         temp = the_date.replace(day=1)
         adj = (week_day - temp.weekday()) % 7
@@ -3739,63 +3753,30 @@ if __name__ == "__main__":
 
     def make_exchange_kis_WS(key, secret):
         # 실시간주식 체결가
-        broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNT0", "H0STASP0"], tr_key_list=["005930", "000660"], user_id="somepick")
-        broker_ws.start()
-        while True:
-           data_ = broker_ws.get()
-           if data_[0] == '체결':
-               print(data_[1])
-           elif data_[0] == '호가':
-               print(data_[1])
-           elif data_[0] == '체잔':
-               print(data_[1])
+        # broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNT0", "H0STASP0"], tr_key_list=["005930", "000660"], user_id="somepick")
+        # broker_ws.start()
+        # while True:
+        #    data_ = broker_ws.get()
+        #    if data_[0] == '체결':
+        #        print(data_[1])
+        #    elif data_[0] == '호가':
+        #        print(data_[1])
+        #    elif data_[0] == '체잔':
+        #        print(data_[1])
+        #
+        # # print('==============')
+        # # quit()
+        # # 실시간주식호가
+        # broker_ws = KoreaInvestmentWS(api_key= key, api_secret=secret, tr_id_list=["H0STASP0"], tr_key_list=["005930"])
+        # broker_ws.start()
+        # for i in range(3):
+        #    data = broker_ws.get()
+        #
+        # # 실시간주식체결통보
+        # broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNI0"], user_id="somepick")
+        # broker_ws.start()
+        # for i in range(3):
+        #    data = broker_ws.get()
+        pass
 
-        print('==============')
-        quit()
-        # 실시간주식호가
-        broker_ws = KoreaInvestmentWS(api_key= key, api_secret=secret, tr_id_list=["H0STASP0"], tr_key_list=["005930"])
-        broker_ws.start()
-        for i in range(3):
-           data = broker_ws.get()
 
-        # 실시간주식체결통보
-        broker_ws = KoreaInvestmentWS(api_key=key, api_secret=secret, tr_id_list=["H0STCNI0"], user_id="somepick")
-        broker_ws.start()
-        for i in range(3):
-           data = broker_ws.get()
-
-    # exchange = common_def.make_exchange_kis('모의선옵')
-    exchange,pybit = common_def.make_exchange_bybit()
-    res = exchange.fetch_balance()
-    pprint(res)
-    print('=================')
-    res = res['info']['result']['list'][0]
-    df = pd.DataFrame(res)
-    print(df)
-    print('=================')
-    balance = '보유'
-    ticker = 'BTC'
-    accountType = 'UNIFIED'
-    res = pybit.get_coins_balance(
-        accountType=accountType,  # CONTRACT: Inverse Derivatives Account, UNIFIED: Unified Trading Account
-        coin=ticker,  # BTC
-    )
-    pprint(res)
-    print(res['result']['balance'][0]['walletBalance'])
-    print(res['result']['balance'][0]['transferBalance'])
-    # if balance == '보유':
-    #     return res['result']['balance'][0]['walletBalance']
-    # elif balance == '잔고':
-    #     return res['result']['balance'][0]['transferBalance']
-    # conn_DB = sqlite3.connect('DB/DB_futopt.db')
-    # cursor = conn_DB.cursor()
-    # cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    # try:
-    #     list_table = np.concatenate(cursor.fetchall()).tolist()
-    # except:
-    #     list_table = []
-    # for ticker in ['선물','콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
-    #     common_def.save_futopt_DB(check_simul=True, ex_kis=exchange, ticker=ticker, list_table=list_table,
-    #                               conn_DB=conn_DB)
-    # print(exchange.display_opt_weekly(datetime.date(2025,2,27)))
-    # print(exchange.get_trading_dates(datetime.date(2025,3,7)))

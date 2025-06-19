@@ -543,8 +543,8 @@ class Trade_np(QThread):
         self.fee_bybit_limit = 0.055
         self.위탁증거금률 = 10  # 10%
         self.tele = tele
-        self.list_tickers = dict_market_option['list_tickers']
         self.dict_market_option = dict_market_option
+        self.list_tickers = self.dict_market_option['list_tickers']
         # self.list_close_day = list_close_day
 
 
@@ -575,7 +575,11 @@ class Trade_np(QThread):
             print(f"{self.cyan('모의매매')}")
 
         if self.market == '국내주식' or self.market == '국내선옵':
-            if datetime.datetime.now().time() < datetime.datetime.strptime('00:55:00','%H:%M:%S').time(): #9시 전에 클릭하면 9시 정각에 실행
+            if self.dict_market_option['개장일'] == 'N' or self.dict_market_option['개장일'] == 'n':
+                print(f"금일은 개장일이 아닙니다. {datetime.datetime.now().date().strftime('%Y%m%d')}")
+                if self.auto_finish == True:
+                    self.shutdown_signal.emit()
+            elif datetime.datetime.now().time() < datetime.datetime.strptime('00:55:00','%H:%M:%S').time(): #9시 전에 클릭하면 9시 정각에 실행
                 schedule.every().day.at("08:55:00").do(self.loop_init)
                 while self._status:
                     schedule.run_pending()
@@ -2533,8 +2537,11 @@ class Trade_np(QThread):
                 df_f.loc[df_f.index[0], '거래량'] = float(output['거래량'])
                 df_f.loc[df_f.index[0], '거래대금'] = float(output['거래대금'])
                 df_f.loc[df_f.index[0], '이론가/행사가'] = float(output['이론가'])
-                # df.loc[df.index[0], '베이시스'] = float(output['베이시스'])
+                df_f.loc[df_f.index[0], '베이시스/프리미엄'] = float(output['베이시스'])
+                print(df_f)
                 self.df_tickers = common_def.futopt_set_tickers(df_f,self.df_c,self.df_p,self.df_c_weekly,self.df_p_weekly,self.COND_MRKT)
+                print(self.df_tickers)
+                quit()
 
     def sorting_tickers(self,dict_stg_stg,obj):
         key = list(obj.keys())[0]
@@ -2620,6 +2627,9 @@ class Trade_np(QThread):
                 common_def.save_futopt_DB(self.simul,self.ex_kis, ticker,list_table,conn_DB)
             cursor.close()
             conn_DB.close()
+            file_path = 'token.dat'
+            if os.path.exists(file_path):
+                os.remove(file_path)
         print(f'{datetime.datetime.now()}  :  완료  {self.auto_finish= }')
         if self.auto_finish == True:
             self.shutdown_signal.emit()
