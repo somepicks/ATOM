@@ -17,6 +17,9 @@ import common_def
 import json  # 리스트를 문자열로 변환하기 위해 필요
 import tab_chart_table
 import os
+
+# from ex import df_holiday
+
 pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width', 1500)
@@ -45,6 +48,8 @@ class Window(QMainWindow):
         self.QPB_del_stg.clicked.connect(self.del_stg)
         self.QPB_chart_start.clicked.connect(self.view_chart)
         self.QPB_chart_stop.clicked.connect(self.view_chart_stop)
+        self.QPB_fetch_balance.clicked.connect(self.fetch_balance)
+        self.QCB_sell_only.clicked.connect(self.sell_only)
         subprocess.Popen('python timesync.py')
 
 
@@ -93,12 +98,14 @@ class Window(QMainWindow):
         self.QCB_simul = QCheckBox('모의매매')
         self.QCB_simul.setChecked(True)
         self.QCB_market = QComboBox()
-        self.list_market = ['', '코인', '국내주식','국내선옵','해외선옵','텔레그램']
+        self.list_market = ['', '코인', '국내주식','국내선옵','국내선옵(야간)','텔레그램']
         self.QCB_market.addItems(self.list_market)
         self.QLE_chart_ticker = QLineEdit()
         self.QLE_bet = QLineEdit()
         self.QCB_hoga_buy = QComboBox()
         self.QCB_hoga_sell = QComboBox()
+        self.QCB_sell_only = QCheckBox('매도만')
+        self.QPB_fetch_balance = QPushButton('보유종목조회')
         self.QL_win = QLabel()
         self.QL_ror = QLabel()
         self.QL_benefit = QLabel()
@@ -136,6 +143,7 @@ class Window(QMainWindow):
             self.QPB_start: self.QPB_stop,
             self.QLE_stg: self.QCB_stgs,
             self.QPB_save_stg: self.QPB_del_stg,
+            self.QCB_sell_only: self.QPB_fetch_balance,
             QLabel("||"):QLabel("||"),
             QLabel('종목명'): self.QLE_chart_ticker,
             QLabel('배팅금액'): self.QLE_bet,
@@ -298,6 +306,9 @@ class Window(QMainWindow):
                 if not 'stg' in list_table:
                     df = pd.DataFrame(columns=li_col)
                     df.to_sql('stg', conn, if_exists='replace')
+                if not 'stg_sell_only' in list_table:
+                    df = pd.DataFrame(columns=li_col)
+                    df.to_sql('stg_sell_only', conn, if_exists='replace')
                 if not 'history' in list_table:
                     df = pd.DataFrame(columns=li_col)
                     df.to_sql('history', conn, if_exists='replace')
@@ -367,24 +378,22 @@ class Window(QMainWindow):
     # def update_label(self, index):
     #     self.label.setText(f"Selected Item: {self.QCB_market.itemText(index)}")
     def display_futopt(self):
-        conn = sqlite3.connect('DB/DB_futopt.db')
-        df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn).set_index('날짜')
-        conn.close()
+
         # print(self.ex_kis.display_fut())
         df_f = self.ex_kis.display_fut()
         today = datetime.datetime.today()
         expiry_date_fut, expiry_str, days_left,past_expiry_date,past_expiry_date_str = self.ex_kis.get_nearest_futures_expiry(today)
 
-        expiry_date_fut = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,df_holiday,expiry_date_fut)
+        expiry_date_fut = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,self.df_holiday,expiry_date_fut)
         df_f['만기일'] = expiry_date_fut.strftime('%m-%d')
         QTest.qWait(500)
         df_c, df_p, past_date, expiry_date_opt = self.ex_kis.display_opt(today)
-        expiry_date_opt = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,df_holiday,expiry_date_opt)
+        expiry_date_opt = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,self.df_holiday,expiry_date_opt)
         df_c['만기일']=expiry_date_opt.strftime('%m-%d')
         df_p['만기일']=expiry_date_opt.strftime('%m-%d')
         QTest.qWait(500)
         df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date_weekly = self.ex_kis.display_opt_weekly(today)
-        expiry_date_weekly = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,df_holiday,expiry_date_weekly)
+        expiry_date_weekly = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,self.df_holiday,expiry_date_weekly)
         df_c_weekly['만기일']=expiry_date_weekly.strftime('%m-%d')
         df_p_weekly['만기일']=expiry_date_weekly.strftime('%m-%d')
         df_f = common_def.convert_column_types(df_f)
@@ -447,6 +456,11 @@ class Window(QMainWindow):
             self.ex_kis = None
 
         elif self.QCB_market.currentText() == '국내주식' :
+            conn_holiday = sqlite3.connect('DB/DB_futopt.db')
+            self.df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
+            conn_holiday.close()
+            now_day = datetime.datetime.now().date().strftime("%Y%m%d")
+            self.dict_market_option['개장일'] = self.df_holiday.loc[now_day, '개장일']
             stg_file = 'DB/stg_stock.db'
             if self.QCB_simul.isChecked() == True:
                 if self.df_set.loc['국내주식_모의_API', 'value'] == '' or self.df_set.loc['국내주식_모의_SECRET', 'value'] == '' or self.df_set.loc['국내주식_모의_ACCOUNT', 'value'] == '':
@@ -467,7 +481,12 @@ class Window(QMainWindow):
             self.ex_bybit = None
             self.ex_pybit = None
 
-        elif self.QCB_market.currentText() == '국내선옵':
+        elif self.QCB_market.currentText() == '국내선옵' or self.QCB_market.currentText() == '국내선옵(야간)':
+            conn_holiday = sqlite3.connect('DB/DB_futopt.db')
+            self.df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
+            conn_holiday.close()
+            now_day = datetime.datetime.now().date().strftime("%Y%m%d")
+
             stg_file = 'DB/stg_futopt.db'
             if self.QCB_simul.isChecked() == True:
                 if self.df_set.loc['국내선옵_모의_API', 'value'] == '' or self.df_set.loc['국내선옵_모의_SECRET', 'value'] == '' or self.df_set.loc['국내선옵_모의_ACCOUNT', 'value'] == '':
@@ -495,7 +514,7 @@ class Window(QMainWindow):
                 self.df_tickers = pd.DataFrame()
             else:
                 self.df_tickers = self.display_futopt()
-
+            self.dict_market_option['개장일'] = self.df_holiday.loc[now_day, '개장일']
         elif self.QCB_market.currentText() == '해외선옵':
             stg_file = 'DB/stg_futopt_oversea.db'
             # self.QCB_chart_bong_detail.setCurrentText('1분봉')
@@ -518,7 +537,10 @@ class Window(QMainWindow):
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             table_list = np.concatenate(cursor.fetchall()).tolist()
             # if 'stg' in table_list:
-            self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')
+            if self.QCB_sell_only.isChecked() == True:
+                self.df_stg = pd.read_sql(f"SELECT * FROM 'stg_sell_only'", self.conn_stg).set_index('index')
+            else:
+                self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')
             # if self.df_stg.empty:
             if self.QCB_market.currentText() == '코인':
                 self.QTE_stg_buy.setText("진입대상 = ''\n"
@@ -584,6 +606,50 @@ class Window(QMainWindow):
             # if list_ticker:
                 # self.QCB_chart_ticker.setCurrentText(list_ticker[0])
         print(f"{self.QCB_market.currentText()} 선택")
+    def sell_only(self):
+        self.select_market()
+    def fetch_balance(self):
+        if self.QCB_market.currentText() == '국내선옵' or self.QCB_market.currentText() == '국내선옵(야간)':
+            if self.QCB_sell_only.isChecked() == True:
+                self.select_market()
+                asset,df_instock = self.ex_kis.fetch_balance()
+                # self.df_compare = df[['ticker', '진입시간', '청산가', '청산시간', '상태', '분할상태',
+                #                       '현재봉시간', '매입금액', '잔고', '분할보유수량', '매도전환']]
+                print(self.df_stg)
+                df_instock.rename(
+                    columns={'체결평균단가': '진입가','청산가능수량': '보유수량',
+                             '평가손익': '수익금', '종목코드': 'ticker',}, inplace=True)
+
+                df_instock['진입시간'] = datetime.datetime.now().replace(second=0, microsecond=0)
+                print(df_instock)
+                df_instock['table'] = range(1, len(df_instock) + 1) #테이블열에 순차적으로 번호 넣기
+                df_instock['청산가'] = 0
+                df_instock['청산시간'] = datetime.datetime.now().replace(second=0, microsecond=0)
+                df_instock['상태'] = 0
+                df_instock['분할상태'] = 0
+                df_instock['현재봉시간'] = 0
+                df_instock['잔고'] = 0
+                df_instock['분할보유수량'] = 0
+                df_instock['매도전환'] = 0
+                df_instock['market'] = 0
+                df_instock['전략명'] = 0
+                df_instock['수익률'] = 0
+                df_instock['최고수익률'] = 0
+                df_instock['최저수익률'] = 0
+                df_instock['현재가'] = 0
+                df_instock['주문수량'] = 0
+                df_instock['체결수량'] = 0
+                df_instock['승률(win/all)'] = 0
+                df_instock['진입수수료'] = 0
+
+
+                self.qtable_open(df_instock)
+
+
+
+                df_instock.to_sql('stg_sell_only',self.conn_stg,if_exists='replace')
+            else:
+                print('매도만을 체크하세요.')
     def save_stg(self):
         global 분봉1, 분봉3, 분봉5, 분봉15, 분봉30, 분봉60, 시간봉4, 일봉, 주봉, 월봉
         global long, short
@@ -1098,7 +1164,6 @@ class Window(QMainWindow):
         self.thread.qt_closed.connect(self.qtable_closed)
         self.thread.val_light.connect(self.effect_start)
         self.thread.save_history.connect(self.save_sql)
-
         self.thread.shutdown_signal.connect(self.show_shutdown_dialog)
 
 
@@ -1136,7 +1201,7 @@ class Window(QMainWindow):
                     self.df_stg = self.df_stg.drop(col,axis=1)
 
                     try:
-                        self.df_stg.to_sql('stg', self.conn_stg, if_exists='replace')
+                        # self.df_stg.to_sql('stg', self.conn_stg, if_exists='replace')
                         # time.sleep(1)
                         print('qtable_open 에러----')
                         print(f"{i= }")

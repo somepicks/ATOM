@@ -360,6 +360,14 @@ def bybit_set_tickers(fetch_tickers):
 ################################################################
 
 
+conn_holiday = sqlite3.connect('DB/DB_futopt.db')
+df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
+conn_holiday.close()
+now_day = datetime.datetime.now().date().strftime("%Y%m%d")
+print(df_holiday.loc[now_day,'개장일'])
+quit()
+
+
 # 바이낸스 API 설정
 # dt = datetime.datetime.strptime('2015-07-15','%Y-%m-%d')
 # print(dt)

@@ -440,7 +440,9 @@ def check_holiday(check_simul,ex_kis,df_holiday,expiry_date):
         conn_DB = sqlite3.connect('DB/DB_futopt.db')
         print(f"{check_simul= }")
         if check_simul:
-            ex_kis = make_exchange_kis('실전선옵')
+            conn_set = sqlite3.connect('DB/setting.db')
+            df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_set).set_index('index')
+            ex_kis = make_exchange_kis(df_set=df_set,trade_type='실전선옵')
         if df_holiday.empty:
             now_day = now_day - datetime.timedelta(days=10)
         df_holiday_new = ex_kis.check_holiday_domestic_stock(now_day,expiry_date)
@@ -607,9 +609,6 @@ def yellow(text):
     return f'\033[33m{text}\033[0m'
 def green(text):
     return f'\033[32m{text}\033[0m'
-
-
-
 
 class PythonHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
