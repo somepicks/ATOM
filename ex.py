@@ -372,18 +372,22 @@ df1 = pd.DataFrame(index=[2,3,4,5,6],data={
     'col2' : sample_array*2,
     'col3' : ["A","B","C","D","E"]
 })
-print(df)
-print(df1)
 
-list_idx = df.index.tolist()
-list_idx1 = df1.index.tolist()
-sub = list(set(list_idx1)-set(list_idx))
-cha = list(set(list_idx)-set(list_idx1))
-print(sub)
-ser = df.loc[0]
-print(ser)
-print(type(ser))
-print(type(ser['col1']))
+api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
+secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
+acc_no = '64422606-03'
+market = '선옵'
+mock = False
+현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
+now_day = 현재시간.date().strftime("%Y%m%d")
+now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
+exchange = KIS.KoreaInvestment(api_key=api, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
+ohlcv = exchange.fetch_1m_ohlcv(symbol='101W09', limit=2, ohlcv=[], now_day=now_day, now_time=now_time)
+df = common_def.get_kis_ohlcv('국내선옵',ohlcv)
+df.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
+                           '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
+df = common_def.resample_df(df, '일봉', 'D', '일봉',False)
+print(df)
 quit()
 if sub:
     print('y')

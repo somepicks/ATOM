@@ -491,9 +491,14 @@ class KoreaInvestment:
     def load_access_token(self):
         """load access token
         """
-        with open("token.dat", "rb") as f:
-            data = pickle.load(f)
-            self.access_token = f'Bearer {data["access_token"]}'
+        if self.mock == False:
+            with open("token.dat", "rb") as f:
+                data = pickle.load(f)
+                self.access_token = f'Bearer {data["access_token"]}'
+        else:
+            with open("token_mock.dat", "rb") as f:
+                data = pickle.load(f)
+                self.access_token = f'Bearer {data["access_token"]}'
     def inquiry_TR(self, path, tr_id:str, params:dict):
         url = f"{self.base_url}/{path}"
         data = {
