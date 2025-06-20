@@ -358,7 +358,48 @@ def bybit_set_tickers(fetch_tickers):
 
 
 ################################################################
+import time
+import asyncio
+sample_array = np.arange(1,6)
+sample_array
+df = pd.DataFrame({
+    'col1' : sample_array,
+    'col2' : sample_array*2,
+    'col3' : ["A","B","C","D","E"]
+})
+df1 = pd.DataFrame(index=[2,3,4,5,6],data={
+    'col1' : sample_array,
+    'col2' : sample_array*2,
+    'col3' : ["A","B","C","D","E"]
+})
 
+api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
+secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
+acc_no = '64422606-03'
+market = '선옵'
+mock = False
+현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
+now_day = 현재시간.date().strftime("%Y%m%d")
+now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
+exchange = KIS.KoreaInvestment(api_key=api, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
+ohlcv = exchange.fetch_1m_ohlcv(symbol='101W09', limit=2, ohlcv=[], now_day=now_day, now_time=now_time)
+df = common_def.get_kis_ohlcv('국내선옵',ohlcv)
+df.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
+                           '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
+df = common_def.resample_df(df, '일봉', 'D', '일봉',False)
+print(df)
+quit()
+if sub:
+    print('y')
+    for idx in sub:
+        new = df1.loc[[idx]]
+        df = pd.concat([df,new])
+if cha:
+    print('y')
+    for idx in cha:
+        df.drop(index=idx,inplace=True)
+print(df)
+quit()
 
 conn_holiday = sqlite3.connect('DB/DB_futopt.db')
 df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
@@ -367,6 +408,27 @@ now_day = datetime.datetime.now().date().strftime("%Y%m%d")
 print(df_holiday.loc[now_day,'개장일'])
 quit()
 
+async def delivery(name, mealtime):
+    print(f"{name}에게 배달 완료")
+    await asyncio.sleep(mealtime)
+    print(f"{name} 식사 완료, {mealtime}초 소요...")
+    print(f"{name} 그릇 수거 완료")
+
+
+async def main():
+    await asyncio.gather(   # 비동기함수 동시 실행
+        delivery("A", 5),
+        delivery("B", 3),
+        delivery("C", 4)
+    )
+
+
+if __name__=="__main__":
+    start = time.time()
+    asyncio.run(main())
+    end = time.time()
+    print("총 소요시간: {:.3f}초".format(end-start))
+quit()
 
 # 바이낸스 API 설정
 # dt = datetime.datetime.strptime('2015-07-15','%Y-%m-%d')

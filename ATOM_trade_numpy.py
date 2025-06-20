@@ -1,6 +1,6 @@
 import datetime
 from time import strftime
-from colorama import init, Fore, Style
+# from colorama import init, Fore, Style
 import pandas as pd
 from pandas import to_numeric
 from PyQt5.QtWidgets import (QMainWindow,QGridLayout,QLineEdit,QLabel,QPushButton,QWidget,QVBoxLayout,
@@ -669,7 +669,8 @@ class Trade_np(QThread):
                 print(f"보유종목 \n {df_x}")
                 print('=============================================================')
             if 장종료시간 <= datetime.datetime.now().replace(second=0, microsecond=0):
-                print(f"{Fore.RED}장 운영시간이 아닙니다{Style.RESET_ALL}")
+                # print(f"{Fore.RED}장 운영시간이 아닙니다{Style.RESET_ALL}")
+                print(f"장 운영시간이 아닙니다")
                 quit()
             self.df_trend = pd.DataFrame()
             self.add_investor_trend(현재시간)

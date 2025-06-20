@@ -25,8 +25,8 @@ pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width', 1500)
 pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment', None)  # SettingWithCopyWarning 경고를 끈다
-import schedule
-import KIS
+# import schedule
+# import KIS
 
 class Window(QMainWindow):
     def __init__(self):
