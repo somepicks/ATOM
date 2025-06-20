@@ -27,15 +27,15 @@ pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고�
 # pd.options.display.float_format = '{:.6f}'.format
 
 class do_trade(QThread):
-    qt_have = pyqtSignal(pd.DataFrame)
-    qt_inverse = pyqtSignal(pd.DataFrame)
+    # qt_have = pyqtSignal(pd.DataFrame)
+    # qt_inverse = pyqtSignal(pd.DataFrame)
     qt_open = pyqtSignal(pd.DataFrame)
     qt_closed = pyqtSignal(pd.DataFrame)
-    qt_future = pyqtSignal(pd.DataFrame)
-    qt_set = pyqtSignal(pd.DataFrame)
+    # qt_future = pyqtSignal(pd.DataFrame)
+    # qt_set = pyqtSignal(pd.DataFrame)
     val_light = pyqtSignal(bool)
-    val_wallet = pyqtSignal(str)
-    val_time = pyqtSignal(str)
+    # val_wallet = pyqtSignal(str)
+    # val_time = pyqtSignal(str)
     shutdown_signal = pyqtSignal()
     def __init__(self,parent,exchange,df_set):
         super().__init__(parent)
@@ -43,29 +43,135 @@ class do_trade(QThread):
         self.bool_light = False
         self._status = True
         self.exchange = exchange
-
+        self.df = pd.DataFrame()
+        self.list_ticker = self.df.index.tolist()
     def run(self):
         finish_time = datetime.datetime.now().replace(hour=15,minute=20)
-        account,self.df = self.exchange.fetch_balance()
-        self.df['수익률'] = round(self.df['평가손익'] / self.df['매입금액'] * 100, 1)
-        while self._status:
-            account,df = self.exchange.fetch_balance()
-            df['수익률'] = round(df['평가손익'] / df['매입금액'] * 100, 1)
-            self.active_light(df)
-            list_ticker = df['종목코드'].tolist()
-            print(list_ticker)
-            for ticker in list_ticker:
-                df.loc[df['종목코드']==ticker,'수익률']
 
-                self.df_trade.loc[stg, '최고수익률'] = np.where(수익률 > self.df_trade.loc[stg, '최고수익률'], 수익률,
-                                                           self.df_trade.loc[stg, '최고수익률'])
-                self.df_trade.loc[stg, '최저수익률'] = np.where(수익률 < self.df_trade.loc[stg, '최저수익률'], 수익률,
-                                                           self.df_trade.loc[stg, '최저수익률'])
+        account, self.df = self.exchange.fetch_balance()
+        if not self.df.empty:
+            # 중복 인덱스 제거
+            self.df = self.df[~self.df.index.duplicated(keep='last')]
+            self.df['수익률'] = round(self.df['평가손익'] / self.df['매입금액'] * 100, 1)
+            self.df['최고수익률'] = self.df['수익률']
+            self.df['최저수익률'] = self.df['수익률']
+            self.list_ticker = self.df.index.tolist()
+        else:
+            self.df = pd.DataFrame()
+            self.list_ticker = []
 
-            if datetime.datetime.now() > finish_time:
-                # 윈도우 종료
+        while True:
+            account, df = self.exchange.fetch_balance()
+
+            if not df.empty:
+                df_open = df[df['청산가능수량'] > 0].copy()  # copy() 추가
+                df_close = df[df['청산가능수량'] == 0].copy()
+
+                if not df_open.empty:
+                    # 현재 수익률 계산
+                    df_open['수익률'] = round(df_open['평가손익'] / df_open['매입금액'] * 100, 1)
+
+                    # 현재 보유 종목 리스트
+                    list_ticker = df_open.index.tolist()  # 종목코드 대신 index 사용
+
+                    # 신규 편입/제거 종목 찾기
+                    new_tickers = list(set(list_ticker) - set(self.list_ticker))
+                    del_tickers = list(set(self.list_ticker) - set(list_ticker))
+
+                    # 신규 편입 종목 처리
+                    if new_tickers:
+                        print(f"신규 편입 종목: {new_tickers}")
+                        for ticker in new_tickers:
+                            print(f'{ticker} 종목편입')
+                            # 신규 종목의 최고/최저 수익률을 현재 수익률로 초기화
+                            current_return = df_open.loc[ticker, '수익률']
+                            current_return_value = current_return.iloc[0] if hasattr(current_return, 'iloc') else float(
+                                current_return)
+
+                            df_open.loc[ticker, '최고수익률'] = current_return_value
+                            df_open.loc[ticker, '최저수익률'] = current_return_value
+
+                            # self.df에 추가 (중복 방지)
+                            if ticker not in self.df.index:
+                                df_new = df_open.loc[[ticker]].copy()
+                                self.df = pd.concat([self.df, df_new])
+                            else:
+                                print(f"종목 {ticker}는 이미 존재합니다.")
+
+                        # 중복 인덱스 제거
+                        self.df = self.df[~self.df.index.duplicated(keep='last')]
+
+                    # 제거된 종목 처리
+                    if del_tickers:
+                        print(f"제거된 종목: {del_tickers}")
+                        for ticker in del_tickers:
+                            print(f'{ticker} 종목삭제')
+                            if ticker in self.df.index:
+                                self.df.drop(index=ticker, inplace=True)
+
+                    # 기존 종목들의 최고/최저 수익률 업데이트
+                    for ticker in list_ticker:
+                        if ticker in self.df.index:  # 안전성 체크
+                            try:
+                                # 안전하게 스칼라 값 추출
+                                현재수익률_값 = df_open.loc[ticker, '수익률']
+                                현재수익률 = 현재수익률_값.iloc[0] if hasattr(현재수익률_값, 'iloc') else float(현재수익률_값)
+
+                                기존최고수익률_값 = self.df.loc[ticker, '최고수익률']
+                                기존최고수익률 = 기존최고수익률_값.iloc[0] if hasattr(기존최고수익률_값, 'iloc') else float(기존최고수익률_값)
+
+                                기존최저수익률_값 = self.df.loc[ticker, '최저수익률']
+                                기존최저수익률 = 기존최저수익률_값.iloc[0] if hasattr(기존최저수익률_값, 'iloc') else float(기존최저수익률_값)
+
+                                # 최고수익률 업데이트
+                                새로운최고수익률 = max(현재수익률, 기존최고수익률)
+                                # 최저수익률 업데이트
+                                새로운최저수익률 = min(현재수익률, 기존최저수익률)
+
+                                # self.df 업데이트 (중복 인덱스 문제 방지)
+                                self.df.loc[self.df.index == ticker, '수익률'] = 현재수익률
+                                self.df.loc[self.df.index == ticker, '최고수익률'] = 새로운최고수익률
+                                self.df.loc[self.df.index == ticker, '최저수익률'] = 새로운최저수익률
+
+                                # df_open도 업데이트
+                                df_open.loc[df_open.index == ticker, '최고수익률'] = 새로운최고수익률
+                                df_open.loc[df_open.index == ticker, '최저수익률'] = 새로운최저수익률
+                                self.get_sell_signal(df_open.loc[ticker],finish_time)
+
+                            except Exception as e:
+                                print(f"종목 {ticker} 처리 중 오류: {e}")
+                                print(f"현재수익률 타입: {type(df_open.loc[ticker, '수익률'])}")
+                                print(f"기존최고수익률 타입: {type(self.df.loc[ticker, '최고수익률'])}")
+                                continue
+
+                    # 현재 보유 종목 리스트 업데이트
+                    self.list_ticker = list_ticker
+
+                    # 결과 출력 (디버깅용)
+                    print("=== 현재 포트폴리오 상태 ===")
+                    print(self.df[['수익률', '최고수익률', '최저수익률']])
+                    print("========================")
+
+                else:
+                    # 보유 종목이 없는 경우
+                    self.list_ticker = []
+                    df_open = pd.DataFrame()
+                    df_close = pd.DataFrame()
+
+            else:
+                # fetch_balance가 빈 DataFrame을 반환한 경우
+                print("잔고 조회 결과가 비어있습니다.")
+                self.list_ticker = []
+                df_open = pd.DataFrame()
+                df_close = pd.DataFrame()
+
+            # 종료 조건 체크
+            if datetime.datetime.now() > finish_time+datetime.timedelta(minutes=1):
+                print("거래 시간 종료")
                 self.shutdown_signal.emit()
                 break
+
+            self.active_light(df_open,df_close)
             QTest.qWait(500)
         self._status = False
 
@@ -295,6 +401,17 @@ class do_trade(QThread):
             self.common_def.order_open(market=market,category='future',ticker=ticker,side='buy',
                                        orderType='market',price=price,qty=qty)
 
+    def get_sell_signal(self,series,finish_time):
+        ticker = series['종목코드']
+        수익률 = series['수익률']
+        최고수익률 = series['최고수익률']
+        최저수익률 = series['최저수익률']
+        청산가능수량 = series['청산가능수량']
+        if 수익률 <-15:
+            self.exchange.create_market_buy_order(symbol=ticker, quantity=int(청산가능수량), side='sell')
+        if datetime.datetime.now() > finish_time:
+            self.exchange.create_market_buy_order(symbol=ticker, quantity=int(청산가능수량), side='sell')
+
 
     def get_buy_signal(self,df,market,ticker):
         if (df.loc[df.index[-3],'RSI14'] > 30) and (df.loc[df.index[-2],'RSI14'] < 30):
@@ -308,13 +425,13 @@ class do_trade(QThread):
                 return True
         return False
 
-    def active_light(self,df):
+    def active_light(self,df_open,df_close):
         self.val_light.emit(self.bool_light)
         self.bool_light = not self.bool_light
         # self.val_wallet.emit(self.wallet)
         # self.val_time.emit(str(self.text_time))
-        self.qt_have.emit(df)
-        # self.qt_open.emit(self.df_open)
+        self.qt_open.emit(df_open)
+        self.qt_closed.emit(df_close)
         # self.qt_closed.emit(self.df_closed)
         # self.qt_future.emit(self.df_future)
 
@@ -633,8 +750,8 @@ class Window(QMainWindow):
         QW_main = QWidget()
         self.setWindowTitle(f'auto sell')
 
-        self.QT_hold = QTableWidget()
-        self.QT_sold = QTableWidget()
+        self.QT_trade_open = QTableWidget()
+        self.QT_trade_closed = QTableWidget()
         # self.QT_trade_history = QTableWidget()
         # self.QT_trade_open = QTableWidget()
 
@@ -680,8 +797,8 @@ class Window(QMainWindow):
         QHB_api.addWidget(QLabel('SECRET: '))
         QHB_api.addWidget(self.QLE_secret)
 
-        QHB_api.addWidget(QLabel('id: '))
-        QHB_api.addWidget(self.QLE_id)
+        # QHB_api.addWidget(QLabel('id: '))
+        # QHB_api.addWidget(self.QLE_id)
         QHB_api.addWidget(QLabel('account: '))
         QHB_api.addWidget(self.QLE_account)
 
@@ -693,8 +810,8 @@ class Window(QMainWindow):
                                "border-color: black; font: 12pt 나눔고딕; "
         # self.QT_trade_history.setStyleSheet(StyleSheet_Qtable)
         # self.QT_trade_open.setStyleSheet(StyleSheet_Qtable)
-        self.QT_hold.setStyleSheet(StyleSheet_Qtable)
-        self.QT_sold.setStyleSheet(StyleSheet_Qtable)
+        self.QT_trade_open.setStyleSheet(StyleSheet_Qtable)
+        self.QT_trade_closed.setStyleSheet(StyleSheet_Qtable)
         # self.QPB_start.setStyleSheet("border-style: solid;border-width: 1px;border-color: #0080ff")
         self.QPB_start.setStyleSheet(" background-color: #cccccc;")
         self.QPB_stop.setStyleSheet("background-color: #cccccc;")
@@ -709,8 +826,8 @@ class Window(QMainWindow):
 
 #         QSH_table.addWidget(self.QT_trade_open)
 #         QSH_table.addWidget(self.QT_trade_history)
-        QSH_table_up.addWidget(self.QT_hold)
-        QSH_table_up.addWidget(self.QT_sold)
+        QSH_table_up.addWidget(self.QT_trade_open)
+        QSH_table_up.addWidget(self.QT_trade_closed)
         QSV_main.addWidget(QSH_table_up)
         QSV_main.addWidget(QSH_history_table)
         QSV_main.addWidget(QSH_table)
@@ -825,17 +942,17 @@ class Window(QMainWindow):
         self.thread.qt_open.connect(self.qtable_open)
         self.thread.qt_closed.connect(self.qtable_closed)
         # self.thread.qt_history.connect(self.qtable_history)
-        self.thread.qt_have.connect(self.qtable_have)
+        # self.thread.qt_have.connect(self.qtable_have)
         self.thread.val_light.connect(self.effect_start)
-        self.thread.val_wallet.connect(self.QL_wallet.setText)
-        self.thread.val_time.connect(self.QL_time.setText)
-        self.thread.qt_set.connect(self.save_set)
-        self.thread.qt_future.connect(self.qtable_future)
-        self.thread.qt_inverse.connect(self.qtable_inverse)
+        # self.thread.val_wallet.connect(self.QL_wallet.setText)
+        # self.thread.val_time.connect(self.QL_time.setText)
+        # self.thread.qt_set.connect(self.save_set)
+        # self.thread.qt_future.connect(self.qtable_future)
+        # self.thread.qt_inverse.connect(self.qtable_inverse)
         self.thread.shutdown_signal.connect(self.show_shutdown_dialog)
 
-        self.set_signal.connect(self.thread.change_set)
-        self.buy_signal.connect(self.thread.buy_manual)
+        # self.set_signal.connect(self.thread.change_set)
+        # self.buy_signal.connect(self.thread.buy_manual)
 
     @pyqtSlot()
     def onStopButtonClicked(self):
@@ -867,7 +984,7 @@ class Window(QMainWindow):
             df['평가손익'] = df['평가손익'].apply(lambda int_num: "{:,}".format(int_num))
             df = df[['상품명','종목코드','평가손익','수익률','매입금액','청산가능수량','잔고수량','체결평균단가','평가금액','정산단가','지수종가',
                      '상품번호','상품유형코드','매도매수구분명','매매손익금액']]
-            self.set_table_make(self.QT_hold, df)
+            self.set_table_make(self.QT_trade_open, df)
             # self.df_qtable_have = df.copy()
     def qtable_inverse(self,df): #iverse 자산 변경 시 저장을 위해
         df.to_sql('inverse', self.conn, if_exists='replace')
@@ -875,25 +992,30 @@ class Window(QMainWindow):
         if not df.empty:
             df = df[['market','ticker','보유수량', '매수금액', '현재가', '방향', '수익률', '손익',
                      '진입가', '청산가']]
-            self.set_table_make(self.QT_sold, df)
+            self.set_table_make(self.QT_trade_closed, df)
         else:
-            self.set_table_make(self.QT_sold, pd.DataFrame())
+            self.set_table_make(self.QT_trade_closed, pd.DataFrame())
     def qtable_open(self,df):
-        df_active = df[['market','ticker', '주문시간', '주문수량', '매수금액', '주문가', '상태', 'category', 'spot비율','short비율','id']]
-        if not df_active['매수금액'].isna().any():
-            df_active['매수금액'] = df_active['매수금액'].apply(lambda int_num: "{:,}".format(int_num))
-        df_active['주문가'] = df_active['주문가'].apply(lambda int_num: "{:,}".format(int_num))
-        # self.set_table_make(self.QT_trade_open, df_active)
+        # df_active = df[['market','ticker', '주문시간', '주문수량', '매수금액', '주문가', '상태', 'category', 'spot비율','short비율','id']]
+        # '잔고수량', '체결평균단가', '평가금액', '정산단가',
+        # '지수종가', '청산가능수량',  '평가손익',
+        # '상품번호', '상품명', '상품유형코드',
+        # '매도매수구분명', '매매손익금액'
+        # df_active = df[['종목코드','매입금액', '주문시간', '주문수량', '매수금액', '주문가', '상태', 'category', 'spot비율','short비율','id']]
+        # if not df_active['매수금액'].isna().any():
+        #     df_active['매수금액'] = df_active['매수금액'].apply(lambda int_num: "{:,}".format(int_num))
+        # df_active['주문가'] = df_active['주문가'].apply(lambda int_num: "{:,}".format(int_num))
+        self.set_table_make(self.QT_trade_open, df)
 
     def qtable_closed(self, df):
-        if not self.df_closed_old.equals(df): # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위라래로 붙임
-            df.to_sql('closed', self.conn, if_exists='replace')
-            self.df_closed_old = df.copy()
-        df_active = df[['market','ticker', '체결시간', '주문수량', 'id', '수수료', '매수금액', '주문가', '상태',
-                  'category', 'spot비율','short비율']]
-        df_active['매수금액'] = df_active['매수금액'].apply(lambda int_num: "{:,}".format(int_num))
-        df_active['주문가'] = df_active['주문가'].apply(lambda int_num: "{:,}".format(int_num))
-        # self.set_table_make(self.QT_trade_history, df_active)
+        # if not self.df_closed_old.equals(df): # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위라래로 붙임
+        #     df.to_sql('closed', self.conn, if_exists='replace')
+        #     self.df_closed_old = df.copy()
+        # df_active = df[['market','ticker', '체결시간', '주문수량', 'id', '수수료', '매수금액', '주문가', '상태',
+        #           'category', 'spot비율','short비율']]
+        # df_active['매수금액'] = df_active['매수금액'].apply(lambda int_num: "{:,}".format(int_num))
+        # df_active['주문가'] = df_active['주문가'].apply(lambda int_num: "{:,}".format(int_num))
+        self.set_table_make(self.QT_trade_closed, df)
 
     def set_table_make(self, table,df):
         table.setSortingEnabled(False)
@@ -931,7 +1053,8 @@ class Window(QMainWindow):
             return 0
         else:
             market = '선옵'
-            exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=False)
+            mock = True
+            exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
         return exchange
 
     def get_funding_time(self,now: datetime):

@@ -358,7 +358,44 @@ def bybit_set_tickers(fetch_tickers):
 
 
 ################################################################
+import time
+import asyncio
+sample_array = np.arange(1,6)
+sample_array
+df = pd.DataFrame({
+    'col1' : sample_array,
+    'col2' : sample_array*2,
+    'col3' : ["A","B","C","D","E"]
+})
+df1 = pd.DataFrame(index=[2,3,4,5,6],data={
+    'col1' : sample_array,
+    'col2' : sample_array*2,
+    'col3' : ["A","B","C","D","E"]
+})
+print(df)
+print(df1)
 
+list_idx = df.index.tolist()
+list_idx1 = df1.index.tolist()
+sub = list(set(list_idx1)-set(list_idx))
+cha = list(set(list_idx)-set(list_idx1))
+print(sub)
+ser = df.loc[0]
+print(ser)
+print(type(ser))
+print(type(ser['col1']))
+quit()
+if sub:
+    print('y')
+    for idx in sub:
+        new = df1.loc[[idx]]
+        df = pd.concat([df,new])
+if cha:
+    print('y')
+    for idx in cha:
+        df.drop(index=idx,inplace=True)
+print(df)
+quit()
 
 conn_holiday = sqlite3.connect('DB/DB_futopt.db')
 df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
@@ -367,6 +404,27 @@ now_day = datetime.datetime.now().date().strftime("%Y%m%d")
 print(df_holiday.loc[now_day,'개장일'])
 quit()
 
+async def delivery(name, mealtime):
+    print(f"{name}에게 배달 완료")
+    await asyncio.sleep(mealtime)
+    print(f"{name} 식사 완료, {mealtime}초 소요...")
+    print(f"{name} 그릇 수거 완료")
+
+
+async def main():
+    await asyncio.gather(   # 비동기함수 동시 실행
+        delivery("A", 5),
+        delivery("B", 3),
+        delivery("C", 4)
+    )
+
+
+if __name__=="__main__":
+    start = time.time()
+    asyncio.run(main())
+    end = time.time()
+    print("총 소요시간: {:.3f}초".format(end-start))
+quit()
 
 # 바이낸스 API 설정
 # dt = datetime.datetime.strptime('2015-07-15','%Y-%m-%d')

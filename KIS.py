@@ -379,9 +379,9 @@ class KoreaInvestment:
         self.acc_no = acc_no
         print(f"{self.acc_no= }")
         self.acc_no_prefix = acc_no.split('-')[0]
-        print(f"{self.acc_no_prefix= }")
+        # print(f"{self.acc_no_prefix= }")
         self.acc_no_postfix = acc_no.split('-')[1]
-        print(f"{self.acc_no_postfix= }")
+#         print(f"{self.acc_no_postfix= }")
 
         if self.market == '해외선옵' or self.market == '해외주식':
             exchange = '해외'
@@ -454,8 +454,12 @@ class KoreaInvestment:
             resp_data['api_secret'] = self.api_secret
 
             # dump access token
-            with open("token.dat", "wb") as f:
-                pickle.dump(resp_data, f)
+            if self.mock == False:
+                with open("token.dat", "wb") as f:
+                    pickle.dump(resp_data, f)
+            else:
+                with open("token_mock.dat", "wb") as f:
+                    pickle.dump(resp_data, f)
 
     def check_access_token(self):
         """check access token
@@ -463,7 +467,10 @@ class KoreaInvestment:
             Bool: True: token is valid, False: token is not valid
         """
         try:
-            f = open("token.dat", "rb")
+            if self.mock == False:
+                f = open("token.dat", "rb")
+            else:
+                f = open("token_mock.dat", "rb")
             data = pickle.load(f)
             f.close()
 
@@ -2025,14 +2032,14 @@ class KoreaInvestment:
                                  'idx_clpr':'지수종가','lqd_psbl_qty':'청산가능수량','pchs_amt':'매입금액','evlu_pfls_amt':'평가손익',
                                  'pdno':'상품번호','prdt_name':'상품명','prdt_type_cd':'상품유형코드','shtn_pdno':'종목코드',
                                  'sll_buy_dvsn_name':'매도매수구분명','trad_pfls_amt':'매매손익금액'}, inplace=True)
-                    df_instock = df_instock[['잔고수량','체결평균단가','평가금액','정산단가','지수종가','청산가능수량','매입금액',
-                                             '평가손익','상품번호','상품명','상품유형코드','종목코드','매도매수구분명','매매손익금액']]
+                    # df_instock = df_instock[['잔고수량','체결평균단가','평가금액','정산단가','지수종가','청산가능수량','매입금액',
+                    #                          '평가손익','상품번호','상품명','상품유형코드','종목코드','매도매수구분명','매매손익금액']]
                     # df_instock.set_index('종목코드', inplace=True) #인덱스를 종목코드로 변경
+                    df_instock.index = df_instock['종목코드'] #인덱스를 종목코드로 변경
             # return output
                 if not df_instock.empty:
                     df_instock = self.convert_column_types(df_instock)
-                    df_instock = df_instock[df_instock['청산가능수량'] > 0]
-                    df_instock
+                    # df_instock = df_instock[df_instock['청산가능수량'] > 0]
 
             return dict_amount, df_instock
         if self.exchange == '해외':
@@ -2046,7 +2053,7 @@ class KoreaInvestment:
                     break
                 else:
                     # time.sleep(0.5)
-                    QTest.qWait(1000)
+                    QTest.qWait(500)
                     i += 1
                     if i > 10:
                         print('fetch_balance 조회에러')
