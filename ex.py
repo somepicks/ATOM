@@ -11,8 +11,10 @@ from PyQt5.QtCore import *
 from collections import deque
 import numpy as np
 import datetime
+import uuid
 import sqlite3
 from pprint import pprint
+from PyQt5.QtTest import QTest
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -23,7 +25,7 @@ pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고�
 # # 5초에 한번씩 함수 실행
 import common_def
 import ccxt
-
+import math
 def stamp_to_int( stamp_time):
     dt = datetime.datetime.fromtimestamp(stamp_time)
     dt = dt.strftime('%Y%m%d%H%M')
@@ -49,27 +51,26 @@ def datetime_to_stamp(date_time):
     return int(time.mktime(date_time.timetuple()))
 
 
-from pybit.unified_trading import HTTP, WebSocket
-# Bybit API 키 설정
-api_key = 'ZFEksBSBjIHk7drUou'
-api_secret = 'MXWVVshe71hnKR4SZEoUH4XqYxLLeV3uFIAI'
-
-session = HTTP(
-    testnet=False,
-    api_key='ZFEksBSBjIHk7drUou',
-    api_secret='MXWVVshe71hnKR4SZEoUH4XqYxLLeV3uFIAI',
-)
-def fetch_balance(accountType,ticker,balance):
-    res = session.get_coins_balance(
-        accountType=accountType, # CONTRACT: Inverse Derivatives Account, UNIFIED: Unified Trading Account
-        coin=ticker, # BTCUSD, BTC
-    )
-    # return res['result']['balance'][0]['walletBalance']
-    # pprint(res)
-    if balance == '보유':
-        return float(res['result']['balance'][0]['walletBalance'])
-    elif balance == '잔고':
-        return float(res['result']['balance'][0]['transferBalance'])
+def fetch_balance(exchange, market,ticker):
+    # res = session.get_coins_balance(
+    #     accountType=accountType, # CONTRACT: Inverse Derivatives Account, UNIFIED: Unified Trading Account
+    #     coin=ticker, # BTCUSD, BTC
+    # )
+    # # return res['result']['balance'][0]['walletBalance']
+    # # pprint(res)
+    # if balance == '보유':
+    #     return float(res['result']['balance'][0]['walletBalance'])
+    # elif balance == '잔고':
+    #     return float(res['result']['balance'][0]['transferBalance'])
+    if market == 'bybit':
+        pass
+    elif market == 'binance':
+        res_spot = exchange.fetch_balance()
+        res = exchange.fetch_balance(params={"type": 'delivery'})
+        # markets_binance = exchange.load_markets()
+        # usdt_free = res_spot['USDT']['free']
+        # usdt_total = res_spot['USDT']['total']
+    return res[ticker]
 def fetch_withdrawable(ticker):
     res = session.get_positions()
     pprint(res)
@@ -122,7 +123,7 @@ def fetch_open_orders(exchange, market,ticker,category,id):  # 미체결주문 �
             symbol = ticker+'/USDT'
         elif category == 'inverse':
             symbol = ticker+'USD'
-        elif category == 'future':
+        elif category == 'linear':
             symbol = ticker+'USDT'
         params = {}
         res = exchange.fetch_open_orders(symbol=symbol, params=params)
@@ -131,7 +132,7 @@ def fetch_open_orders(exchange, market,ticker,category,id):  # 미체결주문 �
             symbol = ticker+'/USDT'
         elif category == 'inverse':
             symbol = ticker+'/USD'
-        elif category == 'future':
+        elif category == 'linear':
             symbol = ticker
         params = {}
         res = exchange.fetch_open_orders(symbol=symbol, params=params)
@@ -145,7 +146,7 @@ def fetch_closed_orders(exchange,market, id, ticker, category):  # 체결주문 
             symbol = ticker+'/USDT'
         elif category == 'inverse':
             symbol = ticker+'USD'
-        elif category == 'future':
+        elif category == 'linear':
             symbol = ticker+'USDT'
         # order = self.ex_bybit.fetch_closed_orders(self.ticker, params=params)
         res = exchange.fetch_closed_orders(symbol=symbol, params=params)
@@ -154,9 +155,9 @@ def fetch_closed_orders(exchange,market, id, ticker, category):  # 체결주문 
             symbol = ticker+'/USDT'
         elif category == 'inverse':
             symbol = ticker+'/USD'
-        elif category == 'future':
+        elif category == 'linear':
             symbol = ticker
-        res = exchange.fetch_closed_orders(symbol=ticker, params=params)
+        res = exchange.fetch_closed_orders(symbol=symbol, params=params)
     for order in res:
         if order['id'] == id:
             return order
@@ -172,15 +173,16 @@ def fetch_order(exchange,market, ticker, id, category, qty):
         else:
             진입가 = float(ord_closed['average'])
             체결수량 = float(ord_closed['filled'])
+
             if not ord_closed['fee'] == None:
                 진입수수료 = float(ord_closed['fee']['cost'])
             else:
                 진입수수료 = ord_closed['fee']
-            총체결금액 = float(ord_closed['cost'])
+            체결금액 = float(ord_closed['cost'])
             체결시간 = stamp_to_str(ord_closed['timestamp'])
-            if 주문수량 >= 체결수량:
-                print(f"체결완료 - {ticker= }  {category= }  {체결수량=} ")
-            return {'체결': True, '체결가': 진입가, '체결수량': 체결수량, '수수료': 진입수수료, '체결시간': 체결시간}
+            if 주문수량 == 체결수량:
+                print(f"체결완료 - {ticker= }  {category= }  {주문수량= }  {체결수량=} ")
+            return {'체결': True, '체결가': 진입가, '체결수량': 체결수량, '체결금액':체결금액,'수수료': 진입수수료, '체결시간': 체결시간}
 
     else:
         return {'체결': False}
@@ -198,6 +200,32 @@ def internal_transfer(ticker,qty,fromAccount,toAccount):
         fromAccountType=fromAccount, # UNIFIED
         toAccountType=toAccount, # CONTRACT
     )
+def transfer_to(exchange, market, ticker, amount,departure, destination):
+    if market == 'bybit':
+        session = exchange
+        while True:
+            id = str(uuid.uuid1())
+            print(id)
+            res = session.create_internal_transfer(
+                transferId=id,
+                coin=ticker,  # BTC
+                amount=amount,
+                fromAccountType="UNIFIED",  # UNIFIED (spot 계좌)
+                toAccountType="CONTRACT",  # CONTRACT (inverse 계좌)
+            )
+
+            if res['retMsg'] == 'success':
+                print(f'{ticker}  {amount} 개  inverse로 계좌이동 완료')
+                break
+            print(f'{ticker} 계좌 이동중...')
+            QTest.qWait(1000)
+    elif market == 'binance':
+        symbol = ticker
+        try:
+            exchange.transfer(symbol, amount, departure, destination)
+        except Exception as e:
+            print(f"자금 이동 중 오류 발생 [transfer_to]: {e} {ticker= } {amount= }")
+            return False
 def ticker_info(Account,ticker):
     return session.get_instruments_info(
     category=Account, # spot, linear, inverse, option
@@ -226,22 +254,57 @@ def price_to_precision(category, ticker, price):
         j = round(price % float(price_step), point)
         return price - j
 
-
 def amount_to_precision(exchange, market, category, ticker, amount):
     if market == 'bybit':
         if category == 'spot':
             symbol = ticker + '/USDT'
         elif category == 'inverse':
             symbol = ticker + 'USD'
+        elif category == 'linear':
+            symbol = ticker + 'USDT'
         return float(exchange.amount_to_precision(symbol=symbol, amount=amount))
     elif market == 'binance':
         if category == 'spot':
             symbol = ticker + '/USDT'
         elif category == 'inverse':
             symbol = ticker + 'USD'
+        elif category == 'linear':
+            symbol = ticker + 'USDT'
         return float(exchange.amount_to_precision(symbol=symbol, amount=amount))
+def GetMinimumAmount(binance, ticker):
+    limit_values = binance.load_markets()[ticker]['limits']
 
-def order_open(exchange,market, category, ticker, side, orderType, price, qty,leverage=1): #ccxt
+    min_amount = limit_values['amount']['min']
+    min_cost = limit_values['cost']['min']
+    min_price = limit_values['price']['min']
+
+    coin_info = binance.fetch_ticker(ticker)
+    coin_price = coin_info['last']
+
+    print("min_cost: ",min_cost)
+    print("min_amount: ",min_amount)
+    print("min_price: ",min_price)
+    print("coin_price: ",coin_price)
+
+    # get mininum unit price to be able to order
+    if min_price < coin_price:
+        min_price = coin_price
+
+    # order cost = price * amount
+    min_order_cost = min_price * min_amount
+
+    num_min_amount = 1
+
+    if min_cost is not None and min_order_cost < min_cost:
+        # if order cost is smaller than min cost
+        # increase the order cost bigger than min cost
+        # by the multiple number of minimum amount
+        while min_order_cost < min_cost:
+            num_min_amount = num_min_amount + 1
+            min_order_cost = min_price * (num_min_amount * min_amount)
+
+    return num_min_amount * min_amount
+def order_open(exchange,market, category, ticker, side, orderType, price, qty, leverage=1): #ccxt
     if market == 'bybit':
         if category == 'spot':
             params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
@@ -276,6 +339,7 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty,le
             leverage = 1
         elif category == 'future':
             symbol = ticker + 'USDT'
+            params = {'positionSide': 'LONG'}
             if side == 'buy':
                 pass
                 # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
@@ -285,7 +349,14 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty,le
             # leverage = 3
         # print(f"{market= }   {symbol= }   {orderType= }   {side= }    {qty= }   {price= }")
         try:
-            exchange.set_leverage(leverage=leverage, symbol=symbol)
+            (exchange.set_leverage(leverage=leverage, symbol=symbol))
+        except:
+            pass
+        try:
+            exchange.fapiPrivate_post_margintype({
+                'symbol': symbol,  # 슬래시 없이
+                'marginType': 'ISOLATED'
+            })
         except:
             pass
         res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
@@ -355,7 +426,22 @@ def bybit_set_tickers(fetch_tickers):
     df = pd.DataFrame.from_dict(data=fetch_tickers, orient='index')  # 딕셔너리로 데이터프레임  만들기 키값으로 행이름을 사용
     return df
 
-
+def funding_ratio():
+    res = binance.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=None)
+    data = [x['fundingRate'] for x in res]
+    timestamps = [x['timestamp'] for x in res]
+    df = pd.DataFrame({
+        'numbers': data,
+        '날짜': timestamps
+    })
+    print(df)
+    df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
+    df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
+    df['날짜'] = df['날짜'].dt.tz_localize(None)
+    df.set_index('날짜', inplace=True)
+    print(df)
+    df.to_sql('funding_rate', sqlite3.
+              connect('funding_rate.db'), if_exists='replace')
 
 ################################################################
 import time
@@ -373,71 +459,55 @@ df1 = pd.DataFrame(index=[2,3,4,5,6],data={
     'col3' : ["A","B","C","D","E"]
 })
 
-api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
-secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
-acc_no = '64422606-03'
-market = '선옵'
-mock = False
-현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
-now_day = 현재시간.date().strftime("%Y%m%d")
-now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
-exchange = KIS.KoreaInvestment(api_key=api, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
-ohlcv = exchange.fetch_1m_ohlcv(symbol='101W09', limit=2, ohlcv=[], now_day=now_day, now_time=now_time)
-df = common_def.get_kis_ohlcv('국내선옵',ohlcv)
-df.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
-                           '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
-df = common_def.resample_df(df, '일봉', 'D', '일봉',False)
-print(df)
-quit()
-if sub:
-    print('y')
-    for idx in sub:
-        new = df1.loc[[idx]]
-        df = pd.concat([df,new])
-if cha:
-    print('y')
-    for idx in cha:
-        df.drop(index=idx,inplace=True)
-print(df)
-quit()
-
-conn_holiday = sqlite3.connect('DB/DB_futopt.db')
-df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
-conn_holiday.close()
-now_day = datetime.datetime.now().date().strftime("%Y%m%d")
-print(df_holiday.loc[now_day,'개장일'])
-quit()
-
-async def delivery(name, mealtime):
-    print(f"{name}에게 배달 완료")
-    await asyncio.sleep(mealtime)
-    print(f"{name} 식사 완료, {mealtime}초 소요...")
-    print(f"{name} 그릇 수거 완료")
+# api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
+# secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
+# acc_no = '64422606-03'
+# market = '선옵'
+# mock = False
+# 현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
+# now_day = 현재시간.date().strftime("%Y%m%d")
+# now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
+# exchange = KIS.KoreaInvestment(api_key=api, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
+# ohlcv = exchange.fetch_1m_ohlcv(symbol='101W09', limit=2, ohlcv=[], now_day=now_day, now_time=now_time)
+# df = common_def.get_kis_ohlcv('국내선옵',ohlcv)
+# df.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
+#                            '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
+# df = common_def.resample_df(df, '일봉', 'D', '일봉',False)
 
 
-async def main():
-    await asyncio.gather(   # 비동기함수 동시 실행
-        delivery("A", 5),
-        delivery("B", 3),
-        delivery("C", 4)
-    )
+# async def delivery(name, mealtime):
+#     print(f"{name}에게 배달 완료")
+#     await asyncio.sleep(mealtime)
+#     print(f"{name} 식사 완료, {mealtime}초 소요...")
+#     print(f"{name} 그릇 수거 완료")
+#
+#
+# async def main():
+#     await asyncio.gather(   # 비동기함수 동시 실행
+#         delivery("A", 5),
+#         delivery("B", 3),
+#         delivery("C", 4)
+#     )
+#
+# market = 'binance'
+market = 'bybit'
+ticker = 'LTC'
+min_cont = 10
+future_leverage = 3
 
-
-if __name__=="__main__":
-    start = time.time()
-    asyncio.run(main())
-    end = time.time()
-    print("총 소요시간: {:.3f}초".format(end-start))
-quit()
 
 # 바이낸스 API 설정
 # dt = datetime.datetime.strptime('2015-07-15','%Y-%m-%d')
 # print(dt)
 # print(type(dt))
+
+
 #
 # quit()
 api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
 api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
+
+
 binance_futures = ccxt.binance(config={
     'apiKey': api_key,
     'secret': api_secret,
@@ -446,164 +516,118 @@ binance_futures = ccxt.binance(config={
                 # 'position_mode': True,  #롱 & 숏을 동시에 유지하면서 리스크 관리(헷징)할 때
                 'defaultType': 'future'
                 },
-})
+    })
 
-res_spot = binance_futures.fetch_balance()
-# pprint(res_spot)
-print('=====================')
-res = binance_futures.fetch_balance(params={"type": 'delivery'})
-pprint(res)
-
-
-
-# # 시장 데이터 로드
-# markets = binance_futures.load_markets()
-#
-# # 선물 BTCUSDT 심볼 정보 가져오기
-# symbol = 'BTC/USDT'  # 바이낸스 선물에서는 이런 형식 사용
-# market_info = markets[symbol]
-#
-# pprint(market_info)
-# # 최소 주문 수량 확인
-# min_amount = market_info['limits']['amount']['min']
-# print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}{type(min_amount)}")
-
-# binance = ccxt.binance(config={
-#     'apiKey': api_key,
-#     'secret': api_secret,
-#     'enableRateLimit': True,
-#     'options': {'position_mode': True, },
-#     })
-# ticker = 'BTC'
-# symbol = ticker +'/USDT'
-# markets = binance.load_markets()
-# market_info = markets[symbol]
-#
-# # 최소 주문 수량 확인
-# min_amount = market_info['limits']['amount']['min']
-# print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}")
-
-
-
-
-# # 시장 데이터 로드
-# markets = binance_futures.load_markets()
-# symbol = 'BTC/USDT'
-# market_info = markets[symbol]
-#
-# # 최소 주문 수량 확인
-# min_amount = market_info['limits']['amount']['min']
-# print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}")
-# id = order_open(exchange=binance ,market='bybit' , category='inverse' , ticker= ticker, side='buy' ,
-#                 orderType= 'market', price= 88000, qty=10 )
-# pprint(id)
-
-quit()
-print('==============================================')
-api_key = "k3l5BpTorsRTHvPmAj"
-api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
-bybit = ccxt.bybit(config={
+binance = ccxt.binance(config={
     'apiKey': api_key,
     'secret': api_secret,
     'enableRateLimit': True,
     'options': {'position_mode': True, },
-})
+    })
+
+# res_spot = binance_futures.fetch_balance()
+# res_spot = binance.fetch_balance()
 
 
-ticker = 'SOL'
-0.0419282
-94436
-leverage = 2
-used = 8.67714
-현재가 = 145.73
-주문최소금액 = 1
-# min_qty = 0.001
-bet = used/20
-market_info = bybit.load_markets()[f'{ticker}/USDT:USDT']
-min_qty = market_info['limits']['amount']['min']
-print(f"1- 보유금액: {used*현재가}   {min_qty= }")
-if min_qty > bet*leverage:
-    bet = min_qty/leverage
-    print(f"{min_qty=} {bet= }")
-print(f"{bet =}")
-bet = bet * 현재가
-print(f"{bet =}")
-min_cont = 100
-if min_cont > bet:
-    print("min_cont > bet")
-    bet = min_cont
-print(f"{bet/min_cont= }")
-# id = order_open(exchange=bybit ,market='bybit' , category='inverse' , ticker= 'BTC', side='buy' ,
-#                 orderType= 'market', price= 88000, qty=10 )
-# pprint(id)
-
-# id = 'b64e1da7-220a-4a38-aa70-27242a496b1b'
-ticker = 'BTC'
-bet = 10
+if market == 'binance':
+    markets = binance.load_markets()
+    min_amount_future = binance.load_markets()[f"{ticker}/USDT:USDT"]['limits']['cost']['min']
+    price = binance.fetch_ticker(symbol=ticker+'/USD')['close']
+    res = binance.fetch_balance(params={"type": 'delivery'})
+    used_inverse = res['used'][ticker]
+    used_usdt = price * used_inverse
+    exchange = binance
+elif market == 'bybit':
+    api_key = "k3l5BpTorsRTHvPmAj"
+    api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
+    bybit = ccxt.bybit(config={
+        'apiKey': api_key,
+        'secret': api_secret,
+        'enableRateLimit': True,
+        'options': {'position_mode': True, },
+    })
+    # session = HTTP(
+    #     testnet=False,
+    #     api_key=api_key,
+    #     api_secret=api_secret,
+    # )
+    price = binance.fetch_ticker(symbol=ticker+'USDT')['close']
+    min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
+    min_amount_future = min_amount_future * price
+    res = bybit.fetch_balance()
+    used_inverse = res[ticker]['free']
+    used_usdt = price * used_inverse
+res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
+print(res)
 quit()
-# while True:
-#     time.sleep(1)
-#     res = fetch_order(bybit,'bybit',ticker,id,'inverse',10)
-#     if res['체결'] == True:
-#         print(f"{ticker}  {res['체결수량']} 개  체결 완료 - 체결시간{res['체결시간']}")
-#         break
-# pprint(res)
-# res = bybit.fetch_ticker(symbol=ticker+'/USDT',params={})
-# price = res['close']#현물가격조회
-# qty = amount_to_precision(bybit,'bybit','spot',ticker,10 / price)
-# # res = order_open(exchange=bybit ,market='bybit' , category='spot' , ticker= 'BTC', side='sell' ,
-# #                 orderType= 'market', price= price, qty=qty)
-#
-# id = '1934383654126317056'
-# while True:
-#     time.sleep(1)
-#     dict_chegyeol = fetch_order(bybit,'bybit',ticker,id,'spot',10)
-#     if dict_chegyeol['체결'] == True:
-#         print(f"{ticker}  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간{dict_chegyeol['체결시간']}")
-#         break
-category = 'future'
-res = bybit.fetch_ticker(symbol=ticker+'USDT',params={})
-# 마켓 정보 로드
-markets = bybit.load_markets()
+bet_usdt = used_usdt / 20
+bet_usdt = math.ceil(bet_usdt)  # 소수점일경우 올림해서 정수로 변환
+print(f"{used_inverse=}  {price= }   {used_usdt= }  |  |  {bet_usdt= }")
+if min_amount_future > min_cont:
+    if min_amount_future > bet_usdt * future_leverage:  # 최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
+        bet_usdt = min_amount_future / future_leverage
+    bet = bet_usdt
+else:
+    if min_cont > bet_usdt:
+        bet = min_cont
+    else:
+        bet = bet_usdt
 
-# BTC/USDT 마켓 정보
-symbol = 'BTC/USDT'
-# Bybit USDT 선물 객체
-
-# 마켓 정보 불러오기
-
-# 선물 심볼은 'BTC/USDT' (spot처럼 보이지만 bybitusdm 객체에서는 선물)
-market_info = bybit.load_markets()[f'{ticker}/USDT:USDT']
-
-# 선물 BTCUSDT 심볼 정보 가져오기
-# symbol = 'BTC/USDT:USDT'  # 선물 계약 심볼 형식
-# market_info = markets[symbol]
-
-# 최소 주문 수량 확인
-pprint(market_info)
-min_amount = market_info['limits']['amount']['min']
-print(f"BTCUSDT 선물 최소 주문 수량: {min_amount}")
-price = res['close']#선물가격조회
-print(price)
-qty = amount_to_precision(bybit,'bybit','spot',ticker,bet / price)
-leverage = 3
-print(qty)
-if min_amount > qty:
-    print(f'min: {min_amount}')
-res = order_open(exchange=bybit ,market='bybit' , category=category , ticker= 'BTC', side='buy' ,
-                orderType= 'market', price= price, qty=qty, leverage=leverage)
+bet = bet/min_cont
+bet = math.ceil(bet)  # 소수점일경우 올림해서 정수로 변환
+print(f"{bet= }")
+category = 'inverse'
+res = order_open(exchange=exchange, market=market, category=category, ticker=ticker, side='buy',
+                 orderType='market', price=price, qty=bet)
+id = res['id']
+bet = 6
+while True:
+    res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='12522097533',category='inverse',qty=bet)
+    if res['체결'] == True:
+        break
+    else:
+        time.sleep(1)
+# print(f"{res=}")
+if market == 'binance':
+    res = binance.fetch_balance(params={"type": 'delivery'})
+    free_qty = res[ticker]['free']*0.99 #전부 옮기려니 안됨
+elif market == 'bybit':
+    res = bybit.fetch_balance()
+    used_inverse = res['used'][ticker]
+# 'ADA': {'free': 98.59136072, 'total': 1595.02949928, 'used': 1496.43813856},
+transfer_to(exchange=exchange,market='binance',ticker=ticker,amount=free_qty,departure='inverse',
+            destination='spot')
+time.sleep(1)
+res = order_open(exchange=exchange,market=market,category='spot',ticker=ticker,side='sell',
+                 orderType='market',price=price,qty=free_qty)
 pprint(res)
+# id = res['id']
+while True:
+    res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='7158174004',category='spot',qty=free_qty)
+    if res['체결'] == True:
+        break
+    else:
+        time.sleep(1)
+usdt = res['체결금액']
+print(f"{usdt = }")
+# transfer_to(exchange=exchange,market='binance',ticker='USDT',amount=usdt,departure='spot',destination='linear')
+
+qty = (usdt*future_leverage)/price
+print(qty)
+res = order_open(exchange=binance_futures, market=market, category='future', ticker=ticker, side='buy',
+                 orderType='market', price=price, qty=qty, leverage=3)
 id = res['id']
 print(f"{id= }")
 while True:
-    time.sleep(1)
-    dict_chegyeol = fetch_order(bybit,'bybit',ticker,id,category,10)
-    if dict_chegyeol['체결'] == True:
-        print(f"{ticker}  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간{dict_chegyeol['체결시간']}")
+    res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id=id,category='future',qty=qty)
+    if res['체결'] == True:
         break
-print('===========')
+    else:
+        time.sleep(1)
 quit()
 
+from pybit.unified_trading import HTTP, WebSocket
+# Bybit API 키 설정
 
 dict_bong_stamp = {'1분봉': 1 * 60, '3분봉': 3 * 60, '5분봉': 5 * 60, '15분봉': 15 * 60, '30분봉': 30 * 60,
                    '60분봉': 60 * 60, '4시간봉': 240 * 60, '일봉': 1440 * 60,
@@ -671,7 +695,7 @@ print(df)
 quit()
 # res = bybit.fetch_closed_orders(symbol='BTCUSD',params={})
 
-ticker = "XRP/USDT"
+ticker = "ticker/USDT"
 # print("============================")
 res = bybit.fetch_balance()
 pprint(res)
