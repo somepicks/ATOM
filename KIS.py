@@ -851,7 +851,7 @@ class KoreaInvestment:
             }
             continue_check = "N" if day == "" else "Y" # continue_day에 날짜가 들어오면 "Y"
             fake_tick = 'Y' if fake_tick == True else "N"
-            trade_market = 'F' if symbol[:1] == '1' else 'O'
+            trade_market = 'F' if symbol[:1] == '1' else 'O' if symbol[:1] == '2'or symbol[:1] == '3' else print('종목코드확인필요')
             params = {
                 "FID_COND_MRKT_DIV_CODE": trade_market,
                 "FID_INPUT_ISCD": symbol,
@@ -2031,8 +2031,8 @@ class KoreaInvestment:
             # return output
                 if not df_instock.empty:
                     df_instock = self.convert_column_types(df_instock)
-                    df_instock = df_instock[df_instock['청산가능수량'] > 0]
-                    df_instock
+                    df_instock.index = df_instock['종목코드']
+                    # df_instock = df_instock[df_instock['청산가능수량'] > 0]
 
             return dict_amount, df_instock
         if self.exchange == '해외':
@@ -3728,12 +3728,6 @@ class KoreaInvestment:
     #     return df_trend
 
 if __name__ == "__main__":
-    import common_def
-    conn_set = sqlite3.connect('DB/setting.db')
-    df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_set).set_index('index')
-    exchange = common_def.make_exchange_kis(df_set=df_set,trade_type='실전선옵')
-    res,df = exchange.fetch_balance()
-    print(df)
     def nth_weekday(the_date, nth_week, week_day):
         temp = the_date.replace(day=1)
         adj = (week_day - temp.weekday()) % 7
@@ -3780,3 +3774,9 @@ if __name__ == "__main__":
         pass
 
 
+    import common_def
+    conn_set = sqlite3.connect('DB/setting.db')
+    df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_set).set_index('index')
+    exchange = common_def.make_exchange_kis(df_set=df_set,trade_type='모의선옵')
+    res,df = exchange.fetch_balance()
+    print(df)
