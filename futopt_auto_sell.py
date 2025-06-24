@@ -66,14 +66,16 @@ class do_trade(QThread):
             self.df['수익률'] = round(self.df['평가손익'] / self.df['매입금액'] * 100, 1)
             self.df['최고수익률'] = self.df['수익률']
             self.df['최저수익률'] = self.df['수익률']
-            self.df_compare = self.df[['잔고수량','체결평균단가','청산가능수량','매입금액','종목코드']]
+            # self.df_compare = self.df[['잔고수량','체결평균단가','청산가능수량','매입금액','종목코드']]
             self.list_ticker = self.df.index.tolist()
             for ticker in self.df.index.tolist():
                 print(f'{ticker} 데이터 취합 중')
                 globals()[ticker] = self.exchange.fetch_1m_ohlcv(symbol=ticker, limit=5, ohlcv=[], now_day=now_day, now_time=now_time)
         else:
-            self.df = pd.DataFrame()
+            self.df = pd.DataFrame(columns=['잔고수량', '체결평균단가', '청산가능수량', '매입금액', '종목코드'])
             self.list_ticker = []
+        self.df_compare = self.df[['잔고수량','체결평균단가','청산가능수량','매입금액','종목코드']]
+
         while True:
             account, df = self.exchange.fetch_balance()
             now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
@@ -94,7 +96,7 @@ class do_trade(QThread):
 
             if not self.df_compare.equals(df_compare):
                 # 신규 편입/제거 종목 찾기
-                list_ticker = df_compare.index.tolist()  # 종목코드 대신 index 사용
+                list_ticker = df_compare.index.tolist()
                 self.list_ticker = self.df_compare.index.tolist()  # 종목코드 대신 index 사용
                 new_tickers = list(set(list_ticker) - set(self.list_ticker))
                 del_tickers = list(set(self.list_ticker) - set(list_ticker))

@@ -133,7 +133,7 @@ def fetch_open_orders(exchange, market,ticker,category,id):  # 미체결주문 �
         elif category == 'inverse':
             symbol = ticker+'/USD'
         elif category == 'linear':
-            symbol = ticker
+            symbol = ticker+'/USDT:USDT'
         params = {}
         res = exchange.fetch_open_orders(symbol=symbol, params=params)
     for order in res:
@@ -156,7 +156,7 @@ def fetch_closed_orders(exchange,market, id, ticker, category):  # 체결주문 
         elif category == 'inverse':
             symbol = ticker+'/USD'
         elif category == 'linear':
-            symbol = ticker
+            symbol = ticker+'/USDT:USDT'
         res = exchange.fetch_closed_orders(symbol=symbol, params=params)
     for order in res:
         if order['id'] == id:
@@ -180,7 +180,9 @@ def fetch_order(exchange,market, ticker, id, category, qty):
                 진입수수료 = ord_closed['fee']
             체결금액 = float(ord_closed['cost'])
             체결시간 = stamp_to_str(ord_closed['timestamp'])
-            if 주문수량 == 체결수량:
+            # status = ord_closed['info'].get('status')
+            # orderStatus = ord_closed['info'].get('orderStatus')
+            if ord_closed['info'].get('status')=='FILLED' or ord_closed['info'].get('orderStatus')=='Filled':
                 print(f"체결완료 - {ticker= }  {category= }  {주문수량= }  {체결수량=} ")
             return {'체결': True, '체결가': 진입가, '체결수량': 체결수량, '체결금액':체결금액,'수수료': 진입수수료, '체결시간': 체결시간}
 
@@ -314,7 +316,7 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty, l
             params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             symbol = ticker + 'USD'
 #             leverage = 1
-        elif category == 'future':
+        elif category == 'linear':
             symbol = ticker + 'USDT'
             if side == 'buy':
                 params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
@@ -337,7 +339,7 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty, l
             params = {}
             symbol = ticker + 'USD_PERP'
             leverage = 1
-        elif category == 'future':
+        elif category == 'linear':
             symbol = ticker + 'USDT'
             params = {'positionSide': 'LONG'}
             if side == 'buy':
@@ -490,8 +492,8 @@ df1 = pd.DataFrame(index=[2,3,4,5,6],data={
 #     )
 #
 # market = 'binance'
-market = 'bybit'
-ticker = 'LTC'
+market = 'binance'
+ticker = 'ETH'
 min_cont = 10
 future_leverage = 3
 
@@ -557,73 +559,80 @@ elif market == 'bybit':
     res = bybit.fetch_balance()
     used_inverse = res[ticker]['free']
     used_usdt = price * used_inverse
-res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
-print(res)
-quit()
-bet_usdt = used_usdt / 20
-bet_usdt = math.ceil(bet_usdt)  # 소수점일경우 올림해서 정수로 변환
-print(f"{used_inverse=}  {price= }   {used_usdt= }  |  |  {bet_usdt= }")
-if min_amount_future > min_cont:
-    if min_amount_future > bet_usdt * future_leverage:  # 최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
-        bet_usdt = min_amount_future / future_leverage
-    bet = bet_usdt
-else:
-    if min_cont > bet_usdt:
-        bet = min_cont
-    else:
-        bet = bet_usdt
+# res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
+# res = fetch_order(binance,'binance','XRP','12367717649','inverse',98)
 
-bet = bet/min_cont
-bet = math.ceil(bet)  # 소수점일경우 올림해서 정수로 변환
-print(f"{bet= }")
-category = 'inverse'
-res = order_open(exchange=exchange, market=market, category=category, ticker=ticker, side='buy',
-                 orderType='market', price=price, qty=bet)
-id = res['id']
-bet = 6
-while True:
-    res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='12522097533',category='inverse',qty=bet)
-    if res['체결'] == True:
-        break
-    else:
-        time.sleep(1)
-# print(f"{res=}")
-if market == 'binance':
-    res = binance.fetch_balance(params={"type": 'delivery'})
-    free_qty = res[ticker]['free']*0.99 #전부 옮기려니 안됨
-elif market == 'bybit':
-    res = bybit.fetch_balance()
-    used_inverse = res['used'][ticker]
-# 'ADA': {'free': 98.59136072, 'total': 1595.02949928, 'used': 1496.43813856},
-transfer_to(exchange=exchange,market='binance',ticker=ticker,amount=free_qty,departure='inverse',
-            destination='spot')
-time.sleep(1)
-res = order_open(exchange=exchange,market=market,category='spot',ticker=ticker,side='sell',
-                 orderType='market',price=price,qty=free_qty)
-pprint(res)
+# bet_usdt = used_usdt / 20
+# bet_usdt = math.ceil(bet_usdt)  # 소수점일경우 올림해서 정수로 변환
+# print(f"{used_inverse=}  {price= }   {used_usdt= }  |  |  {bet_usdt= }")
+# if min_amount_future > min_cont:
+#     if min_amount_future > bet_usdt * future_leverage:  # 최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
+#         bet_usdt = min_amount_future / future_leverage
+#     bet = bet_usdt
+# else:
+#     if min_cont > bet_usdt:
+#         bet = min_cont
+#     else:
+#         bet = bet_usdt
+#
+# bet = bet/min_cont
+# bet = math.ceil(bet)  # 소수점일경우 올림해서 정수로 변환
+# print(f"{bet= }")
+# category = 'inverse'
+# res = order_open(exchange=exchange, market=market, category=category, ticker=ticker, side='buy',
+#                  orderType='market', price=price, qty=bet)
 # id = res['id']
-while True:
-    res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='7158174004',category='spot',qty=free_qty)
-    if res['체결'] == True:
-        break
-    else:
-        time.sleep(1)
-usdt = res['체결금액']
-print(f"{usdt = }")
-# transfer_to(exchange=exchange,market='binance',ticker='USDT',amount=usdt,departure='spot',destination='linear')
-
-qty = (usdt*future_leverage)/price
-print(qty)
-res = order_open(exchange=binance_futures, market=market, category='future', ticker=ticker, side='buy',
-                 orderType='market', price=price, qty=qty, leverage=3)
-id = res['id']
+# bet = 6
+# while True:
+#     res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='12522097533',category='inverse',qty=bet)
+#     if res['체결'] == True:
+#         break
+#     else:
+#         time.sleep(1)
+# # print(f"{res=}")
+# if market == 'binance':
+#     res = binance.fetch_balance(params={"type": 'delivery'})
+#     free_qty = res[ticker]['free']*0.99 #전부 옮기려니 안됨
+# elif market == 'bybit':
+#     res = bybit.fetch_balance()
+#     used_inverse = res['used'][ticker]
+# # 'ADA': {'free': 98.59136072, 'total': 1595.02949928, 'used': 1496.43813856},
+# transfer_to(exchange=exchange,market='binance',ticker=ticker,amount=free_qty,departure='inverse',
+#             destination='spot')
+# time.sleep(1)
+# res = order_open(exchange=exchange,market=market,category='spot',ticker=ticker,side='sell',
+#                  orderType='market',price=price,qty=free_qty)
+# pprint(res)
+# # id = res['id']
+# while True:
+#     res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='7158174004',category='spot',qty=free_qty)
+#     if res['체결'] == True:
+#         break
+#     else:
+#         time.sleep(1)
+# usdt = res['체결금액']
+# usdt = 136.04584
+# price = 2429.36
+# print(f"{usdt = }")
+# qty = (usdt*future_leverage)/price
+# qty = amount_to_precision(binance,'binance','linear',ticker,qty)
+# # transfer_to(exchange=exchange,market='binance',ticker='USDT',amount=usdt,departure='spot',destination='linear')
+# print(qty)
+# quit()
+# res = order_open(exchange=binance, market=market, category='linear', ticker=ticker, side='buy',
+#                  orderType='market', price=price, qty=qty, leverage=3)
+# id = res['id']
 print(f"{id= }")
+res = binance.fetch_closed_orders(symbol='ETH/USD')
+pprint(res)
+quit()
 while True:
-    res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id=id,category='future',qty=qty)
+    res = fetch_order(exchange=binance_futures,market='binance',ticker=ticker,id='8389765910084028367',category='linear',qty=0.1161)
     if res['체결'] == True:
         break
     else:
         time.sleep(1)
+
 quit()
 
 from pybit.unified_trading import HTTP, WebSocket
