@@ -495,7 +495,7 @@ class Trade_np(QThread):
 
     shutdown_signal = pyqtSignal()
 
-    def __init__(self, parent, market,ex_kis,ex_bybit,ex_pybit, simul, df_stg, chart_duration, tele,
+    def __init__(self, parent, market, simul, df_stg, chart_duration, tele,
                  dict_market_option,auto_finish,finish_time):
         super().__init__(parent)
     # def __init__(self,market,simul,df_stg):
@@ -505,9 +505,9 @@ class Trade_np(QThread):
         self.simul = simul.isChecked()
         self.df_stg = df_stg
 
-        self.ex_kis = ex_kis
-        self.ex_bybit = ex_bybit
-        self.ex_pybit = ex_pybit
+        # self.ex_kis = ex_kis
+        # self.ex_bybit = ex_bybit
+        # self.ex_pybit = ex_pybit
         self.cond = QWaitCondition()
         self.mutex = QMutex()
         self._status = True
@@ -544,6 +544,7 @@ class Trade_np(QThread):
         self.위탁증거금률 = 10  # 10%
         self.tele = tele
         self.dict_market_option = dict_market_option
+
         self.list_tickers = self.dict_market_option['list_tickers']
         # self.list_close_day = list_close_day
 
@@ -651,19 +652,8 @@ class Trade_np(QThread):
             장종료시간 = ' '+'15:30:00' #날짜랑 시간 사이 비울 것
             장종료시간 = 현재시간.strftime('%Y-%m-%d') + 장종료시간 #날짜랑 시간 사이 비울 것
             장종료시간 = common_def.str_to_datetime(장종료시간)
-            # if self.market == '국내주식':
-            #     if self.simul == True:  # 모의매매
-            #         self.ex_kis = common_def.make_exchange_kis('모의주식')
-            #     elif self.simul == False:  # 실매매
-            #         self.ex_kis = common_def.make_exchange_kis('실전주식')
-            # elif self.market == '국내선옵':
-            #     if self.simul == True:  # 모의매매
-            #         self.ex_kis = common_def.make_exchange_kis('모의선옵')
-            #     elif self.simul == True:  # 실매매
-            #         self.ex_kis = common_def.make_exchange_kis('실전선옵')
 
             dict_asset, df_x = self.ex_kis.fetch_balance()  # 자산, 보유종목
-            print(f"{dict_asset}")
             if not df_x.empty:
                 print('=============================================================')
                 print(f"보유종목 \n {df_x}")
@@ -674,8 +664,6 @@ class Trade_np(QThread):
                 quit()
             self.df_trend = pd.DataFrame()
             self.add_investor_trend(현재시간)
-        # print(f"{self.list_tickers= }")
-        # print(self.df_trade)
 
         # self.dict_sorting_obj = {}
 
@@ -703,7 +691,6 @@ class Trade_np(QThread):
         self.sorting_make_df(dict_stg)
 
         for stg in self.df_trade.index:
-
             상태 = self.df_trade.loc[stg, '상태']
             배팅금액 = self.df_trade.loc[stg, '배팅금액']
             stg_buy = self.df_trade.loc[stg, '진입전략']
@@ -711,7 +698,6 @@ class Trade_np(QThread):
             #들여쓰기 에러 방지용
             self.df_trade.loc[stg, '진입전략'] = common_def.replace_tabs_with_spaces(stg_buy)
             self.df_trade.loc[stg, '청산전략'] = common_def.replace_tabs_with_spaces(stg_sell)
-
             ticker = dict_stg[stg]['종목코드']
             obj = dict_stg[stg]['진입대상']
             bong = dict_stg[stg]['봉']
@@ -723,11 +709,12 @@ class Trade_np(QThread):
                 # self.dict_sorting_obj = self.sorting_tickers(stg,obj)
 
             if type(obj) == str or (type(obj) == dict and 상태 != '대기') and (type(obj) == dict and 상태 != '청산'): #종목이 지정되어있을 경우
-                pass
+                print(f"  {ticker=},  {bong=}  {bong_detail=}  {bong_since=}  {now_day=}  {now_time=}")
                 df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
                 # print(df)
                 dict_stg[stg] = self.check_compare_ticker(stg,ticker,dict_stg[stg])
                 # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임 생성
+                print(df)
                 df = self.add_compare_df(ticker, df, dict_stg[stg], bong_detail, bong_since,now_day,now_time)
                 # print(f"{stg= }    {ticker= }   {obj= }    {type(obj)=}    {bong= },    {bong_detail= }    {bong_since= }   {dict_stg[stg]= }")
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상태봉이기 때문에  찾아서 다시 들어가야됨
@@ -2254,55 +2241,54 @@ class Trade_np(QThread):
     def make_df(self,ticker, bong, bong_detail, bong_since, check_compare,now_day,now_time):
         ticker_full_name = f"{ticker}_{bong}_{bong_detail}"
         if self.market == '국내주식':
-            return pd.DataFrame()
-            # if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
-            #     ohlcv = globals()[ticker_full_name]
-            #     if bong == '일봉':
-            #         if not ohlcv.empty:
-            #             df = common_def.convert_df(ohlcv)
-            #             dict_output = self.ex_kis.fetch_price(ticker)
-            #             today = pd.to_datetime(datetime.datetime.now().date())
-            #             df.loc[today,'시가'] = int(dict_output['stck_oprc'])
-            #             df.loc[today,'고가'] = int(dict_output['stck_hgpr'])
-            #             df.loc[today,'저가'] = int(dict_output['stck_lwpr'])
-            #             df.loc[today,'종가'] = int(dict_output['stck_prpr'])
-            #             df.loc[today,'거래대금'] = int(dict_output['acml_tr_pbmn'])
-            #             df.loc[today,'거래량'] = int(dict_output['acml_vol'])
-            #             df.loc[today,'전일대비거래량비율'] = float(dict_output['prdy_vrss_vol_rate'])
-            #             df.loc[today,'외국인순매수수량'] = int(dict_output['frgn_ntby_qty'])
-            #             df.loc[today,'프로그램매매순매수수량'] = int(dict_output['pgtr_ntby_qty'])
-            #             df.loc[today,'PER'] = float(dict_output['per'])
-            #             df.loc[today,'PBR'] = float(dict_output['pbr'])
-            #             df.loc[today,'EPS'] = float(dict_output['eps'])
-            #             df.loc[today,'BPS'] = float(dict_output['bps'])
-            #             df.loc[today,'52주최고가'] = int(dict_output['w52_hgpr'])
-            #         else:
-            #             df = ohlcv
-            #     else:
-            #         to = ohlcv[0]['stck_cntg_hour']
-            #         output = self.ex_kis._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
-            #         output = output['output2']
-            #         list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
-            #         if to in list_cntg_hour:
-            #             output = output[:list_cntg_hour.index(to) + 1]
-            #             del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-            #             output.extend(ohlcv)
-            #             ohlcv = output
-            #             globals()[ticker_full_name] = ohlcv
-            # else:  # 최초 생성 시
-            #     if bong == '일봉':
-            #         date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
-            #         date_old = datetime.datetime.strftime(date_old,'%Y%m%d')
-            #         df = self.ex_kis.fetch_ohlcv(symbol=ticker,early_day=date_old)
-            #         if not df.empty:
-            #             globals()[ticker_full_name] = df.copy()
-            #             df = common_def.convert_df(df)
-            #     else:
-            #         # df = common_def.get_kis_ohlcv(self.market,ohlcv)
-            #         if ticker_full_name.count('_') == 2:  # 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-            #             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
-            #         else:  # 비교대상의 경우 'BTC_5분봉'
-            #             df = common_def.detail_to_compare(df, bong, ticker_full_name)
+            if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
+                ohlcv = globals()[ticker_full_name]
+                if bong == '일봉':
+                    if not ohlcv.empty:
+                        df = common_def.convert_df(ohlcv)
+                        dict_output = self.ex_kis.fetch_price(ticker)
+                        today = pd.to_datetime(datetime.datetime.now().date())
+                        df.loc[today,'시가'] = int(dict_output['stck_oprc'])
+                        df.loc[today,'고가'] = int(dict_output['stck_hgpr'])
+                        df.loc[today,'저가'] = int(dict_output['stck_lwpr'])
+                        df.loc[today,'종가'] = int(dict_output['stck_prpr'])
+                        df.loc[today,'거래대금'] = int(dict_output['acml_tr_pbmn'])
+                        df.loc[today,'거래량'] = int(dict_output['acml_vol'])
+                        df.loc[today,'전일대비거래량비율'] = float(dict_output['prdy_vrss_vol_rate'])
+                        df.loc[today,'외국인순매수수량'] = int(dict_output['frgn_ntby_qty'])
+                        df.loc[today,'프로그램매매순매수수량'] = int(dict_output['pgtr_ntby_qty'])
+                        df.loc[today,'PER'] = float(dict_output['per'])
+                        df.loc[today,'PBR'] = float(dict_output['pbr'])
+                        df.loc[today,'EPS'] = float(dict_output['eps'])
+                        df.loc[today,'BPS'] = float(dict_output['bps'])
+                        df.loc[today,'52주최고가'] = int(dict_output['w52_hgpr'])
+                    else:
+                        df = ohlcv
+                else:
+                    to = ohlcv[0]['stck_cntg_hour']
+                    output = self.ex_kis._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
+                    output = output['output2']
+                    list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
+                    if to in list_cntg_hour:
+                        output = output[:list_cntg_hour.index(to) + 1]
+                        del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                        output.extend(ohlcv)
+                        ohlcv = output
+                        globals()[ticker_full_name] = ohlcv
+            else:  # 최초 생성 시
+                if bong == '일봉':
+                    date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
+                    date_old = datetime.datetime.strftime(date_old,'%Y%m%d')
+                    df = self.ex_kis.fetch_ohlcv(symbol=ticker,early_day=date_old)
+                    if not df.empty:
+                        globals()[ticker_full_name] = df.copy()
+                        df = common_def.convert_df(df)
+                else:
+                    # df = common_def.get_kis_ohlcv(self.market,ohlcv)
+                    if ticker_full_name.count('_') == 2:  # 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
+                        df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
+                    else:  # 비교대상의 경우 'BTC_5분봉'
+                        df = common_def.detail_to_compare(df, bong, ticker_full_name)
 
         elif self.market == '국내선옵':
             if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
@@ -2539,10 +2525,10 @@ class Trade_np(QThread):
                 df_f.loc[df_f.index[0], '거래대금'] = float(output['거래대금'])
                 df_f.loc[df_f.index[0], '이론가/행사가'] = float(output['이론가'])
                 df_f.loc[df_f.index[0], '베이시스/프리미엄'] = float(output['베이시스'])
-                print(df_f)
+                # print(df_f)
                 self.df_tickers = common_def.futopt_set_tickers(df_f,self.df_c,self.df_p,self.df_c_weekly,self.df_p_weekly,self.COND_MRKT)
-                print(self.df_tickers)
-                quit()
+#                 print(self.df_tickers)
+#                 quit()
 
     def sorting_tickers(self,dict_stg_stg,obj):
         key = list(obj.keys())[0]
@@ -2912,9 +2898,9 @@ if __name__ == "__main__":
             return True
     simul = simul_QCB()
 
-    # market = '국내주식'
+    market = '국내주식'
     # market = '국내선옵'
-    market = '코인'
+    # market = '코인'
     list_tickers = []
     if market == '국내주식':
         conn_stg = sqlite3.connect('DB/stg_stock.db')
@@ -3014,13 +3000,17 @@ if __name__ == "__main__":
     # df_instock = pd.DataFrame()
     tele = True
     duration = 30
-    trade = Trade_np(None,market,simul,df_stg,duration,tele,list_tickers,dict)
-
+    trade = Trade_np(parent=None,market=market,ex_kis=None,ex_bybit=None,ex_pybit=, simul=simul,df_stg=df_stg,
+                     chart_duration=,tele=tele,dict_market_option=dict_market_option,auto_finish=,finish_time=
+    ,,duration,tele,list_tickers,dict)
+    market, ex_kis, ex_bybit, ex_pybit, simul, df_stg, chart_duration, tele,
+    dict_market_option, auto_finish, finish_time
     # stg = '시가_풋'
-    # ticker = '201W01337'
+    ticker = '122630'
     # dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '5분봉', '상세봉': '1분봉', '봉제한': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}
-    # df = trade.make_df(ticker,dict_stg_stg['봉'],dict_stg_stg['상세봉'],dict_stg_stg['봉제한'],False)
-    # print(df)
+    dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '일봉', '상세봉': '일봉', '봉제한': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}
+    df = trade.make_df(ticker,dict_stg_stg['봉'],dict_stg_stg['상세봉'],dict_stg_stg['봉제한'],False)
+    print(df)
     # trade.run()
     # dict_stg_stg = trade.check_compare_ticker(stg,ticker, dict_stg_stg)
     # print(f"{dict_stg_stg['비교대상']=}")

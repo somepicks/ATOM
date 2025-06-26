@@ -17,7 +17,7 @@ import common_def
 import json  # 리스트를 문자열로 변환하기 위해 필요
 import tab_chart_table
 import os
-
+from pykrx import stock
 # from ex import df_holiday
 
 pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
@@ -467,20 +467,51 @@ class Window(QMainWindow):
                     self.ex_kis = None
                     self.df_tickers = pd.DataFrame()
                     print('국내모의주식 API 없음')
+                else:
+                    self.ex_kis = common_def.make_exchange_kis(self.df_set, '모의주식')
             else:
                 if self.df_set.loc['국내주식_API', 'value'] == '' or self.df_set.loc['국내주식_SECRET', 'value'] == '' or self.df_set.loc['국내주식_ACCOUNT', 'value'] == '':
                     self.ex_kis = None
                     self.df_tickers = pd.DataFrame()
                     print('국내주식 API 없음')
+                else:
+                    self.ex_kis = common_def.make_exchange_kis(self.df_set, '실전주식')
             con_db = sqlite3.connect('DB/DB_stock.db')
-            # self.df_stock_info = pd.read_sql(f"SELECT * FROM 'stocks_info'", con_db).set_index('종목코드')
-            # df_qt_stocks = self.df_stock_info[self.df_stock_info['PER']!=0] #per 0 제외
+            cursor = con_db.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            try:
+                list_table = np.concatenate(cursor.fetchall()).tolist()
+            except:
+                list_table = []
+            if not list_table:
+                kospi = stock.get_market_ticker_list(market="KOSPI")
+                kospi_names = [stock.get_market_ticker_name(ticker) for ticker in kospi]
+
+                # KOSDAQ 종목 가져오기
+                kosdaq = stock.get_market_ticker_list(market="KOSDAQ")
+                kosdaq_names = [stock.get_market_ticker_name(ticker) for ticker in kosdaq]
+
+                # ETF 종목 가져오기
+                etf = stock.get_etf_ticker_list()
+                etf_names = [stock.get_etf_ticker_name(ticker) for ticker in etf]
+
+                # 데이터프레임 생성
+                kospi_df = pd.DataFrame({"종목코드": kospi, "종목명": kospi_names, "시장구분": "KOSPI"})
+                kosdaq_df = pd.DataFrame({"종목코드": kosdaq, "종목명": kosdaq_names, "시장구분": "KOSDAQ"})
+                etf_df = pd.DataFrame({"종목코드": etf, "종목명": etf_names, "시장구분": "ETF"})
+
+                # 데이터프레임 병합
+                self.df_tickers = pd.concat([kospi_df, kosdaq_df, etf_df])
+                self.df_tickers.reset_index(drop=True, inplace=True)
+            else:
+                self.df_tickers = pd.read_sql(f"SELECT * FROM 'stocks_info'", con_db).set_index('종목코드')
+            # df_qt_stocks = self.df_tickers[self.df_tickers['PER']!=0] #per 0 제외
             # df_qt_stocks = df_qt_stocks[df_qt_stocks['시장구분']!='ETF'] #per 0 제외
             # df_qt_stocks = df_qt_stocks[['종목명','시장구분','업종','BPS','PER','PBR' ,'EPS','DIV','DPS']]
             # 종목 맨 앞에 코스피200이 와야됨 왜냐하면
             self.ex_bybit = None
             self.ex_pybit = None
-
+            self.display_futopt()
         elif self.QCB_market.currentText() == '국내선옵' or self.QCB_market.currentText() == '국내선옵(야간)':
             conn_holiday = sqlite3.connect('DB/DB_futopt.db')
             self.df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
@@ -494,7 +525,6 @@ class Window(QMainWindow):
                     self.ex_kis = None
                 else:
                     self.ex_kis = common_def.make_exchange_kis(self.df_set,'모의선옵')
-
             else:
                 if self.df_set.loc['국내선옵_API', 'value'] == '' or self.df_set.loc['국내선옵_SECRET', 'value'] == '' or self.df_set.loc['국내선옵_ACCOUNT', 'value'] == '':
                     print('국내선옵 API 없음')
@@ -706,7 +736,7 @@ class Window(QMainWindow):
                 trade_market = '주식'
                 ticker = ''
             else:
-                trade_market = self.df_stock_info.loc[object, '시장구분']
+                trade_market = self.df_tickers.loc[object, '시장구분']
                 ticker = object
 
         elif self.QCB_market.currentText() == '국내선옵' and self.QLE_stg.text() != '':
@@ -1139,7 +1169,6 @@ class Window(QMainWindow):
         self.light_start = False
         self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')
         self.df_stg = self.set_table_modify(self.QT_trade_open, self.df_stg)
-        # self.df_instock = pd.read_sql(f"SELECT * FROM 'instock'", self.conn_stg).set_index('index')
         if self.QCB_market.currentText() == '코인':
             if self.ex_bybit == None:
                 return print('ERROR- 시작할 수 없음: 코인 API 확인')

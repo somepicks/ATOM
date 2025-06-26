@@ -725,7 +725,7 @@ class Window(QMainWindow):
             return 0
         else:
             market = '선옵'
-            mock = True
+            mock = False
             exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
         return exchange
 

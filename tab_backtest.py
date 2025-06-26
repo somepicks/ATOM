@@ -1,6 +1,5 @@
 import sys
 
-# import pyupbit
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFontMetrics, QFont
 from PyQt5.QtCore import QThread, pyqtSlot, pyqtSignal, QObject, Qt
@@ -11,8 +10,6 @@ import numpy as np
 import ATOM_stg_numpy
 import requests
 import json
-# import ATOM_chart_numpy
-# import ATOM_chart
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.gridspec import GridSpec
@@ -20,15 +17,11 @@ import tab_chart_table
 import time
 import datetime
 import ccxt
-# import talib
 from PyQt5.QtTest import *
-# import cal_krx
 import ATOM_backtest_numpy
 import ATOM_bt_thread_numpy
 import KIS
 from pprint import pprint
-# import get_df
-# import tab_trade
 import CYBOS_DB
 import common_def
 import math
