@@ -171,20 +171,23 @@ def fetch_order(exchange,market, ticker, id, category, qty):
         if ord_closed == None:
             return {'체결': '주문취소'}
         else:
-            진입가 = float(ord_closed['average'])
-            체결수량 = float(ord_closed['filled'])
-
-            if not ord_closed['fee'] == None:
-                진입수수료 = float(ord_closed['fee']['cost'])
-            else:
-                진입수수료 = ord_closed['fee']
-            체결금액 = float(ord_closed['cost'])
-            체결시간 = stamp_to_str(ord_closed['timestamp'])
-            # status = ord_closed['info'].get('status')
-            # orderStatus = ord_closed['info'].get('orderStatus')
             if ord_closed['info'].get('status')=='FILLED' or ord_closed['info'].get('orderStatus')=='Filled':
+                진입가 = float(ord_closed['average'])
+                체결수량 = float(ord_closed['filled'])
+
+                if not ord_closed['fee'] == None:
+                    진입수수료 = float(ord_closed['fee']['cost'])
+                else:
+                    진입수수료 = ord_closed.get('fee',0)
+                체결금액 = float(ord_closed['cost'])
+                체결시간 = stamp_to_str(ord_closed['timestamp'])
+                # status = ord_closed['info'].get('status')
+                # orderStatus = ord_closed['info'].get('orderStatus')
                 print(f"체결완료 - {ticker= }  {category= }  {주문수량= }  {체결수량=} ")
-            return {'체결': True, '체결가': 진입가, '체결수량': 체결수량, '체결금액':체결금액,'수수료': 진입수수료, '체결시간': 체결시간}
+                return {'체결': True, '체결가': 진입가, '체결수량': 체결수량, '체결금액':체결금액,'수수료': 진입수수료, '체결시간': 체결시간}
+            else:
+                print(f'fetch_order 상태확인 필요  {market= }, {ticker= }, {id= }, {category= }, {qty= }')
+                pprint(ord_closed)
 
     else:
         return {'체결': False}
@@ -335,8 +338,7 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty, l
             symbol = ticker + '/USDT'
             leverage = 1
         elif category == 'inverse':
-            # params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-            params = {}
+            params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             symbol = ticker + 'USD_PERP'
             leverage = 1
         elif category == 'linear':
@@ -344,25 +346,28 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty, l
             params = {'positionSide': 'LONG'}
             if side == 'buy':
                 pass
-                # params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             elif side == 'sell':  # 지정가 open short
                 pass
-                # params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-            # leverage = 3
-        # print(f"{market= }   {symbol= }   {orderType= }   {side= }    {qty= }   {price= }")
-        try:
-            (exchange.set_leverage(leverage=leverage, symbol=symbol))
-        except:
-            pass
-        try:
-            exchange.fapiPrivate_post_margintype({
-                'symbol': symbol,  # 슬래시 없이
-                'marginType': 'ISOLATED'
-            })
-        except:
-            pass
-        res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
-                                           price=price, params=params)
+        # try:
+            if category == 'spot' or category == 'inverse':
+                exchange.set_leverage(leverage=leverage, symbol=f'{ticker}/USDT')
+            elif category == 'linear':
+                exchange.set_leverage(leverage=leverage, symbol=f'{ticker}/USDT')
+        # except:
+        #     pass
+        # try:
+        if category == 'spot' or category == 'inverse':
+            exchange.set_margin_mode('isolated',f'{ticker}/USDT')
+        elif category == 'linear':
+            exchange.set_margin_mode('isolated',f'{ticker}/USDT')
+        # except:
+        #     pass
+        if category == 'spot' or category == 'inverse':
+            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
+                                               price=price, params=params)
+        elif category == 'linear':
+            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
+                                                      price=price, params=params)
     # print(f"{self.yellow(f'{type} open 주문')} [{res['id']}] [{side}] - 진입가:{price}, 수량:{qty}, 레버리지: {leverage}, 배팅금액: {round(price * qty, 4)}")
     return res
 
@@ -460,6 +465,7 @@ df1 = pd.DataFrame(index=[2,3,4,5,6],data={
     'col2' : sample_array*2,
     'col3' : ["A","B","C","D","E"]
 })
+df.drop(index=0,inplace=True)
 
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
 # secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
@@ -493,10 +499,11 @@ df1 = pd.DataFrame(index=[2,3,4,5,6],data={
 #
 # market = 'binance'
 market = 'binance'
-ticker = 'ETH'
+ticker = 'BTC'
 min_cont = 10
 future_leverage = 3
-
+price = 1.9
+qty = 5
 
 # 바이낸스 API 설정
 # dt = datetime.datetime.strptime('2015-07-15','%Y-%m-%d')
@@ -506,35 +513,40 @@ future_leverage = 3
 
 #
 # quit()
-api_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
-api_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
 
 
-binance_futures = ccxt.binance(config={
-    'apiKey': api_key,
-    'secret': api_secret,
-    'enableRateLimit': True,
-    'options': {
-                # 'position_mode': True,  #롱 & 숏을 동시에 유지하면서 리스크 관리(헷징)할 때
-                'defaultType': 'future'
-                },
-    })
 
-binance = ccxt.binance(config={
-    'apiKey': api_key,
-    'secret': api_secret,
-    'enableRateLimit': True,
-    'options': {'position_mode': True, },
-    })
-
-# res_spot = binance_futures.fetch_balance()
-# res_spot = binance.fetch_balance()
-
+# res = order_open(exchange=binance_futures, market=market, category='linear', ticker=ticker, side='buy',
+#                  orderType='market', price=price, qty=qty, leverage=3)
+# id = res['id']
 
 if market == 'binance':
+    binance_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
+    binance_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
+
+
+    binance_futures = ccxt.binance(config={
+        'apiKey': binance_key,
+        'secret': binance_secret,
+        'enableRateLimit': True,
+        'options': {
+            # 'position_mode': True,  #롱 & 숏을 동시에 유지하면서 리스크 관리(헷징)할 때
+            'defaultType': 'future'
+        },
+    })
+
+    binance = ccxt.binance(config={
+        'apiKey': binance_key,
+        'secret': binance_secret,
+        'enableRateLimit': True,
+        'options': {'position_mode': True, },
+    })
+
     markets = binance.load_markets()
     min_amount_future = binance.load_markets()[f"{ticker}/USDT:USDT"]['limits']['cost']['min']
-    price = binance.fetch_ticker(symbol=ticker+'/USD')['close']
+    pprint(binance.load_markets()[f"{ticker}/USDT"])
+    quit()
+    price = binance.fetch_ticker(symbol=ticker + '/USD')['close']
     res = binance.fetch_balance(params={"type": 'delivery'})
     used_inverse = res['used'][ticker]
     used_usdt = price * used_inverse
@@ -553,12 +565,19 @@ elif market == 'bybit':
     #     api_key=api_key,
     #     api_secret=api_secret,
     # )
-    price = binance.fetch_ticker(symbol=ticker+'USDT')['close']
+    # price = binance.fetch_ticker(symbol=ticker+'USDT')['close']
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
+    min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']
+    # min_amount_future = bybit.load_markets()[f'{ticker}USDT']['limits']['cost']['min']
+    pprint(bybit.load_markets()[f'{ticker}/USDT'])
+    quit()
     min_amount_future = min_amount_future * price
     res = bybit.fetch_balance()
     used_inverse = res[ticker]['free']
     used_usdt = price * used_inverse
+res = bybit.fetch_closed_order(id='1ab41631-8c5a-4462-94cc-40b42978fe2f',symbol='ADAUSDT')
+pprint(res)
+quit()
 # res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
 # res = fetch_order(binance,'binance','XRP','12367717649','inverse',98)
 
@@ -651,7 +670,7 @@ bong = '4시간봉'
 bong_since = 10 #10일 전 데이터부터 추출
 present = datetime.datetime.now()
 date_old = present.date() - datetime.timedelta(days=int(bong_since))
-stamp_date_old = common_def.datetime_to_stamp(date_old)
+stamp_date_old = datetime_to_stamp(date_old)
 
 list_ohlcv = binance.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong],
                                           limit=10000, since=int(stamp_date_old * 1000))  # 밀리초로 전달
