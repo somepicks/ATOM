@@ -1264,10 +1264,11 @@ class Window(QMainWindow):
         df_active = self.convert_column_types(df_active)
         self.df_linear = df_active
 
-        if not df_future.empty:
+        if (not df_future.empty) and (not df_active.empty):
             for market_ticker in df_active.index.tolist():
                 df_active.loc[market_ticker,'현재가'] = df_future.loc[market_ticker,'현재가']
-
+            print(df_active)
+            print(df_future)
             df_active = df_active[['market','ticker','category','평단가','현재가','보유수량','매수금액','체결시간','수수료','매수횟수']]
         else:
             df_active = df_active[['market','ticker','category','평단가','보유수량','매수금액','체결시간','수수료','매수횟수']]
