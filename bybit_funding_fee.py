@@ -90,7 +90,8 @@ class do_trade(QThread):
                 market = self.df_inverse.loc[idx,'market']
                 ticker = self.df_inverse.loc[idx,'ticker']
                 df = self.get_df(market, ticker, '4시간봉', 10)  # 10일 전부터의 데이터 불러오기
-                self.buy_future(df=df,idx=idx,division=30,future_leverage=3)
+                dict_division = {'BTC':25, 'ETH':30, 'XRP':25, 'SOL':28}
+                self.buy_future(df=df,idx=idx,division=dict_division.get(ticker,40),future_leverage=3)
                 if idx in self.df_linear.index.tolist():
                     self.sell_future(df=df,idx=idx,future_leverage=3)
             self.active_light()
@@ -289,7 +290,7 @@ class do_trade(QThread):
         # used_usdt = 10
         if buy_signal_future == True:
             print('*******************************************************************************************************')
-            print(f"buy_future 매수신호 : {idx} - {datetime.datetime.now()}  {market=}  {ticker= }")
+            print(f"buy_future 매수신호 : {idx} - {datetime.datetime.now()}  {market=}  {ticker= }  {future_leverage=}")
             price = self.df_inverse.loc[idx,'현재가']
             # price = self.df_inverse.loc[f'{market}_{ticker}','현재가']
             if market == 'bybit':
@@ -427,7 +428,7 @@ class do_trade(QThread):
                         self.df_linear.loc[idx,'체결시간'] = dict_chegyeol['체결시간']
                         self.df_linear.loc[idx,'매수횟수'] = 기존매수횟수+1
 
-                    self.qt_linear.emit(self.df_linear,self.df_inverse)
+                    self.qt_linear.emit(self.df_linear,self.df_future)
                     break
                 if i >10:
                     print(f'{market}buy_future 에러 3')
@@ -488,6 +489,8 @@ class do_trade(QThread):
             print('***************************************************************************************************')
             category = 'linear'
             qty = self.common_define.amount_to_precision(market, category, ticker, qty)
+            if qty > self.df_future.loc[idx,'보유수량']:
+                qty = self.df_future.loc[idx,'보유수량']
             print(f"sell_future 매도신호 {sell_signal_future} : {idx}, {qty=}, {category=}, {현재가= }   현재시간: {datetime.datetime.now()}  ")
 
             res = self.common_define.order_close(market=market, category=category, ticker=ticker, side='sell',
@@ -585,7 +588,7 @@ class do_trade(QThread):
         self.val_time.emit(str(self.text_time))
         self.qt_inverse.emit(self.df_inverse)
         self.qt_open.emit(self.df_open)
-        self.qt_linear.emit(self.df_linear,self.df_inverse)
+        self.qt_linear.emit(self.df_linear,self.df_future)
         self.qt_future.emit(self.df_future)
 
 
@@ -659,7 +662,7 @@ class do_trade(QThread):
                 if not self.ex_binance == None:
                     res = self.ex_binance.fetch_positions()
                     for data in res:
-                        data['매수금액'] = float(data['info']['isolatedWallet'])
+                        data['매수금액'] = data['initialMargin']
                         # del data['info']
                     df = pd.DataFrame(res)
                     if 'symbol' in df.columns.tolist():
@@ -677,10 +680,11 @@ class do_trade(QThread):
                                'liquidationPrice': '청산가','symbol': 'ticker',
                                'side': '방향', 'markPrice': '현재가', 'entryPrice': '진입가'},
                                 inplace=True)
-            # print(self.df_future)
             self.df_future['수익률'] = self.df_future['손익'] / self.df_future['매수금액'] * 100
-    def fetch_linear(self):
-        df_close = self.df_linear
+            self.df_future.index = self.df_future['market']+"_"+self.df_future['ticker']
+
+    # def fetch_linear(self):
+    #     df_close = self.df_linear
     def fetch_order(self, market, ticker, id, category, qty):
         주문수량 = qty
         ord_open = self.fetch_open_orders(market, ticker, category, id)
@@ -1251,7 +1255,7 @@ class Window(QMainWindow):
             df_active['매수금액'] = df_active['매수금액'].apply(lambda int_num: "{:,}".format(int_num))
         df_active['주문가'] = df_active['주문가'].apply(lambda int_num: "{:,}".format(int_num))
         self.set_table_make(self.QT_trade_open, df_active)
-    def qtable_linear(self,df,df_inverse):
+    def qtable_linear(self,df,df_future):
         if not self.df_linear_old.equals(df): # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위라래로 붙임
             df.to_sql('linear', self.conn, if_exists='replace')
             self.df_linear_old = df.copy()
@@ -1260,11 +1264,11 @@ class Window(QMainWindow):
         df_active = self.convert_column_types(df_active)
         self.df_linear = df_active
 
-        if not df_inverse.empty:
+        if not df_future.empty:
             for market_ticker in df_active.index.tolist():
-                df_active.loc[market_ticker,'inverse_현재가'] = df_inverse.loc[market_ticker,'현재가']
+                df_active.loc[market_ticker,'현재가'] = df_future.loc[market_ticker,'현재가']
 
-            df_active = df_active[['market','ticker','category','평단가','보유수량','매수금액','체결시간','수수료','매수횟수']]
+            df_active = df_active[['market','ticker','category','평단가','현재가','보유수량','매수금액','체결시간','수수료','매수횟수']]
         else:
             df_active = df_active[['market','ticker','category','평단가','보유수량','매수금액','체결시간','수수료','매수횟수']]
 

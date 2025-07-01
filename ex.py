@@ -499,7 +499,7 @@ df.drop(index=0,inplace=True)
 #
 # market = 'binance'
 market = 'binance'
-ticker = 'BTC'
+ticker = 'ETH'
 min_cont = 10
 future_leverage = 3
 price = 1.9
@@ -542,15 +542,14 @@ if market == 'binance':
         'options': {'position_mode': True, },
     })
 
-    markets = binance.load_markets()
-    min_amount_future = binance.load_markets()[f"{ticker}/USDT:USDT"]['limits']['cost']['min']
-    pprint(binance.load_markets()[f"{ticker}/USDT"])
-    quit()
-    price = binance.fetch_ticker(symbol=ticker + '/USD')['close']
-    res = binance.fetch_balance(params={"type": 'delivery'})
-    used_inverse = res['used'][ticker]
-    used_usdt = price * used_inverse
-    exchange = binance
+    # markets = binance.load_markets()
+    # min_amount_future = binance.load_markets()[f"{ticker}/USDT:USDT"]['limits']['cost']['min']
+    # pprint(binance.load_markets()[f"{ticker}/USDT"])
+    # price = binance.fetch_ticker(symbol=ticker + '/USD')['close']
+    # res = binance.fetch_balance(params={"type": 'delivery'})
+    # used_inverse = res['used'][ticker]
+    # used_usdt = price * used_inverse
+    # exchange = binance
 elif market == 'bybit':
     api_key = "k3l5BpTorsRTHvPmAj"
     api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
@@ -575,8 +574,9 @@ elif market == 'bybit':
     res = bybit.fetch_balance()
     used_inverse = res[ticker]['free']
     used_usdt = price * used_inverse
-res = bybit.fetch_closed_order(id='1ab41631-8c5a-4462-94cc-40b42978fe2f',symbol='ADAUSDT')
+res = binance_futures.fetch_positions()
 pprint(res)
+print(type(res[0]['contracts']))
 quit()
 # res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
 # res = fetch_order(binance,'binance','XRP','12367717649','inverse',98)
