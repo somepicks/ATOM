@@ -445,6 +445,12 @@ class do_trade(QThread):
             signal = True
         if (df.loc[df.index[-3],'이평9'] < df.loc[df.index[-3],'이평20']) and (df.loc[df.index[-2],'이평9'] > df.loc[df.index[-2],'이평20']):
             signal = True
+        if (df.loc[df.index[-2], 'MACD_SIGNAL'] < df.loc[df.index[-2], 'MACD']) and (df.loc[df.index[-3], 'MACD_SIGNAL'] > df.loc[df.index[-3], 'MACD']):
+            signal = True
+        if (df.loc[df.index[-3],'종가']-df.loc[df.index[-3],'시가'])/df.loc[df.index[-3],'종가']*100 < -3.5:
+            if (df.loc[df.index[-2],'종가']-df.loc[df.index[-2],'시가'])/df.loc[df.index[-2],'종가']*100 > -0.8:
+                if (df.loc[df.index[-4],'종가']-df.loc[df.index[-4],'시가'])/df.loc[df.index[-4],'종가']*100 < 2.5:
+                    signal = True
         if signal == True:
             df_close = self.df_linear[(self.df_linear['market'] == market) & (self.df_linear['ticker'] == ticker) & (
                         self.df_linear['category'] == 'linear')]
@@ -830,7 +836,7 @@ class do_trade(QThread):
         df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
         df['날짜'] = df['날짜'].dt.tz_localize(None)
         df.set_index('날짜', inplace=True)
-        df = self.common_define.convert_df(df)
+        df = self.common_define.convert_df(ticker,df)
 
         # df.index = df.index - pd.Timedelta(hours=9)
         return df
@@ -1912,7 +1918,7 @@ class common_define():
 
         return out
 
-    def convert_df(self, df):
+    def convert_df(self,ticker, df):
         # print(convert_df)
         df['등락율'] = round((df['종가'] - df['종가'].shift(1)) / df['종가'].shift(1) * 100, 2)
         df['변화율'] = round((df['종가'] - df['시가']) / df['시가'] * 100, 2)
@@ -1936,6 +1942,9 @@ class common_define():
         df['밴드상'], df['밴드중'], df['밴드하'] = talib.BBANDS(df['종가'].shift(1), 20, 2)
         df['고저평균대비등락율'] = ((df['종가'] / ((df['고가'] + df['저가']) / 2) - 1) * 100).round(2)
         df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
+        if ticker == 'BTC':
+            print(df)
+            quit()
         return df
 
 class ShutdownDialog(QDialog):

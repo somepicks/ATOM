@@ -574,7 +574,7 @@ elif market == 'bybit':
     res = bybit.fetch_balance()
     used_inverse = res[ticker]['free']
     used_usdt = price * used_inverse
-res = binance_futures.fetch_positions()
+r
 pprint(res)
 print(type(res[0]['contracts']))
 quit()
