@@ -433,39 +433,124 @@ def bybit_set_tickers(fetch_tickers):
     df = pd.DataFrame.from_dict(data=fetch_tickers, orient='index')  # 딕셔너리로 데이터프레임  만들기 키값으로 행이름을 사용
     return df
 
-def funding_ratio():
-    res = binance.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=None)
-    data = [x['fundingRate'] for x in res]
-    timestamps = [x['timestamp'] for x in res]
-    df = pd.DataFrame({
-        'numbers': data,
-        '날짜': timestamps
-    })
-    print(df)
-    df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
-    df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
-    df['날짜'] = df['날짜'].dt.tz_localize(None)
-    df.set_index('날짜', inplace=True)
-    print(df)
-    df.to_sql('funding_rate', sqlite3.
-              connect('funding_rate.db'), if_exists='replace')
+def fetch_funding_rates(market,exchange,ticker,since):
+    if market == 'binance':
+        res = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=since)
+        data = [x['fundingRate'] for x in res]
+        timestamps = [x['timestamp'] for x in res]
+        df = pd.DataFrame({
+            f'{ticker}': data,
+            '날짜': timestamps
+        })
+        df.set_index('날짜', inplace=True)
 
+    elif market == 'bybit':
+        # res = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=since)
+        # data = [x['fundingRate'] for x in res]
+        # timestamps = [x['timestamp'] for x in res]
+        # df = pd.DataFrame({
+        #     f'{ticker}': data,
+        #     '날짜': timestamps
+        # })
+        # df.set_index('날짜', inplace=True)
+
+        pass
+    return df
 ################################################################
-import time
-import asyncio
-sample_array = np.arange(1,6)
-sample_array
-df = pd.DataFrame({
-    'col1' : sample_array,
-    'col2' : sample_array*2,
-    'col3' : ["A","B","C","D","E"]
-})
-df1 = pd.DataFrame(index=[2,3,4,5,6],data={
-    'col1' : sample_array,
-    'col2' : sample_array*2,
-    'col3' : ["A","B","C","D","E"]
-})
-df.drop(index=0,inplace=True)
+
+# 펀딩비율 재투자 시뮬레이션 클래스
+class FundingRateSimulator:
+    def __init__(self, initial_capital=1000, min_contract_size=100, reinvest_threshold=100):
+        self.initial_capital = initial_capital
+        self.min_contract_size = min_contract_size
+        self.reinvest_threshold = reinvest_threshold
+
+        # 시뮬레이션 상태 변수
+        self.current_capital = initial_capital
+        self.invested_amount = 0
+        self.accumulated_interest = 0
+        self.total_interest_earned = 0
+        self.reinvest_count = 0
+
+        # 결과 추적용 리스트
+        self.history = []
+
+    def calculate_funding_fee(self, invested_amount, funding_rate):
+        """
+        펀딩비율에 따른 이자 계산
+        양수: 이자 받기, 음수: 이자 지불
+        """
+        return invested_amount * funding_rate
+
+    def can_invest(self, amount):
+        """투자 가능 여부 확인"""
+        return amount >= self.min_contract_size
+
+    def simulate_period(self, funding_rate, timestamp, btc_price):
+        """한 기간(8시간) 시뮬레이션"""
+        # 현재 투자 중인 금액에서 펀딩비율 적용
+        if self.invested_amount > 0:
+            funding_fee = self.calculate_funding_fee(self.invested_amount, funding_rate)
+            self.accumulated_interest += funding_fee
+            self.total_interest_earned += funding_fee
+
+        # 재투자 조건 확인
+        if self.accumulated_interest >= self.reinvest_threshold:
+            # 재투자 실행
+            new_capital = self.current_capital + self.accumulated_interest
+            if self.can_invest(new_capital):
+                self.current_capital = new_capital
+                self.invested_amount = new_capital
+                self.accumulated_interest = 0
+                self.reinvest_count += 1
+                reinvested = True
+            else:
+                reinvested = False
+        else:
+            reinvested = False
+
+        # 첫 투자 (처음에만)
+        if self.invested_amount == 0 and self.can_invest(self.current_capital):
+            self.invested_amount = self.current_capital
+
+        # 결과 기록
+        self.history.append({
+            'timestamp': timestamp,
+            'funding_rate': funding_rate,
+            'btc_price': btc_price,
+            'invested_amount': self.invested_amount,
+            'accumulated_interest': self.accumulated_interest,
+            'total_capital': self.current_capital + self.accumulated_interest,
+            'total_interest_earned': self.total_interest_earned,
+            'reinvested': reinvested,
+            'reinvest_count': self.reinvest_count
+        })
+
+    def run_simulation(self, funding_data):
+        """전체 시뮬레이션 실행"""
+        for idx, row in funding_data.iterrows():
+            self.simulate_period(
+                row['funding_rate'],
+                row['timestamp'],
+                row['btc_price']
+            )
+
+    def get_results(self):
+        """결과 데이터프레임 반환"""
+        return pd.DataFrame(self.history)
+
+    def get_summary(self):
+        """요약 통계 반환"""
+        final_capital = self.current_capital + self.accumulated_interest
+        return {
+            '초기 투자금': self.initial_capital,
+            '최종 자본': final_capital,
+            '총 수익': final_capital - self.initial_capital,
+            '수익률': (final_capital / self.initial_capital - 1) * 100,
+            '총 이자 수익': self.total_interest_earned,
+            '재투자 횟수': self.reinvest_count,
+            '평균 펀딩비율': np.mean([h['funding_rate'] for h in self.history]) * 100
+        }
 
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
 # secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
@@ -497,9 +582,8 @@ df.drop(index=0,inplace=True)
 #         delivery("C", 4)
 #     )
 #
-# market = 'binance'
+# market = 'bybit'
 market = 'binance'
-ticker = 'ETH'
 min_cont = 10
 future_leverage = 3
 price = 1.9
@@ -541,7 +625,25 @@ if market == 'binance':
         'enableRateLimit': True,
         'options': {'position_mode': True, },
     })
+    markets = binance.load_markets()
+    # Coin-M Perpetual 종목만 필터링
+    perpetual_symbols = []
+    for symbol, identity in markets.items():
+        if identity['type'] == 'swap' and identity['settle'] != 'USDT' and identity['quote']=='USD':
+            perpetual_symbols.append({
+                'symbol': symbol,
+                'base': identity['base'],
+                'quote': identity['quote'],
+                'settle': identity['settle'],
+                'contract_size': identity['contractSize'],
+                'active': identity['active']
+            })
+    df_inverse = pd.DataFrame(perpetual_symbols)
+    list_inverse = df_inverse['base'].tolist()
 
+        # symbol = ticker+'USD_PERP'
+        # out = binance.fetch_funding_rate_history(symbol=symbol,since=None,limit=None,params={'type':'delivery'})
+        # pprint(out)
     # markets = binance.load_markets()
     # min_amount_future = binance.load_markets()[f"{ticker}/USDT:USDT"]['limits']['cost']['min']
     # pprint(binance.load_markets()[f"{ticker}/USDT"])
@@ -568,15 +670,62 @@ elif market == 'bybit':
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']
     # min_amount_future = bybit.load_markets()[f'{ticker}USDT']['limits']['cost']['min']
-    pprint(bybit.load_markets()[f'{ticker}/USDT'])
+    symbol = ticker+'USD'
+    res = bybit.fetch_funding_rate_history(symbol=symbol,since=None)
+    pprint(res)
+    print('========================================')
     quit()
+    pprint(bybit.fetch_positions())
     min_amount_future = min_amount_future * price
     res = bybit.fetch_balance()
     used_inverse = res[ticker]['free']
     used_usdt = price * used_inverse
-r
-pprint(res)
-print(type(res[0]['contracts']))
+
+dict_duration = {'1개월': 30, '3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
+df_funding = pd.DataFrame()
+print(list_inverse)
+print(len(list_inverse))
+
+df = fetch_funding_rates('binance',binance,'BTC',None)
+df.index=df.index//1000
+btc_date_start = df.index[0]
+btc_date_end = df.index[-1]
+list_out = []
+for i,ticker in enumerate(list_inverse):
+    df = fetch_funding_rates(market,binance,ticker,None)
+    df.index=df.index//1000
+    if df.index[-1] == btc_date_end:
+        df_funding = pd.concat([df_funding, df], axis=1)
+    else:
+        list_out.append(ticker)
+df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
+df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
+df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
+df_funding.set_index('날짜', inplace=True)
+df_funding.loc['평균'] = df_funding.mean()
+
+print(f"{list_out= }")
+
+ema_values = {}
+for col in df_funding.columns.tolist():
+    ema_values[col] = df_funding[col].ewm(span=3, adjust=False).mean().iloc[-1]
+
+# 비숫자 열에 대해서는 '지수이동평균' 라벨 추가
+for col in df_funding.columns:
+    if col not in df_funding.columns.tolist():
+        ema_values[col] = '지수이동평균'
+
+# 한 줄로 EMA 행 추가
+df_funding.loc['지수이동평균'] = ema_values
+
+
+
+print(df_funding)
+
+for ticker in df_funding.columns.tolist():
+    df_funding.loc['단순평균',ticker] = df_funding[[ticker]].sum/len(df_funding.index)
+    # weighted_avg = np.average(df['value'], weights=df[ticker])
+print(list_out)
 quit()
 # res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
 # res = fetch_order(binance,'binance','XRP','12367717649','inverse',98)
