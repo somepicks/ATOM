@@ -2661,11 +2661,11 @@ class Trade_np(QThread):
         return res['id']
 
     def order_close(self,ticker, price, qty, side, type):
-        if side == 'buy':  # 지정가 close long
+        if side == 'buy':  # 지정가 close short
             params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty, price=price,
                                              params=params)
-        elif side == 'sell':  # 지정가 close short
+        elif side == 'sell':  # 지정가 close long
             params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty, price=price,
                                              params=params)
