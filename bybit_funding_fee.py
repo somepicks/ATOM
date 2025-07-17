@@ -1381,7 +1381,11 @@ class Window(QMainWindow):
         df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
         df_funding.set_index('날짜', inplace=True)
 
-        df_funding.loc['단순평균'] = df_funding.mean()
+        df_ma = pd.DataFrame()
+        df_ma['단순평균'] = df_funding.mean()
+        print("단순이동평균 상위")
+        print(df_ma.sort_values('단순평균', ascending=False))
+        # print(f"{list_out= }")
 
         ema_values = {}
         for col in df_funding.columns.tolist():
@@ -1393,7 +1397,11 @@ class Window(QMainWindow):
                 ema_values[col] = '지수이동평균'
 
         # 한 줄로 EMA 행 추가
-        df_funding.loc['지수이동평균'] = ema_values
+        # df_funding.loc['지수이동평균'] = ema_values
+        df_ema = pd.DataFrame(ema_values, index=['지수이동평균'])
+        df_ema = df_ema.transpose()
+        print("지수이동평균 상위")
+        print(df_ema.sort_values('지수이동평균', ascending=False))
 
 
 
@@ -1760,22 +1768,24 @@ class common_define():
                 #     return False
     def transfer_to_linear_wallet(self,market, currency, amount):
         if market == 'bybit':
-            while True:
-                id = str(uuid.uuid1())
-                print(id)
-                res = self.session.create_internal_transfer(
-                    transferId=id,
-                    coin=currency,  # BTC
-                    amount=amount,
-                    fromAccountType="UNIFIED",  # UNIFIED (spot 계좌)
-                    toAccountType="CONTRACT",  # CONTRACT (inverse 계좌)
-                )
-
-                if res['retMsg'] == 'success':
-                    print(f'{currency}  {amount} 개  inverse로 계좌이동 완료')
-                    break
-                print(f'{currency} 계좌 이동중...')
-                QTest.qWait(1000)
+            return False
+            # while True:
+                # id = str(uuid.uuid1())
+                # print(id)
+                # res = self.session.create_internal_transfer(
+                #     transferId=id,
+                #     coin=currency,  # BTC
+                #     amount=amount,
+                #     fromAccountType="UNIFIED",  # UNIFIED (spot 계좌)
+                #     toAccountType="CONTRACT",  # CONTRACT (inverse 계좌)
+                # )
+                #
+                # if res['retMsg'] == 'success':
+                #     print(f'{currency}  {amount} 개  inverse로 계좌이동 완료')
+                #     break
+                # print(f'{currency} 계좌 이동중...')
+                # QTest.qWait(1000)
+                # return
         elif market == 'binance':
             try:
                 # BUSD를 Coin-M Futures 지갑으로 이동
@@ -1791,10 +1801,31 @@ class common_define():
             except Exception as e:
                 print(f"자금 이동 중 오류 발생[transfer_to_linear_wallet]: {e} {currency= } {amount= } ")
                 return False
+        else:
+            return False
     def fetch_funding_rates(self,market,ticker,since):
         if market == 'bybit':
             symbol = ticker + 'USD'
-            out = self.ex_bybit.fetch_funding_rate_history(symbol=symbol,since=since)
+            out_lately = self.ex_bybit.fetch_funding_rate_history(symbol=symbol, since=None)
+
+            from_time = (out_lately[0]['timestamp'] // 1000) * 1000
+            pprint(since)
+            while from_time > since:
+                from_time = from_time - 8 * 3600 * 1000 * 100  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+                out = self.ex_bybit.fetch_funding_rate_history(symbol=symbol, since=from_time)
+                from_time = (out[0]['timestamp'] // 1000) * 1000
+                out.extend(out_lately)
+                out_lately = out
+                if since == False:
+                    break
+            data = [x['fundingRate'] for x in out_lately]
+            timestamps = [x['timestamp'] for x in out_lately]
+            df = pd.DataFrame({
+                f'{ticker}': data,
+                '날짜': timestamps
+            })
+            df.set_index('날짜', inplace=True)
+
         elif market == 'binance':
             symbol = ticker + 'USD_PERP'
             out_lately = self.ex_binance.fetch_funding_rate_history(symbol=symbol, since=None)

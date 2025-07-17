@@ -597,8 +597,8 @@ class FundingRateSimulator:
 #         delivery("C", 4)
 #     )
 #
-# market = 'bybit'
-market = 'binance'
+market = 'bybit'
+# market = 'binance'
 min_cont = 10
 future_leverage = 3
 price = 1.9
@@ -641,19 +641,6 @@ if market == 'binance':
         'options': {'position_mode': True, },
     })
     res = binance.fetch_balance(params={"type": 'delivery'})
-    ticker = 'WLD'
-    pprint(res[ticker])
-    free_qty = res[ticker]['free'] * 0.9  # 전부 옮기려니 안됨
-    print(free_qty)
-    free_qty = binance.amount_to_precision(ticker+'/USDT',free_qty)
-    print(free_qty)
-
-    free_qty = amount_to_precision(exchange=binance, market=market, category="spot", ticker=ticker, amount=free_qty)
-    print(free_qty)
-
-    res = order_open(binance,market, "spot", ticker, "sell", "market", price, qty)
-    pprint(res)
-    quit()
     markets = binance.load_markets()
     # Coin-M Perpetual 종목만 필터링
     perpetual_symbols = []
@@ -740,11 +727,10 @@ df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
 df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
 df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
 df_funding.set_index('날짜', inplace=True)
-df_funding.loc['단순평균'] = df_funding.mean()
 
-
-print(df_funding)
-quit()
+df_ma = pd.DataFrame()
+df_ma['단순평균'] = df_funding.mean()
+print(df_ma.sort_values('단순평균',ascending=False))
 # print(f"{list_out= }")
 
 ema_values = {}
@@ -757,9 +743,11 @@ for col in df_funding.columns:
         ema_values[col] = '지수이동평균'
 
 # 한 줄로 EMA 행 추가
-df_funding.loc['지수이동평균'] = ema_values
-
-
+# df_funding.loc['지수이동평균'] = ema_values
+df_ema = pd.DataFrame(ema_values,index=['지수이동평균'])
+df_ema = df_ema.transpose()
+print(df_ema.sort_values('지수이동평균',ascending=False))
+quit()
 print(df_funding)
 print(df_funding.tail(20))
 print(list_out)
