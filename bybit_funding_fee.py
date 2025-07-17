@@ -1098,7 +1098,7 @@ class Window(QMainWindow):
                                                    '보유수량', '매수금액', '수수료', '체결시간', '매수횟수','레버리지'])
             self.df_linear.to_sql('linear', self.conn, if_exists='replace')
             self.df_open = pd.DataFrame(columns=['market','ticker', 'category', '주문가', '주문수량', '매수금액',
-                                                 '주문시간','id'])
+                                                 '주문시간','id','상태','spot비율','short비율',])
             self.df_open.to_sql('open', self.conn, if_exists='replace')
             # self.list_compare_col = ['market', 'ticker', 'free(qty)', 'free(USDT)', 'total(USDT)']
             # self.df_inverse = pd.DataFrame(index=[], columns=self.list_compare_col)
@@ -1158,7 +1158,7 @@ class Window(QMainWindow):
                     list_bybit_inverse.append(symbol[:symbol.index('/')])
             else:
                 list_bybit_inverse = []
-            return list(set(list_bybit_inverse))
+            list_inverse = list(set(list_bybit_inverse))
         elif market == 'binance':
             # res = self.ex_binance.fetch_balance(params={"type": 'delivery'})
             markets = self.ex_binance.load_markets()
@@ -1176,7 +1176,7 @@ class Window(QMainWindow):
                     })
             df_inverse = pd.DataFrame(perpetual_symbols)
             list_inverse = df_inverse['base'].tolist()
-            return list_inverse
+        return list_inverse
 
     def on_text_changed_rate_short(self, text):
         if not text == '-':
@@ -1356,193 +1356,46 @@ class Window(QMainWindow):
 
 
     def view_chart(self,market):
-        dict_duration = {'1개월':30,'3개월':90,'6개월':180,'1년':365,'2년':365*2,'3년':365*3}
+        dict_duration = {'1주일':7,'1개월': 30, '2개월': 60,'3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
         self.defi = common_define(self.ex_bybit,self.session,self.ex_binance,self.ex_binance_future)
         list_inverse = self.fetch_inverse_list(market)
         df_funding = pd.DataFrame()
-        df = fetch_funding_rates('binance', binance, 'BTC', None)
+        since = datetime.datetime.now() - datetime.timedelta(days=dict_duration['3개월'])
+        since = self.defi.datetime_to_stamp(since) * 1000  # 밀리초 곱하기
+
+        df = self.defi.fetch_funding_rates(market=market,ticker= 'BTC',since= False)
+        df.index = df.index // 1000
+        # btc_date_start = df.index[0]
+        btc_date_end = df.index[-1]
+        list_out = []
+        for i, ticker in enumerate(list_inverse):
+            df = self.defi.fetch_funding_rates(market=market, ticker=ticker, since=since)
+            df.index = df.index // 1000
+            print(df)  # print를 안하면 데이터에 Nan 이 섞여서 출력됨
+            if df.index[-1] == btc_date_end:
+                df_funding = pd.concat([df_funding, df], axis=1)
+            else:
+                list_out.append(ticker)
+        df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
+        df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
+        df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
+        df_funding.set_index('날짜', inplace=True)
+
+        df_funding.loc['단순평균'] = df_funding.mean()
+
+        ema_values = {}
+        for col in df_funding.columns.tolist():
+            ema_values[col] = df_funding[col].ewm(span=3, adjust=False).mean().iloc[-1]
+
+        # 비숫자 열에 대해서는 '지수이동평균' 라벨 추가
+        for col in df_funding.columns:
+            if col not in df_funding.columns.tolist():
+                ema_values[col] = '지수이동평균'
+
+        # 한 줄로 EMA 행 추가
+        df_funding.loc['지수이동평균'] = ema_values
 
 
-
-        plt.rcParams['font.family'] = 'Malgun Gothic'  # 윈도우의 맑은 고딕
-
-        def add_accumulated_value(data_list, initial_amount=1000):
-            current_amount = initial_amount
-
-            for item in data_list:
-                # 현재 funding rate 값을 가져옵니다
-                rate = item['fundingRate']
-
-                # 현재 금액에 rate를 적용하여 변화량을 계산합니다
-                change = initial_amount * rate
-
-                # 현재 금액을 업데이트합니다
-                current_amount += change
-
-                # 누적합 키를 추가합니다
-                item['accumulated'] = current_amount
-                del item['info']
-            return data_list
-
-        # top_10_weighted = {}
-        # top_10_simple = {}
-        dict_data = {}
-        init_USD = 1000
-        for ticker in list_inverse:
-            # out_lately = self.ex_bybit.fetch_funding_rate_history(symbol=f'{ticker}USD')
-            out_lately = self.defi.fetch_funding_rates(market=market,ticker=ticker,since=None)
-            since = out_lately[0]['timestamp']
-            origin = datetime.datetime.now() - datetime.timedelta(days=dict_duration[self.QCB_chart_duration.currentText()])
-            while self.defi.stamp_to_datetime(since) > origin:
-                since = since - 8 * 3600 * 1000 * 201  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
-                # out = self.ex_bybit.fetch_funding_rate_history(symbol=f'{ticker}USD', since=since)
-                out = self.defi.fetch_funding_rates(market=market,ticker=ticker,since=since)
-                out.extend(out_lately)
-                out_lately = out
-
-            
-            data = [x['fundingRate'] for x in out_lately]
-            # timestamps = [x['timestamp'] for x in out_lately]
-            # ADA, BTC, ETH의 funding rate 데이터 (예제)
-            # 1️⃣ 각 리스트의 평균값 계산
-            # w_avg = weighted_average(data)  # 가중 평균 계산
-            # s_avg = simple_average(data)  # 단순 평균 계산
-
-            out_lately = add_accumulated_value(out_lately, init_USD)
-            # dict_data[ticker] = result
-            # 가중 평균 상위 10개 선택
-            dict_data[ticker] = out_lately
-
-
-        # 1. 각 티커별 fundingRate의 단순평균값 계산
-        simple_avg = {}
-        for ticker, values in dict_data.items():
-            rates = [item['fundingRate'] for item in values]
-            simple_avg[ticker] = sum(rates) / len(rates)
-
-        # 2. 각 티커별 fundingRate의 가중평균값 계산 (가중치는 시간 간격으로 계산)
-        weighted_avg = {}
-        for ticker, values in dict_data.items():
-            if len(values) <= 1:
-                weighted_avg[ticker] = simple_avg[ticker]
-                continue
-
-            rates = [item['fundingRate'] for item in values]
-            timestamps = [item['timestamp'] for item in values]
-
-            # 시간 간격 계산
-            time_diffs = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
-            time_diffs.append(time_diffs[-1])  # 마지막 간격은 이전 간격과 동일하게 처리
-
-            # 가중평균 계산
-            weighted_sum = sum(rates[i] * time_diffs[i] for i in range(len(rates)))
-            total_time = sum(time_diffs)
-            weighted_avg[ticker] = weighted_sum / total_time
-
-        # 3. 마지막 accumulated 값 추출
-        last_rates = {}
-        for ticker, values in dict_data.items():
-            # 타임스탬프 기준으로 정렬하여 마지막 항목의 fundingRate 가져오기
-            sorted_values = sorted(values, key=lambda x: x['timestamp'])
-            last_rates[ticker] = sorted_values[-1]['accumulated']
-
-        # 4. 각 지표별 상위 10개 티커 선정
-        simple_avg_top10 = dict(sorted(simple_avg.items(), key=lambda x: x[1], reverse=True)[:10])
-        weighted_avg_top10 = dict(sorted(weighted_avg.items(), key=lambda x: x[1], reverse=True)[:10])
-        last_rates_top10 = dict(sorted(last_rates.items(), key=lambda x: x[1], reverse=True)[:10])
-
-        # 5. 단순평균과 가중평균 상위 10개의 교집합 계산
-        intersection_tickers = set(simple_avg_top10.keys()) & set(weighted_avg_top10.keys())
-        print(f"\n단순평균과 가중평균 상위 10개의 교집합: {intersection_tickers}")
-
-        # 6. BTC 기준 날짜 생성
-        btc_dates = [datetime.datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ') for item in dict_data['BTC']]
-        reference_dates = [d.strftime('%Y-%m-%d %H:%M') for d in btc_dates]
-
-        # 7. 시각화
-        plt.figure(figsize=(12, 14))
-
-        # 7.1 마지막 fundingRate 상위 10개 티커 시각화
-        plt.subplot(3, 1, 1)
-        tickers = list(last_rates_top10.keys())
-        rates = list(last_rates_top10.values())
-        plt.bar(tickers, rates)
-        plt.title('accumulated 상위 10개 암호화폐')
-        plt.ylabel('accumulated')
-        plt.xticks(rotation=45)
-        plt.grid(axis='y', linestyle='--', alpha=0.7)
-
-        # 7.2 단순평균 상위 10개 시각화
-        plt.subplot(3, 1, 2)
-        plt.bar(simple_avg_top10.keys(), simple_avg_top10.values())
-        plt.title('단순평균 fundingRate 상위 10개 암호화폐')
-        plt.ylabel('fundingRate')
-        plt.xticks(rotation=45)
-        plt.grid(axis='y', linestyle='--', alpha=0.7)
-
-        # 7.3 가중평균 상위 10개 시각화
-        plt.subplot(3, 1, 3)
-        plt.bar(weighted_avg_top10.keys(), weighted_avg_top10.values())
-        plt.title('가중평균 fundingRate 상위 10개 암호화폐')
-        plt.ylabel('fundingRate')
-        plt.xticks(rotation=45)
-        plt.grid(axis='y', linestyle='--', alpha=0.7)
-
-        plt.tight_layout()
-        plt.savefig('top10_crypto_funding_analysis.png', dpi=300)
-        plt.show()
-
-        # 8. 누적 금액 그래프 - 마지막 fundingRate 상위 10개 티커에 대해서만
-        plt.figure(figsize=(12, 6))
-        for ticker in last_rates_top10.keys():
-            if ticker in dict_data:
-                # 해당 티커의 날짜와 누적 금액 추출
-                ticker_dates = [datetime.datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ') for item in dict_data[ticker]]
-                ticker_accumulated = [item['accumulated'] for item in dict_data[ticker]]
-
-                # BTC 기준 날짜에 맞추기
-                mapped_dates = []
-                mapped_values = []
-                btc_datetime = [datetime.datetime.strptime(item['datetime'], '%Y-%m-%dT%H:%M:%S.%fZ') for item in dict_data['BTC']]
-
-                for btc_date in btc_datetime:
-                    found = False
-                    for i, ticker_date in enumerate(ticker_dates):
-                        if ticker_date == btc_date:
-                            mapped_dates.append(btc_date)
-                            mapped_values.append(ticker_accumulated[i])
-                            found = True
-                            break
-                    if not found:
-                        mapped_dates.append(btc_date)
-                        mapped_values.append(init_USD)  # 해당 날짜에 데이터가 없으면 init_USD 으로 표시
-
-                plt.plot(mapped_dates, mapped_values, label=ticker)
-
-        plt.title('BTC 기준 마지막 accumulated 상위 10개 암호화폐의 누적 금액 비교')
-        plt.xlabel('날짜')
-        plt.ylabel('누적 금액 (USD)')
-        plt.legend()
-        plt.grid(True, alpha=0.7)
-        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        plt.gcf().autofmt_xdate()
-        plt.tight_layout()
-        # plt.savefig('top10_accumulated_comparison.png', dpi=300)
-        plt.show()
-
-        # 9. 단순평균과 가중평균 상위 10개의 교집합에 대한 데이터프레임 생성
-        intersection_df = pd.DataFrame({
-            'Ticker': list(intersection_tickers),
-            'Last_Rate': [last_rates[ticker] for ticker in intersection_tickers],
-            'Simple_Average': [simple_avg[ticker] for ticker in intersection_tickers],
-            'Weighted_Average': [weighted_avg[ticker] for ticker in intersection_tickers]
-        })
-
-        # 단순평균 기준으로 내림차순 정렬
-        intersection_df = intersection_df.sort_values('Simple_Average', ascending=False)
-
-        print("\n단순평균과 가중평균 상위 10개의 교집합에 대한 데이터:")
-        print(intersection_df)
 
 
     def make_exchange_bybit_ccxt(self):
@@ -1581,6 +1434,7 @@ class Window(QMainWindow):
             # or np.isnan(api) or np.isnan(secret):
             print('binance API 확인 필요')
             binance = None
+            binance_futures = None
         else:
             binance = ccxt.binance(config={
                 'apiKey': api,
@@ -1943,8 +1797,24 @@ class common_define():
             out = self.ex_bybit.fetch_funding_rate_history(symbol=symbol,since=since)
         elif market == 'binance':
             symbol = ticker + 'USD_PERP'
-            out = self.ex_binance.fetch_funding_rate_history(symbol=symbol,since=since,params={'type':'delivery'})
-        return out
+            out_lately = self.ex_binance.fetch_funding_rate_history(symbol=symbol, since=None)
+            from_time = (out_lately[0]['timestamp'] // 1000) * 1000
+            while from_time > since:
+                from_time = from_time - 8 * 3600 * 1000 * 100  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+                out = self.ex_binance.fetch_funding_rate_history(symbol=symbol, since=from_time)
+                from_time = (out[0]['timestamp'] // 1000) * 1000
+                out.extend(out_lately)
+                out_lately = out
+                if since == False:
+                    break
+            data = [x['fundingRate'] for x in out_lately]
+            timestamps = [x['timestamp'] for x in out_lately]
+            df = pd.DataFrame({
+                f'{ticker}': data,
+                '날짜': timestamps
+            })
+            df.set_index('날짜', inplace=True)
+        return df
 
     def convert_df(self,ticker, df):
         # print(convert_df)
