@@ -1,190 +1,318 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
-from PyQt5.QtCore import QTimer
+import time
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QLabel
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal, QObject
+from PyQt5.QtGui import QFont
 
-class MyWindow(QWidget):
+
+class WorkerThread(QThread):
+    """메인 작업을 수행하는 스레드"""
+    progress_signal = pyqtSignal(str)
+    counter_signal = pyqtSignal(int)
+
     def __init__(self):
         super().__init__()
+        self.counter = 0
+        self.is_running = False
 
-        self.button = QPushButton("Click Me")
-        self.button.clicked.connect(self.on_button_clicked)
+        # 1초마다 실행되는 타이머
+        self.timer1 = QTimer()
+        self.timer1.timeout.connect(self.function1)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.button)
-        self.setLayout(layout)
+        # 10초 후 2번 함수 실행을 위한 타이머
+        self.timer_10sec = QTimer()
+        self.timer_10sec.timeout.connect(self.start_function2)
+        self.timer_10sec.setSingleShot(True)  # 한 번만 실행
 
-        # 2초(2000ms) 후에 버튼 클릭 시그널 보내기
-        QTimer.singleShot(2000, self.button.click)
+        # 2번 함수의 3초 지연을 위한 타이머
+        self.timer_3sec_delay = QTimer()
+        self.timer_3sec_delay.timeout.connect(self.function2_continue)
+        self.timer_3sec_delay.setSingleShot(True)
 
-    def on_button_clicked(self):
-        print("Button was clicked!")
+    def run(self):
+        """스레드 실행"""
+        self.is_running = True
+        self.progress_signal.emit("작업 스레드 시작")
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MyWindow()
-    window.show()
-    sys.exit(app.exec_())
-#
-#
-#
-#
-# class DoTrade(QThread):
-#     # 스레드에서 메인 윈도우로 신호를 보내기 위한 시그널 정의
-#     # 예: 거래 상태 업데이트를 위한 시그널
-#     update_signal = pyqtSignal(str)
-#
-#     def __init__(self):
-#         super().__init__()
-#         self.trading = False
-#         self.buy_requested = False
-#
-#     def run(self):
-#         self.trading = True
-#         while self.trading:
-#             # 거래 로직 실행
-#             self.update_signal.emit("거래 진행 중...")
-#
-#             # buy 신호 확인
-#             if self.buy_requested:
-#                 self.buy_stock()
-#                 self.buy_requested = False
-#
-#             time.sleep(1)  # CPU 과부하 방지
-#
-#     def stop_trading(self):
-#         self.trading = False
-#
-#     # 메인 윈도우의 Buy 버튼에 의해 호출될 메서드
-#     def request_buy(self):
-#         self.buy_requested = True
-#         self.update_signal.emit("매수 요청 수신!")
-#
-#     def buy_stock(self):
-#         # 실제 매수 로직 구현
-#         self.update_signal.emit("매수 실행!")
-#         # 매수 관련 작업...
-#
-#
-# class Window(QMainWindow):
-#     # DoTrade 스레드로 신호를 보내기 위한 시그널 정의
-#     buy_signal = pyqtSignal()
-#
-#     def __init__(self):
-#         super().__init__()
-#         self.setWindowTitle("Trading Application")
-#         self.setGeometry(300, 300, 400, 200)
-#
-#         # UI 구성
-#         self.init_ui()
-#
-#         # 스레드 인스턴스 생성
-#         self.trade_thread = DoTrade()
-#
-#         # 시그널 연결
-#         self.QPB_start.clicked.connect(self.start_trading)
-#         self.QPB_buy.clicked.connect(self.request_buy)
-#
-#         # 스레드의 시그널을 메인 윈도우의 슬롯에 연결
-#         self.trade_thread.update_signal.connect(self.update_status)
-#
-#         # 메인 윈도우의 시그널을 스레드의 슬롯에 연결
-#         self.buy_signal.connect(self.trade_thread.request_buy)
-#
-#     def init_ui(self):
-#         # 중앙 위젯 및 레이아웃 설정
-#         central_widget = QWidget()
-#         self.setCentralWidget(central_widget)
-#         layout = QVBoxLayout(central_widget)
-#
-#         # 버튼 생성
-#         self.QPB_start = QPushButton("Start Trading", self)
-#         self.QPB_buy = QPushButton("Buy", self)
-#         self.QPB_buy.setEnabled(False)  # 거래 시작 전에는 비활성화
-#
-#         # 레이아웃에 버튼 추가
-#         layout.addWidget(self.QPB_start)
-#         layout.addWidget(self.QPB_buy)
-#
-#     def start_trading(self):
-#         if not self.trade_thread.isRunning():
-#             self.trade_thread.start()
-#             self.QPB_start.setText("Stop Trading")
-#             self.QPB_buy.setEnabled(True)
-#         else:
-#             self.trade_thread.stop_trading()
-#             self.trade_thread.wait()  # 스레드가 완전히 종료될 때까지 대기
-#             self.QPB_start.setText("Start Trading")
-#             self.QPB_buy.setEnabled(False)
-#
-#     def request_buy(self):
-#         # 스레드로 buy 신호 발생
-#         self.buy_signal.emit()
-#
-#     @pyqtSlot(str)
-#     def update_status(self, message):
-#         # 스레드로부터 받은 메시지 처리
-#         print(message)  # 실제 앱에서는 상태 표시줄이나 로그 창에 표시
-#
-#     def closeEvent(self, event):
-#         # 앱 종료 시 스레드 정리
-#         if self.trade_thread.isRunning():
-#             self.trade_thread.stop_trading()
-#             self.trade_thread.wait()
-#         event.accept()
-#
-#
-# if __name__ == "__main__":
-#     app = QApplication(sys.argv)
-#     window = Window()
-#     window.show()
-#     sys.exit(app.exec_())
+        # 타이머들을 이 스레드로 이동
+        self.timer1.moveToThread(self)
+        self.timer_10sec.moveToThread(self)
+        self.timer_3sec_delay.moveToThread(self)
+
+        # 1초마다 실행되는 타이머 시작
+        self.timer1.start(1000)
+
+        # 10초 후 2번 함수 실행 타이머 시작
+        self.timer_10sec.start(10000)
+
+        # 이벤트 루프 실행
+        self.exec_()
+
+    def stop_worker(self):
+        """작업 중지"""
+        self.is_running = False
+        self.timer1.stop()
+        self.timer_10sec.stop()
+        self.timer_3sec_delay.stop()
+        self.quit()
+
+    def function1(self):
+        """1번 함수: 1초마다 실행"""
+        if self.is_running:
+            self.counter += 1
+            self.counter_signal.emit(self.counter)
+            self.progress_signal.emit(f"1번 함수 실행 - 카운터: {self.counter}")
+            print(time.time())
+    def start_function2(self):
+        """2번 함수 시작 (10초 후 실행)"""
+        self.progress_signal.emit("2번 함수 시작")
+
+        # 3초 지연을 위한 타이머 시작 (블로킹하지 않음)
+        self.timer_3sec_delay.start(3000)
+
+    def function2_continue(self):
+        """2번 함수 계속 (3초 지연 후)"""
+        self.progress_signal.emit("2번 함수 - 3초 지연 완료, 나머지 작업 진행")
+
+        # 여기서 나머지 작업 수행
+        self.progress_signal.emit("2번 함수 완료")
 
 
-import sys
-import os
-import platform
-from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout
-from PyQt5.QtCore import QTimer
+class AlternativeWorkerThread(QThread):
+    """대안 방법: 여러 타이머 사용"""
+    progress_signal = pyqtSignal(str)
+    counter_signal = pyqtSignal(int)
 
-class MyApp(QWidget):
-    def __init__(self, timeout_seconds=10):
+    def __init__(self):
         super().__init__()
-        self.timeout_seconds = timeout_seconds
+        self.counter = 0
+        self.is_running = False
+        self.function2_step = 0  # 2번 함수 진행 단계
+
+    def run(self):
+        """스레드 실행"""
+        self.is_running = True
+        self.progress_signal.emit("대안 방법 스레드 시작")
+
+        # 1초마다 실행되는 타이머
+        self.timer1 = QTimer()
+        self.timer1.timeout.connect(self.function1)
+        self.timer1.start(1000)
+
+        # 메인 작업 타이머 (100ms마다 체크)
+        self.main_timer = QTimer()
+        self.main_timer.timeout.connect(self.main_loop)
+        self.main_timer.start(100)
+
+        self.start_time = time.time()
+        self.function2_start_time = None
+
+        # 이벤트 루프 실행
+        self.exec_()
+
+    def stop_worker(self):
+        """작업 중지"""
+        self.is_running = False
+        if hasattr(self, 'timer1'):
+            self.timer1.stop()
+        if hasattr(self, 'main_timer'):
+            self.main_timer.stop()
+        self.quit()
+
+    def function1(self):
+        """1번 함수: 1초마다 실행"""
+        if self.is_running:
+            self.counter += 1
+            self.counter_signal.emit(self.counter)
+            self.progress_signal.emit(f"1번 함수 실행 - 카운터: {self.counter}")
+
+    def main_loop(self):
+        """메인 루프: 시간 체크 및 2번 함수 관리"""
+        current_time = time.time()
+        elapsed_time = current_time - self.start_time
+
+        # 10초 후 2번 함수 시작
+        if elapsed_time >= 10 and self.function2_step == 0:
+            self.function2_step = 1
+            self.function2_start_time = current_time
+            self.progress_signal.emit("2번 함수 시작")
+
+        # 2번 함수 진행 중 - 3초 지연 체크
+        elif self.function2_step == 1:
+            function2_elapsed = current_time - self.function2_start_time
+            if function2_elapsed >= 3:
+                self.function2_step = 2
+                self.progress_signal.emit("2번 함수 - 3초 지연 완료, 나머지 작업 진행")
+                self.progress_signal.emit("2번 함수 완료")
+
+
+class BadWorkerThread(QThread):
+    """잘못된 예제: 블로킹 사용"""
+    progress_signal = pyqtSignal(str)
+    counter_signal = pyqtSignal(int)
+
+    def __init__(self):
+        super().__init__()
+        self.counter = 0
+        self.is_running = False
+
+    def run(self):
+        """스레드 실행 - 잘못된 방법"""
+        self.is_running = True
+        self.progress_signal.emit("잘못된 방법 스레드 시작")
+
+        # 1초마다 실행되는 타이머
+        self.timer1 = QTimer()
+        self.timer1.timeout.connect(self.function1)
+        self.timer1.start(1000)
+
+        # 10초 후 2번 함수 실행을 위한 타이머
+        self.timer_10sec = QTimer()
+        self.timer_10sec.timeout.connect(self.bad_function2)
+        self.timer_10sec.setSingleShot(True)
+        self.timer_10sec.start(10000)
+
+        # 이벤트 루프 실행
+        self.exec_()
+
+    def stop_worker(self):
+        """작업 중지"""
+        self.is_running = False
+        if hasattr(self, 'timer1'):
+            self.timer1.stop()
+        if hasattr(self, 'timer_10sec'):
+            self.timer_10sec.stop()
+        self.quit()
+
+    def function1(self):
+        """1번 함수: 1초마다 실행"""
+        if self.is_running:
+            self.counter += 1
+            self.counter_signal.emit(self.counter)
+            self.progress_signal.emit(f"1번 함수 실행 - 카운터: {self.counter}")
+
+    def bad_function2(self):
+        """2번 함수 - 잘못된 방법 (블로킹 사용)"""
+        self.progress_signal.emit("잘못된 2번 함수 시작")
+
+        # 이렇게 하면 타이머가 3초간 멈춤!
+        time.sleep(3)
+
+        self.progress_signal.emit("잘못된 2번 함수 완료")
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
         self.initUI()
-        self.startTimer()
+        self.worker = None
 
     def initUI(self):
-        self.setWindowTitle('PyQt5 Timer App')
-        layout = QVBoxLayout()
-        label = QLabel(f"This app will close in {self.timeout_seconds} seconds and go to sleep mode.")
-        layout.addWidget(label)
-        self.setLayout(layout)
-        self.resize(400, 100)
-        self.show()
+        self.setWindowTitle('QThread 내 QTimer 비블로킹 처리')
+        self.setGeometry(100, 100, 500, 400)
 
-    def startTimer(self):
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self.shutdown_procedure)
-        self.timer.start(self.timeout_seconds * 1000)  # milliseconds
+        # 중앙 위젯 설정
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
 
-    def shutdown_procedure(self):
-        print("Time is up! Closing app and entering sleep mode.")
-        self.close()  # Close the app window
-        # self.enter_sleep_mode()
+        # 상태 표시 레이블
+        self.status_label = QLabel('대기 중...')
+        self.status_label.setFont(QFont('Arial', 10))
+        self.status_label.setWordWrap(True)
+        layout.addWidget(self.status_label)
 
-    def enter_sleep_mode(self):
-        system = platform.system()
-        if system == "Windows":
-            os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
-        elif system == "Darwin":  # macOS
-            os.system("pmset sleepnow")
-        elif system == "Linux":
-            os.system("systemctl suspend")
-        else:
-            print("Sleep mode not supported on this OS.")
+        # 카운터 표시 레이블
+        self.counter_label = QLabel('1번 함수 실행 횟수: 0')
+        self.counter_label.setFont(QFont('Arial', 12, QFont.Bold))
+        layout.addWidget(self.counter_label)
+
+        # 올바른 방법 버튼
+        self.start_button = QPushButton('올바른 방법 시작')
+        self.start_button.clicked.connect(self.start_correct_method)
+        layout.addWidget(self.start_button)
+
+        # 대안 방법 버튼
+        self.alt_button = QPushButton('대안 방법 시작')
+        self.alt_button.clicked.connect(self.start_alternative_method)
+        layout.addWidget(self.alt_button)
+
+        # 잘못된 방법 버튼
+        self.bad_button = QPushButton('잘못된 방법 시작 (비교용)')
+        self.bad_button.clicked.connect(self.start_bad_method)
+        layout.addWidget(self.bad_button)
+
+        # 중지 버튼
+        self.stop_button = QPushButton('중지')
+        self.stop_button.clicked.connect(self.stop_worker)
+        self.stop_button.setEnabled(False)
+        layout.addWidget(self.stop_button)
+
+    def start_correct_method(self):
+        """올바른 방법으로 시작"""
+        self.stop_worker()
+        self.worker = WorkerThread()
+        self.setup_worker_signals()
+        self.worker.start()
+        self.update_button_states(True)
+
+    def start_alternative_method(self):
+        """대안 방법으로 시작"""
+        self.stop_worker()
+        self.worker = AlternativeWorkerThread()
+        self.setup_worker_signals()
+        self.worker.start()
+        self.update_button_states(True)
+
+    def start_bad_method(self):
+        """잘못된 방법으로 시작"""
+        self.stop_worker()
+        self.worker = BadWorkerThread()
+        self.setup_worker_signals()
+        self.worker.start()
+        self.update_button_states(True)
+
+    def setup_worker_signals(self):
+        """워커 시그널 연결"""
+        self.worker.progress_signal.connect(self.update_status)
+        self.worker.counter_signal.connect(self.update_counter)
+
+    def stop_worker(self):
+        """워커 중지"""
+        if self.worker and self.worker.isRunning():
+            self.worker.stop_worker()
+            self.worker.wait()
+        self.update_button_states(False)
+
+    def update_status(self, message):
+        """상태 업데이트"""
+        current_text = self.status_label.text()
+        new_text = f"{current_text}\n{message}"
+        # 너무 길어지면 앞부분 제거
+        lines = new_text.split('\n')
+        if len(lines) > 10:
+            lines = lines[-10:]
+        self.status_label.setText('\n'.join(lines))
+
+    def update_counter(self, count):
+        """카운터 업데이트"""
+        self.counter_label.setText(f'1번 함수 실행 횟수: {count}')
+
+    def update_button_states(self, running):
+        """버튼 상태 업데이트"""
+        self.start_button.setEnabled(not running)
+        self.alt_button.setEnabled(not running)
+        self.bad_button.setEnabled(not running)
+        self.stop_button.setEnabled(running)
+
+    def closeEvent(self, event):
+        """창 닫기 이벤트"""
+        self.stop_worker()
+        event.accept()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = MyApp(timeout_seconds=10)  # 10초 후 절전 모드
+    window = MainWindow()
+    window.show()
     sys.exit(app.exec_())
