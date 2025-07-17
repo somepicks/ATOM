@@ -26,6 +26,7 @@ pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고�
 import common_def
 import ccxt
 import math
+import ast
 def stamp_to_int( stamp_time):
     dt = datetime.datetime.fromtimestamp(stamp_time)
     dt = dt.strftime('%Y%m%d%H%M')
@@ -328,8 +329,8 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty, l
             # leverage = 3
         try:
             exchange.set_leverage(leverage=leverage, symbol=symbol)
-        except:
-            pass
+        except Exception as e:
+            print(f"주문 중 오류 발생 [order_open]: {e} ")
         res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
                                          price=price, params=params)
     elif market == 'binance':
@@ -348,26 +349,25 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty, l
                 pass
             elif side == 'sell':  # 지정가 open short
                 pass
-        # try:
+        try:
             if category == 'spot' or category == 'inverse':
                 exchange.set_leverage(leverage=leverage, symbol=f'{ticker}/USDT')
             elif category == 'linear':
                 exchange.set_leverage(leverage=leverage, symbol=f'{ticker}/USDT')
-        # except:
-        #     pass
-        # try:
+        except Exception as e:
+            print(f"레버리지 set 오류 발생 [order_open]: {e} ")
+        try:
+            if category == 'spot' or category == 'inverse':
+                exchange.set_margin_mode('isolated',f'{ticker}/USDT')
+            elif category == 'linear':
+                exchange.set_margin_mode('isolated',f'{ticker}/USDT')
+        except Exception as e:
+            print(f"주문 중 오류 발생 [order_open]: {e} ")
         if category == 'spot' or category == 'inverse':
-            exchange.set_margin_mode('isolated',f'{ticker}/USDT')
+            print(f"{market=}  {category=}  {symbol=}  {orderType=}  {side=}  {qty=}  {price=}  {params=}  ")
+            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty, price=price, params=params)
         elif category == 'linear':
-            exchange.set_margin_mode('isolated',f'{ticker}/USDT')
-        # except:
-        #     pass
-        if category == 'spot' or category == 'inverse':
-            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
-                                               price=price, params=params)
-        elif category == 'linear':
-            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
-                                                      price=price, params=params)
+            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty, price=price, params=params)
     # print(f"{self.yellow(f'{type} open 주문')} [{res['id']}] [{side}] - 진입가:{price}, 수량:{qty}, 레버리지: {leverage}, 배팅금액: {round(price * qty, 4)}")
     return res
 
@@ -434,10 +434,25 @@ def bybit_set_tickers(fetch_tickers):
     return df
 
 def fetch_funding_rates(market,exchange,ticker,since):
+    # since 로 None이 오면 1번으로 끝냄
     if market == 'binance':
-        res = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=since)
-        data = [x['fundingRate'] for x in res]
-        timestamps = [x['timestamp'] for x in res]
+        out_lately = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=None)
+        pprint(stamp_to_str(out_lately[0]['timestamp'])) #from
+        pprint(stamp_to_str(out_lately[-1]['timestamp'])) #lately
+
+        # if since == None:
+
+        from_time = (out_lately[0]['timestamp']//1000)*1000
+        while from_time > since:
+            from_time = from_time - 8 * 3600 * 1000 * 100  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+            out = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=from_time)
+            from_time = (out[0]['timestamp']//1000)*1000
+            out.extend(out_lately)
+            out_lately = out
+            if since == False:
+                break
+        data = [x['fundingRate'] for x in out_lately]
+        timestamps = [x['timestamp'] for x in out_lately]
         df = pd.DataFrame({
             f'{ticker}': data,
             '날짜': timestamps
@@ -530,9 +545,9 @@ class FundingRateSimulator:
         """전체 시뮬레이션 실행"""
         for idx, row in funding_data.iterrows():
             self.simulate_period(
-                row['funding_rate'],
-                row['timestamp'],
-                row['btc_price']
+                row['BTC'],
+                row.index,
+                # row['btc_price']
             )
 
     def get_results(self):
@@ -582,8 +597,8 @@ class FundingRateSimulator:
 #         delivery("C", 4)
 #     )
 #
-# market = 'bybit'
-market = 'binance'
+market = 'bybit'
+# market = 'binance'
 min_cont = 10
 future_leverage = 3
 price = 1.9
@@ -625,6 +640,7 @@ if market == 'binance':
         'enableRateLimit': True,
         'options': {'position_mode': True, },
     })
+    res = binance.fetch_balance(params={"type": 'delivery'})
     markets = binance.load_markets()
     # Coin-M Perpetual 종목만 필터링
     perpetual_symbols = []
@@ -667,6 +683,8 @@ elif market == 'bybit':
     #     api_secret=api_secret,
     # )
     # price = binance.fetch_ticker(symbol=ticker+'USDT')['close']
+    res= bybit.fetch_closed_orders(symbol='MANAUSDT')
+    pprint(res)
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']
     # min_amount_future = bybit.load_markets()[f'{ticker}USDT']['limits']['cost']['min']
@@ -674,37 +692,46 @@ elif market == 'bybit':
     res = bybit.fetch_funding_rate_history(symbol=symbol,since=None)
     pprint(res)
     print('========================================')
-    quit()
     pprint(bybit.fetch_positions())
     min_amount_future = min_amount_future * price
     res = bybit.fetch_balance()
     used_inverse = res[ticker]['free']
     used_usdt = price * used_inverse
-
-dict_duration = {'1개월': 30, '3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
+import pandas as pd
+dict_duration = {'1주일':7,'1개월': 30, '2개월': 60,'3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
 df_funding = pd.DataFrame()
-print(list_inverse)
-print(len(list_inverse))
+since = datetime.datetime.now()-datetime.timedelta(days=dict_duration['3개월'])
+since = datetime_to_stamp(since)*1000 #밀리초 곱하기
 
-df = fetch_funding_rates('binance',binance,'BTC',None)
+df = fetch_funding_rates('binance',binance,'BTC',False)
 df.index=df.index//1000
-btc_date_start = df.index[0]
+# btc_date_start = df.index[0]
 btc_date_end = df.index[-1]
 list_out = []
 for i,ticker in enumerate(list_inverse):
-    df = fetch_funding_rates(market,binance,ticker,None)
+    df = fetch_funding_rates(market,binance,ticker,since)
+
     df.index=df.index//1000
+    print(df) #print를 안하면 데이터에 Nan 이 섞여서 출력됨
     if df.index[-1] == btc_date_end:
         df_funding = pd.concat([df_funding, df], axis=1)
     else:
         list_out.append(ticker)
+
+# df_funding.index = df_funding['날짜']
+print(df_funding)
+df_funding = df_funding[df_funding.index>since//1000]
+print(df_funding)
+
 df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
 df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
 df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
 df_funding.set_index('날짜', inplace=True)
-df_funding.loc['평균'] = df_funding.mean()
 
-print(f"{list_out= }")
+df_ma = pd.DataFrame()
+df_ma['단순평균'] = df_funding.mean()
+print(df_ma.sort_values('단순평균',ascending=False))
+# print(f"{list_out= }")
 
 ema_values = {}
 for col in df_funding.columns.tolist():
@@ -716,16 +743,71 @@ for col in df_funding.columns:
         ema_values[col] = '지수이동평균'
 
 # 한 줄로 EMA 행 추가
-df_funding.loc['지수이동평균'] = ema_values
-
-
-
+# df_funding.loc['지수이동평균'] = ema_values
+df_ema = pd.DataFrame(ema_values,index=['지수이동평균'])
+df_ema = df_ema.transpose()
+print(df_ema.sort_values('지수이동평균',ascending=False))
+quit()
 print(df_funding)
-
-for ticker in df_funding.columns.tolist():
-    df_funding.loc['단순평균',ticker] = df_funding[[ticker]].sum/len(df_funding.index)
-    # weighted_avg = np.average(df['value'], weights=df[ticker])
+print(df_funding.tail(20))
 print(list_out)
+
+
+# 결과 데이터프레임 생성
+results_df = simulator.get_results()
+print("시뮬레이션 결과 (처음 10개 기간):")
+print(results_df.head(10).round(4))
+print("\n" + "=" * 80 + "\n")
+
+# 요약 통계
+summary = simulator.get_summary()
+print("시뮬레이션 요약:")
+for key, value in summary.items():
+    if isinstance(value, float):
+        print(f"{key}: {value:.2f}{'%' if '비율' in key or '수익률' in key else ' USDT'}")
+    else:
+        print(f"{key}: {value}")
+
+print("\n" + "=" * 80 + "\n")
+
+# 재투자 시점 확인
+reinvest_points = results_df[results_df['reinvested'] == True]
+if not reinvest_points.empty:
+    print("재투자 시점들:")
+    print(reinvest_points[['timestamp', 'total_capital', 'reinvest_count']].round(2))
+else:
+    print("재투자 조건을 만족한 시점이 없습니다.")
+
+print("\n" + "=" * 80 + "\n")
+
+
+# 성능 분석 함수
+def analyze_performance(results_df):
+    """성능 분석 함수"""
+    print("성능 분석:")
+
+    # 시간별 수익률 분석
+    final_capital = results_df['total_capital'].iloc[-1]
+    initial_capital = 1000
+    days = len(results_df) / 3  # 하루 3번 정산
+
+    print(f"투자 기간: {days:.1f}일")
+    print(f"일평균 수익률: {(final_capital / initial_capital) ** (1 / days) - 1:.4%}")
+    print(f"연환산 수익률: {((final_capital / initial_capital) ** (365 / days) - 1) * 100:.2f}%")
+
+    # 펀딩비율 통계
+    positive_funding = results_df[results_df['funding_rate'] > 0]
+    negative_funding = results_df[results_df['funding_rate'] < 0]
+
+    print(f"\n펀딩비율 통계:")
+    print(f"양수 펀딩비율 비율: {len(positive_funding) / len(results_df) * 100:.1f}%")
+    print(f"음수 펀딩비율 비율: {len(negative_funding) / len(results_df) * 100:.1f}%")
+    print(f"평균 펀딩비율: {results_df['funding_rate'].mean() * 100:.4f}%")
+    print(f"최대 펀딩비율: {results_df['funding_rate'].max() * 100:.4f}%")
+    print(f"최소 펀딩비율: {results_df['funding_rate'].min() * 100:.4f}%")
+
+
+analyze_performance(results_df)
 quit()
 # res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
 # res = fetch_order(binance,'binance','XRP','12367717649','inverse',98)
