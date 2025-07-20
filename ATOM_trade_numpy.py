@@ -3000,11 +3000,11 @@ if __name__ == "__main__":
     # df_instock = pd.DataFrame()
     tele = True
     duration = 30
-    trade = Trade_np(parent=None,market=market,ex_kis=None,ex_bybit=None,ex_pybit=, simul=simul,df_stg=df_stg,
-                     chart_duration=,tele=tele,dict_market_option=dict_market_option,auto_finish=,finish_time=
-    ,,duration,tele,list_tickers,dict)
-    market, ex_kis, ex_bybit, ex_pybit, simul, df_stg, chart_duration, tele,
-    dict_market_option, auto_finish, finish_time
+    # trade = Trade_np(parent=None,market=market,ex_kis=None,ex_bybit=None,ex_pybit=, simul=simul,df_stg=df_stg,
+    #                  chart_duration=,tele=tele,dict_market_option=dict_market_option,auto_finish=,finish_time=
+    # ,,duration,tele,list_tickers,dict)
+    # market, ex_kis, ex_bybit, ex_pybit, simul, df_stg, chart_duration, tele,
+    # dict_market_option, auto_finish, finish_time
     # stg = '시가_풋'
     ticker = '122630'
     # dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '5분봉', '상세봉': '1분봉', '봉제한': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}

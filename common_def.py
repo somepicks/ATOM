@@ -339,9 +339,9 @@ def make_exchange_bybit():
     df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
     conn.close()
 
-    if '코인_API' in df.index.tolist() and  '코인_SECRET' in df.index.tolist() :
-        api = df.loc['코인_API','value']
-        secret = df.loc['코인_SECRET','value']
+    if 'bybit_API' in df.index.tolist() and  'bybit_SECRET' in df.index.tolist() :
+        api = df.loc['bybit_API','value']
+        secret = df.loc['bybit_SECRET','value']
         exchange_ccxt = ccxt.bybit(config={
             'apiKey': api,
             'secret': secret,
@@ -463,10 +463,11 @@ def check_holiday(check_simul,ex_kis,df_holiday,expiry_date):
             i -= 1
     print('금일 휴장일')
     return now_day
-def make_exchange_kis(df_set,trade_type):
-    # conn = sqlite3.connect('DB/setting.db')
-    # df_set = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
-    # conn.close()
+def make_exchange_kis(trade_type,df_set=None):
+    if df_set == None:
+        conn = sqlite3.connect('DB/setting.db')
+        df_set = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
+        conn.close()
     if trade_type == '실전주식':
         # try:
         key = df_set.loc['국내주식_API','value']

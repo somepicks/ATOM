@@ -6,9 +6,15 @@
   <component name="ChangeListManager">
     <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/DB_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_bybit.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/setting.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/setting.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/bybit_funding_fee.py" beforeDir="false" afterPath="$PROJECT_DIR$/bybit_funding_fee.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex_pyqt.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_pyqt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex_equals.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_equals.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -61,6 +67,7 @@
     &quot;Python.common_def.executor&quot;: &quot;Run&quot;,
     &quot;Python.ex.executor&quot;: &quot;Run&quot;,
     &quot;Python.ex_2.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ex_equals.executor&quot;: &quot;Run&quot;,
     &quot;Python.ex_pyqt.executor&quot;: &quot;Run&quot;,
     &quot;Python.futopt_auto_sell.executor&quot;: &quot;Run&quot;,
     &quot;Python.quanstax.executor&quot;: &quot;Run&quot;,
@@ -80,29 +87,7 @@
       <recent name="D:\ATOM" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.ex">
-    <configuration name="KIS" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="ATOM" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/KIS.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.bybit_funding_fee">
     <configuration name="bybit_funding_fee" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -169,7 +154,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="futopt_auto_sell" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="ex_equals" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -182,7 +167,29 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/futopt_auto_sell.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ex_equals.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="tab_backtest" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="ATOM" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tab_backtest.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -193,11 +200,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.ex" />
-        <item itemvalue="Python.ex_2" />
         <item itemvalue="Python.bybit_funding_fee" />
-        <item itemvalue="Python.futopt_auto_sell" />
-        <item itemvalue="Python.KIS" />
+        <item itemvalue="Python.ex_equals" />
+        <item itemvalue="Python.ex" />
+        <item itemvalue="Python.tab_backtest" />
+        <item itemvalue="Python.ex_2" />
       </list>
     </recent_temporary>
   </component>
@@ -497,7 +504,15 @@
       <option name="project" value="LOCAL" />
       <updated>1751474503958</updated>
     </task>
-    <option name="localTasksCounter" value="36" />
+    <task id="LOCAL-00036" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1752761717429</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1752761717429</updated>
+    </task>
+    <option name="localTasksCounter" value="37" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

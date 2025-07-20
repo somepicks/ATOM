@@ -98,7 +98,7 @@ class Window(QMainWindow):
         self.QCB_simul = QCheckBox('모의매매')
         self.QCB_simul.setChecked(True)
         self.QCB_market = QComboBox()
-        self.list_market = ['', '코인', '국내주식','국내선옵','국내선옵(야간)','텔레그램']
+        self.list_market = ['', 'bybit', '국내주식','국내선옵','국내선옵(야간)','텔레그램']
         self.QCB_market.addItems(self.list_market)
         self.QLE_chart_ticker = QLineEdit()
         self.QLE_bet = QLineEdit()
@@ -326,8 +326,8 @@ class Window(QMainWindow):
             self.df_set.loc['차트기간','value'] = self.QCB_chart_duration.currentText()
             self.df_set.loc['차트봉','value'] = self.QCB_chart_bong.currentText()
             self.df_set.loc['차트상세봉','value'] = self.QCB_chart_bong_detail.currentText()
-            self.df_set.loc['코인_API', 'value'] = ''
-            self.df_set.loc['코인_SECRET', 'value'] = ''
+            self.df_set.loc['bybit_API', 'value'] = ''
+            self.df_set.loc['bybit_SECRET', 'value'] = ''
             self.df_set.loc['국내주식_API', 'value'] = ''
             self.df_set.loc['국내주식_SECRET', 'value'] = ''
             self.df_set.loc['국내주식_ACCOUNT', 'value'] = ''
@@ -422,7 +422,7 @@ class Window(QMainWindow):
 
         return df_combined
 
-    def select_market(self):  # 국내시장인지 코인인지 선택합니다.
+    def select_market(self):  # 국내시장인지 bybit인지 선택합니다.
         self.set_table_make(self.QT_trade_open, pd.DataFrame())
         self.set_table_make(self.QT_trade_closed, pd.DataFrame())
         self.QLE_stg.clear()
@@ -434,12 +434,12 @@ class Window(QMainWindow):
         #     print("token_file 파일이 삭제되었습니다.")
         self.QTE_stg_buy.clear()
         self.QTE_stg_sell.clear()
-        if self.QCB_market.currentText() == '코인':
+        if self.QCB_market.currentText() == 'bybit':
             stg_file = 'DB/stg_bybit.db'
-            # print(self.df_set.loc['코인_API', 'value'] == '')
-            # print(self.df_set.loc['코인_SECRET', 'value'] == '')
-            if self.df_set.loc['코인_API', 'value'] == '' or self.df_set.loc['코인_SECRET', 'value'] == '' :
-                print('코인 API 없음')
+            # print(self.df_set.loc['bybit_API', 'value'] == '')
+            # print(self.df_set.loc['bybit_SECRET', 'value'] == '')
+            if self.df_set.loc['bybit_API', 'value'] == '' or self.df_set.loc['bybit_SECRET', 'value'] == '' :
+                print('bybit API 없음')
                 self.df_tickers = pd.DataFrame(columns=['종목코드','quoteVolume','volume24h','percentage','change'])
                 self.ex_bybit = None
                 self.ex_pybit = None
@@ -572,7 +572,7 @@ class Window(QMainWindow):
             else:
                 self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')
             # if self.df_stg.empty:
-            if self.QCB_market.currentText() == '코인':
+            if self.QCB_market.currentText() == 'bybit':
                 self.QTE_stg_buy.setText("진입대상 = ''\n"
                                          "봉 = {'4시간봉':10}\n"
                                          "방향 = 'long'\n"
@@ -768,7 +768,7 @@ class Window(QMainWindow):
                 ticker = object
 
 
-        elif self.QCB_market.currentText() == '코인' and self.QLE_stg.text() != '':
+        elif self.QCB_market.currentText() == 'bybit' and self.QLE_stg.text() != '':
             object = self.QTE_stg_buy.toPlainText().split("\n", 1)[0]  # 첫줄 읽기 추출
             exec(object, None, locals_dict_buy)
             object = locals_dict_buy.get('진입대상')
@@ -1169,9 +1169,9 @@ class Window(QMainWindow):
         self.light_start = False
         self.df_stg = pd.read_sql(f"SELECT * FROM 'stg'", self.conn_stg).set_index('index')
         self.df_stg = self.set_table_modify(self.QT_trade_open, self.df_stg)
-        if self.QCB_market.currentText() == '코인':
+        if self.QCB_market.currentText() == 'bybit':
             if self.ex_bybit == None:
-                return print('ERROR- 시작할 수 없음: 코인 API 확인')
+                return print('ERROR- 시작할 수 없음: bybit API 확인')
         elif self.QCB_market.currentText() == '국내주식':
             if self.ex_kis == None:
                 return print('ERROR- 시작할 수 없음: 국내주식 API 확인')
@@ -1415,7 +1415,7 @@ class Window(QMainWindow):
         date_old = present.date() - datetime.timedelta(days=int(bong_since))
         stamp_date_old = common_def.datetime_to_stamp(date_old)
         ohlcv = []
-        if market == '코인' :
+        if market == 'bybit' :
             ohlcv = common_def.get_bybit_ohlcv(self.ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong,bong_detail)
             df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
             df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
@@ -1455,7 +1455,7 @@ class Window(QMainWindow):
         date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
         stamp_date_old = common_def.datetime_to_stamp(date_old)
         ohlcv = []
-        if market == '코인' :
+        if market == 'bybit' :
             df = common_def.get_bybit_ohlcv(self.ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong, bong_detail)
             df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
             df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
