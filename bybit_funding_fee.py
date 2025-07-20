@@ -717,6 +717,7 @@ class do_trade(QThread):
                     진입가 = float(ord_closed['average'])
                     체결수량 = float(ord_closed['filled'])
                     수수료 = ord_closed.get('fee', 0) #바이낸스
+                    if type(수수료) : 수수료 = 수수료['cost']#바이비트
                     if 수수료 == None: 수수료 = 0
                     수수료 = float(수수료)
 
@@ -1398,7 +1399,7 @@ class Window(QMainWindow):
 
         ema_values = {}
         for col in df_funding.columns.tolist():
-            ema_values[col] = df_funding[col].ewm(span=3, adjust=False).mean().iloc[-1]
+            ema_values[col] = df_funding[col].ewm(span=(len(df_funding)/2), adjust=False).mean().iloc[-1]
 
         # 비숫자 열에 대해서는 '지수이동평균' 라벨 추가
         for col in df_funding.columns:

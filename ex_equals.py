@@ -304,6 +304,9 @@ class BinanceAssetChecker:
             usdm_balance,USDT=self.get_usdm_futures_balance()
             self.display_balance(usdm_balance, "USD-M Futures 잔고")
             print(USDT)
+            pprint(self.usdm_exchange.fetch_balance())
+            print('=====================================')
+            pprint(self.usdm_exchange.fetch_positions())
 
 # 사용 예시
 def main():
