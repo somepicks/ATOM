@@ -301,12 +301,22 @@ class BinanceAssetChecker:
                 'USDT': USDT_SPOT+USDT_USD+USDT_COIN
             }
         else:
-            usdm_balance,USDT=self.get_usdm_futures_balance()
-            self.display_balance(usdm_balance, "USD-M Futures 잔고")
-            print(USDT)
-            pprint(self.usdm_exchange.fetch_balance())
-            print('=====================================')
-            pprint(self.usdm_exchange.fetch_positions())
+            res = self.usdm_exchange.fetch_balance()
+            if res['info']['result']['list'][0]['accountType'] == 'UNIFIED':
+                usdm_balance,USDT=self.get_usdm_futures_balance()
+                list_coins = res['info']['result']['list'][0]['coin']
+                hold_tickers = usdm_balance.keys()
+                pprint(usdm_balance)
+                pprint(list_coins)
+                for data in list_coins:
+                    if data['coin'] in hold_tickers:
+                        print(data['coin'])
+                        # print(usdm_balance[data['coin']])
+                quit()
+                # self.display_balance(usdm_balance, "USD-M Futures 잔고")
+                print(USDT)
+                print('=====================================')
+                pprint(self.usdm_exchange.fetch_positions())
 
 # 사용 예시
 def main():
