@@ -352,6 +352,7 @@ class Window(QMainWindow):
         else:
             self.conn_set = sqlite3.connect('DB/setting.db')
             self.df_set = pd.read_sql(f"SELECT * FROM 'set'", self.conn_set).set_index('index')
+
             # print(self.df_set.loc['자동시작마켓','value'])
             # print(self.QCB_market.itemText(1))
             # print(type(self.df_set.loc['자동시작마켓','value']))
@@ -468,14 +469,14 @@ class Window(QMainWindow):
                     self.df_tickers = pd.DataFrame()
                     print('국내모의주식 API 없음')
                 else:
-                    self.ex_kis = common_def.make_exchange_kis(self.df_set, '모의주식')
+                    self.ex_kis = common_def.make_exchange_kis( '모의주식',self.df_set)
             else:
                 if self.df_set.loc['국내주식_API', 'value'] == '' or self.df_set.loc['국내주식_SECRET', 'value'] == '' or self.df_set.loc['국내주식_ACCOUNT', 'value'] == '':
                     self.ex_kis = None
                     self.df_tickers = pd.DataFrame()
                     print('국내주식 API 없음')
                 else:
-                    self.ex_kis = common_def.make_exchange_kis(self.df_set, '실전주식')
+                    self.ex_kis = common_def.make_exchange_kis( '실전주식',self.df_set)
             con_db = sqlite3.connect('DB/DB_stock.db')
             cursor = con_db.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -524,13 +525,13 @@ class Window(QMainWindow):
                     print('국내모의선옵 API 없음')
                     self.ex_kis = None
                 else:
-                    self.ex_kis = common_def.make_exchange_kis(self.df_set,'모의선옵')
+                    self.ex_kis = common_def.make_exchange_kis('모의선옵',self.df_set)
             else:
                 if self.df_set.loc['국내선옵_API', 'value'] == '' or self.df_set.loc['국내선옵_SECRET', 'value'] == '' or self.df_set.loc['국내선옵_ACCOUNT', 'value'] == '':
                     print('국내선옵 API 없음')
                     self.ex_kis = None
                 else:
-                    self.ex_kis = common_def.make_exchange_kis(self.df_set, '실전선옵')
+                    self.ex_kis = common_def.make_exchange_kis( '실전선옵',self.df_set)
             self.ex_bybit = None
             self.ex_pybit = None
             # ex = common_def.make_exchange_kis('실전주식') #모의투자는 휴장일정보를 지원하지 않음
