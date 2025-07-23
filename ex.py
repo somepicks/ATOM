@@ -614,7 +614,9 @@ class FundingRateSimulator:
             '재투자 횟수': self.reinvest_count,
             '평균 펀딩비율': np.mean([h['funding_rate'] for h in self.history]) * 100
         }
-
+st = "주문전송이 정상적으로처리되었습니다."
+print(st[:11])
+quit()
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
 # secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
 # acc_no = '64422606-03'
