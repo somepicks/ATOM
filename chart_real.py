@@ -186,7 +186,7 @@ class Graph(QThread):
                         df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
                     else:  # 비교대상의 경우 'BTC_5분봉'
                         df = common_def.detail_to_compare(df, bong, ticker_full_name)
-            return df
+
         elif self.market == '국내선옵':
             if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
                 ohlcv = globals()[ticker_full_name]
@@ -200,17 +200,25 @@ class Graph(QThread):
                 #     output.extend(ohlcv)
                 #     ohlcv = output
                 #     globals()[ticker_full_name] = ohlcv
+                현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
+                now_day = 현재시간.date().strftime("%Y%m%d")
+                now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
             else: # 최초 생성 시
+                now_day = datetime.datetime.now().date()
+                now_day = now_day.strftime("%Y%m%d")
+                now_time = datetime.datetime.now().strftime("%H%M%S")
                 ohlcv = []
-            ohlcv = self.ex.fetch_1m_ohlcv(symbol=ticker,limit=int(bong_since),ohlcv=ohlcv)
+            ohlcv = self.ex.fetch_1m_ohlcv(symbol=ticker,
+                                           limit=int(bong_since),
+                                           ohlcv=ohlcv,
+                                           now_day=now_day,
+                                           now_time=now_time)
             globals()[ticker_full_name] = ohlcv
             df = common_def.get_kis_ohlcv(self.market,ohlcv)
             if ticker_full_name.count('_') == 2:  # 진입대상인지 비교대상인지 확인 - 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
                 df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
             else:  # 비교대상의 경우 'BTC_5분봉'
                 df = common_def.detail_to_compare(df, bong, ticker_full_name)
-            return df
-
         elif self.market =='코인':
             if f'{ticker_full_name}' in globals(): #만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
                 ohlcv = globals()[f'{ticker_full_name}']
@@ -234,8 +242,11 @@ class Graph(QThread):
             else: # 비교대상의 경우 'BTC_5분봉'
                 df = common_def.detail_to_compare(df, bong, ticker_full_name)
             df.index = df.index + pd.Timedelta(hours=9)
-            return df
-    def check_compare_ticker(self,list_table,list_tickers):
+
+        else:
+            df=pd.DataFrame()
+        return df
+    def check_compare_ticker(self, list_table, list_tickers):
         list_compare = []
         for factor in list_table:
             for compare_ticker in list_tickers:

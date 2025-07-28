@@ -2715,7 +2715,7 @@ class Trade_np(QThread):
             order={'id':None,'info':{'orderStatus':None}}
             return order
 
-    def add_investor_trend(self, 현재시간):
+    def add_investor_trend(self, 현재시간): #개인,외국인, 기관
         dict_trend = {}
         dict_trend.update(self.ex_kis.investor_trend_time('코스피'))
         dict_trend.update(self.ex_kis.investor_trend_time('선물'))

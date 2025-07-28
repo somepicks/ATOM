@@ -464,7 +464,7 @@ def check_holiday(check_simul,ex_kis,df_holiday,expiry_date):
     print('금일 휴장일')
     return now_day
 def make_exchange_kis(trade_type,df_set=None):
-    if df_set == None:
+    if df_set is None:
         conn = sqlite3.connect('DB/setting.db')
         df_set = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
         conn.close()

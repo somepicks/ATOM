@@ -699,71 +699,36 @@ class KoreaInvestment:
         # now_day = datetime.datetime.now().date().strftime("%Y%m%d")
         # now_time = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
         if self.market == '주식':
-            if ohlcv:  # 실시간일 경우
-                output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time, fake_tick=True)  # to = 현재시간
-                output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
-                output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
-                del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                output.extend(ohlcv)
-                ohlcv = output
-            else:
-                if (int(now_time) < 90000) or (153000 < int(now_time)):
-                    now_time = "154500"
-                while True:
-                    output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time, day=now_day,
-                                                  fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
-                    if output:  # 체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
-                        ohlcv.extend(output)
-                        if now_time == '084400':  # 8시 44분은 조회가 안되기 때문에 다음날로 넘어가야됨
-                            now_day = ohlcv[-1]['stck_bsop_date']
-                            now_day = datetime.datetime.strptime(now_day, "%Y%m%d").date()
-                            now_day = now_day - datetime.timedelta(days=1)
-                            now_day = now_day.strftime("%Y%m%d")
-                            now_time = "153400"
-                        else:
-                            now_day = ohlcv[-1]['stck_bsop_date']
-                            now_time = ohlcv[-1]['stck_cntg_hour']
-                            dt = datetime.datetime.strptime(now_time, "%H%M%S").time()
-                            dt = datetime.datetime.combine(datetime.date.today(), dt)
-                            dt = dt - datetime.timedelta(minutes=1)
-                            now_time = dt.strftime("%H%M%S")
+            if to == "":
+                to = now.strftime("%H%M%S")
+                # kospi market end time
+                if (90000 > int(to)) or (int(to) > 153000):
+                    to = "153000"
+            while True:  # 매번 전체를 조회하는 방식임 시간 단축을 위해 추 후 변경 필요
+                resp = self._fetch_today_1m_ohlcv(symbol, to)  # to = 현재시간
+                if resp['msg1'] != '정상처리 되었습니다.':
+                    # time.sleep(0.3)
+                    QTest.qWait(300)
+                    # QTest.qWait(self,300)
+                elif resp['msg1'] == '기간이 만료된 token 입니다.':
+                    raise
+                else:
+                    output = resp['output2']
+                    ohlcv.extend(output)
+                    to = ohlcv[-1]['stck_cntg_hour']
+                    dt = datetime.datetime.strptime(to, "%H%M%S").time()
+                    dt = datetime.datetime.combine(datetime.date.today(), dt)
+                    dt = dt - datetime.timedelta(minutes=1)
+                    # if dt < early:
+                    to = dt.strftime("%H%M%S")
+                    # time.sleep(0.5)
+                    QTest.qWait(500)
+                    # QTest.qWait(self,500)
 
-                        list_bsop_dates = [item['stck_bsop_date'] for item in ohlcv]  # 딕셔너리의 날짜를 리스트로 변환
-                        if len(list(set(list_bsop_dates))) > limit:
-                            ohlcv = ohlcv[:list_bsop_dates.index(list_bsop_dates[-1])]
-                            break
-                    else:
+                    if to == '085900':
                         break
-                    QTest.qWait(800)
-                now_day = ''
-                for i, data in enumerate(ohlcv):
-                    if now_day != data['stck_bsop_date']:
-                        now_day = data['stck_bsop_date']
-                    if i + 1 < len(ohlcv):
-                        if now_day == data['stck_bsop_date'] and now_day == ohlcv[i + 1]['stck_bsop_date']:
-                            t1 = datetime.datetime.strptime(now_day + data['stck_cntg_hour'], '%Y%m%d%H%M%S')
-                            t2 = datetime.datetime.strptime(now_day + ohlcv[i + 1]['stck_cntg_hour'], '%Y%m%d%H%M%S')
-                            # t1 = data['stck_cntg_hour']
-                            # t2 = ohlcv[i+1]['stck_cntg_hour']
-                            # 체결이 안될경우 앞전 값으로 대체 거래량은 0으로 앞전 값으로 대체하고자 하지 않을 경우 주석처리 할 것
-                            if t1 - t2 != datetime.timedelta(minutes=1):
-                                ohlcv.insert(i + 1, {'acml_tr_pbmn': '0',
-                                                     'cntg_vol': '0',
-                                                     'futs_hgpr': ohlcv[i + 1]['futs_hgpr'],
-                                                     'futs_lwpr': ohlcv[i + 1]['futs_lwpr'],
-                                                     'futs_oprc': ohlcv[i + 1]['futs_oprc'],
-                                                     'futs_prpr': ohlcv[i + 1]['futs_prpr'],
-                                                     'stck_bsop_date': now_day,
-                                                     'stck_cntg_hour': datetime.datetime.strftime( t1 - datetime.timedelta(minutes=1), '%H%M%S')})
-                if not ohlcv:
-                    ohlcv = [{'acml_tr_pbmn': '0',
-                              'cntg_vol': '0',
-                              'futs_hgpr': '0',
-                              'futs_lwpr': '0',
-                              'futs_oprc': '0',
-                              'futs_prpr': '0',
-                              'stck_bsop_date': datetime.datetime.now().date().strftime("%Y%m%d"),
-                              'stck_cntg_hour': datetime.datetime.now().strftime("%H%M") + "00"}]
+            ohlcv = self.make_ohlcv_1m(ohlcv)
+            return ohlcv
         elif self.market == '선옵':
             if ohlcv : #실시간일 경우
                 output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time, fake_tick=True)  # to = 현재시간
@@ -773,8 +738,12 @@ class KoreaInvestment:
                 output.extend(ohlcv)
                 ohlcv = output
             else:
+                # print(f"최초생성 {now_time= }")
                 if (int(now_time) < 90000) or (153000 < int(now_time)):
                     now_time = "154500"
+                # now_day='20250210'
+                # now_time='012700'
+#                 print(f"{now_day= }")
                 while True:
                     output = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day, fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
                     if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
@@ -834,6 +803,7 @@ class KoreaInvestment:
         return ohlcv
     def _fetch_1m_ohlcv(self, symbol: str, to: str, day:str="", fake_tick:bool=False):
         """국내주식시세/주식당일분봉조회
+
         Args:
             symbol (str): 6자리 종목코드
             to (str): "HH:MM:SS"
@@ -859,9 +829,8 @@ class KoreaInvestment:
             i = 0
             while True:
                 res = requests.get(url, headers=headers, params=params)
-                output = res.json()
                 # hrd = {'User_Agent': generate_user_agent(os='win', device_type='desktop')}
-                if output['msg1'] == '정상처리 되었습니다.':
+                if res.json()['msg1'] == '정상처리 되었습니다.':
                     break
                 elif i == 10:
                     raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_today_1m_ohlcv')
@@ -2004,8 +1973,8 @@ class KoreaInvestment:
                     if i > 10:
                         print('fetch_balance 조회에러')
                         pprint(data['msg1'])
-                        data['msg1'] = '조회에러'
-                        return None,pd.DataFrame()
+                        quit()
+
             if self.market == '주식':
                 # pprint(data)
                 output['output1'] = data['output1']
@@ -2407,7 +2376,7 @@ class KoreaInvestment:
                 resp = requests.post(url, headers=headers, data=json.dumps(data))
                 resp = resp.json()
             if resp['msg1'] == '주문 전송 완료 되었습니다.' or resp['msg1'] == '모의투자 매수주문이 완료 되었습니다.' or resp[
-                'msg1'] == '모의투자 매도주문이 완료 되었습니다.':
+                'msg1'] == '모의투자 매도주문이 완료 되었습니다.' or resp['msg1'][:11]=="주문전송이 정상적으로":
                 resp['output']['ODNO'] = int(resp['output']['ODNO'])
                 id = str(resp['output']['ODNO'])  # 주문번호가 '000456' 이런식으로 오기 때문에 str → int → str 로 변환
                 break
@@ -2440,10 +2409,8 @@ class KoreaInvestment:
                 raise
             elif resp['msg1'] == '모의투자 상/하한가 오류':
                 pprint(f"create_order - 모의투자 상/하한가 오류 {symbol=}, {price=} {quantity=}, {side=}")
-            elif resp['msg1'] == '모의투자 상/하한가 오류':
-                pprint(f"create_order {resp}, {symbol=}, {price=} {quantity=}, {side=}")
             else:
-                print('create_order - =============== else ===============')
+                print('create_order - =============== else =============== 데이터값 확인 필요')
                 pprint(f"create_order {resp}, {symbol=}, {price=} {quantity=}, {side=}")
                 quit()
         return id
@@ -3810,15 +3777,6 @@ if __name__ == "__main__":
     import common_def
     conn_set = sqlite3.connect('DB/setting.db')
     df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_set).set_index('index')
-    exchange = common_def.make_exchange_kis(df_set=df_set,trade_type='모의주식')
+    exchange = common_def.make_exchange_kis(df_set=df_set,trade_type='모의선옵')
     res,df = exchange.fetch_balance()
-    print(df)
-    quit()
-    현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
-    진입시간 = 현재시간
-    now_day = 현재시간.date().strftime("%Y%m%d")
-    now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
-    ohlcv = exchange.fetch_1m_ohlcv(symbol="122630",limit=60,ohlcv=[],now_day=now_day,now_time=now_time)
-    pprint(ohlcv)
-    df = pd.DataFrame(ohlcv)
     print(df)
