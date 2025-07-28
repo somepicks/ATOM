@@ -14,6 +14,7 @@ import numpy as np
 import talib
 import KIS
 import common_def
+from pprint import pprint
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -50,23 +51,21 @@ class do_trade(QThread):
         now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
         KOSPI200_ticker = '101W09'
         # 선물조회
-        # print('선물지수 데이터 취합 중...',end='')
-        # ohlcv_future = self.exchange.fetch_1m_ohlcv(symbol=KOSPI200_ticker, limit=5, ohlcv=[], now_day=now_day, now_time=now_time)
-        # df_KOSPI200 = common_def.get_kis_ohlcv('국내선옵', ohlcv_future)
-        # df_KOSPI200.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
-        #                    '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
-        # self.df_KOSPI200_5 = common_def.resample_df(df_KOSPI200, '5분봉', '5min', '5분봉', False)
-        # self.df_KOSPI200_30 = common_def.resample_df(df_KOSPI200, '30분봉', '30min', '30분봉', False)
-        # print('완료')
+        print('선물지수 데이터 취합 중...',end='')
+        ohlcv_future = self.exchange.fetch_1m_ohlcv(symbol=KOSPI200_ticker, limit=5, ohlcv=[], now_day=now_day, now_time=now_time)
+        df_KOSPI200 = common_def.get_kis_ohlcv('국내선옵', ohlcv_future)
+        df_KOSPI200.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
+                           '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
+        self.df_KOSPI200_5 = common_def.resample_df(df_KOSPI200, '5분봉', '5min', '5분봉', False)
+        self.df_KOSPI200_15 = common_def.resample_df(df_KOSPI200, '15분봉', '15min', '15분봉', False)
+        self.df_KOSPI200_30 = common_def.resample_df(df_KOSPI200, '30분봉', '30min', '30분봉', False)
         # self.df_KOSPI200_day = common_def.resample_df(df_KOSPI200, '30분봉', '30min', '30분봉', False)
-
         if not self.df.empty:
             # 중복 인덱스 제거
             # self.df = self.df[~self.df.index.duplicated(keep='last')]
             self.df['수익률'] = round(self.df['평가손익'] / self.df['매입금액'] * 100, 1)
             self.df['최고수익률'] = self.df['수익률']
             self.df['최저수익률'] = self.df['수익률']
-            # self.df_compare = self.df[['잔고수량','체결평균단가','청산가능수량','매입금액','종목코드']]
             self.list_ticker = self.df.index.tolist()
             for ticker in self.df.index.tolist():
                 print(f'{ticker} 데이터 취합 중')
@@ -74,26 +73,30 @@ class do_trade(QThread):
         else:
             self.df = pd.DataFrame(columns=['잔고수량', '체결평균단가', '청산가능수량', '매입금액', '종목코드'])
             self.list_ticker = []
+
         self.df_compare = self.df[['잔고수량','체결평균단가','청산가능수량','매입금액','종목코드']]
 
-        while True:
+        while self._status:
             account, df = self.exchange.fetch_balance()
             now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
-            #
-            # ohlcv_future = self.exchange.fetch_1m_ohlcv(symbol=KOSPI200_ticker, limit=5, ohlcv=ohlcv_future, now_day=now_day,
-            #                                             now_time=now_time)
-            # df_KOSPI200 = common_def.get_kis_ohlcv('국내선옵', ohlcv_future)
-            # df_KOSPI200.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
-            #                           '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
-            # self.df_future_5 = common_def.resample_df(df_KOSPI200, '5분봉', '5min', '5분봉', False)
-            # self.df_future_30 = common_def.resample_df(df_KOSPI200, '30분봉', '30min', '30분봉', False)
+
+            ohlcv_future = self.exchange.fetch_1m_ohlcv(symbol=KOSPI200_ticker, limit=5, ohlcv=ohlcv_future, now_day=now_day,
+                                                        now_time=now_time)
+            df_KOSPI200 = common_def.get_kis_ohlcv('국내선옵', ohlcv_future)
+            df_KOSPI200.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
+                                      '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
+            self.df_KOSPI200_5 = common_def.resample_df(df_KOSPI200, '5분봉', '5min', '5분봉', False)
+            self.df_KOSPI200_15 = common_def.resample_df(df_KOSPI200, '15분봉', '15min', '15분봉', False)
+            self.df_KOSPI200_30 = common_def.resample_df(df_KOSPI200, '30분봉', '30min', '30분봉', False)
             # _, self.df_KOSPI200 = common_def.detail_to_spread(df_KOSPI200, '5분봉', '1분봉', False)
 
-            if not df.empty:
+            if not df.empty: #잔고가 있을 시
+                df = df[df['청산가능수량'] > 0].copy()  # copy() 추가
                 df_compare = df[['잔고수량','체결평균단가','청산가능수량','매입금액','종목코드']]
-            else:
+            else: #잔고가 없을 시
                 df_compare = pd.DataFrame(columns=['잔고수량','체결평균단가','청산가능수량','매입금액','종목코드'])
-
+                self.get_buy_signal('105W09')
+                QTest.qWait(10000)
             if not self.df_compare.equals(df_compare):
                 # 신규 편입/제거 종목 찾기
                 list_ticker = df_compare.index.tolist()
@@ -338,7 +341,11 @@ class do_trade(QThread):
         self.qt_open.emit(self.df_open)
     def change_set(self,df_set):
         self.df_set = df_set
-
+    def get_buy_signal(self,ticker):
+        if self.df_KOSPI200_15.loc[self.df_KOSPI200_15.index[-2],'MACD'] > self.df_KOSPI200_15.loc[self.df_KOSPI200_15.index[-2],'MACD_SIGNAL']:
+            self.exchange.create_market_buy_order(symbol=ticker, quantity=1, side='buy')
+        if self.df_KOSPI200_15.loc[self.df_KOSPI200_15.index[-2], 'MACD'] < self.df_KOSPI200_15.loc[self.df_KOSPI200_15.index[-2], 'MACD_SIGNAL']:
+            self.exchange.create_market_buy_order(symbol=ticker, quantity=1, side='sell')
     def get_sell_signal(self,series,finish_time,df):
         ticker = series['종목코드']
         수익률 = series['수익률']
@@ -354,9 +361,9 @@ class do_trade(QThread):
                 sell_signal = True
                 매도조건 = 3
                 print(f"{최고수익률대비= }")
-        if 수익률 <-15:
-            sell_signal = True
-            매도조건 = 1
+        # if 수익률 <-15:
+        #     sell_signal = True
+        #     매도조건 = 1
         if datetime.datetime.now() > finish_time:
             sell_signal = True
             매도조건 = 2
@@ -366,17 +373,6 @@ class do_trade(QThread):
             self.exchange.create_market_buy_order(symbol=ticker, quantity=int(청산가능수량), side='sell')
             print(f'매도 - {ticker= }  {매도조건= }  {수익률=}  {최고수익률=}  {최저수익률=}')
 
-    def get_buy_signal(self,df,market,ticker):
-        if (df.loc[df.index[-3],'RSI14'] > 30) and (df.loc[df.index[-2],'RSI14'] < 30):
-            return True
-        if (df.loc[df.index[-3],'RSI18'] > 30) and (df.loc[df.index[-2],'RSI18'] < 30):
-            return True
-        if (df.loc[df.index[-3],'RSI30'] > 30) and (df.loc[df.index[-2],'RSI30'] < 30):
-            return True
-        if df.loc[df.index[-3],'이평20'] < df.loc[df.index[-3],'이평60']:
-            if df.loc[df.index[-2],'이평20'] > df.loc[df.index[-2],'이평60']:
-                return True
-        return False
 
     def active_light(self,df_open,df_close):
         self.val_light.emit(self.bool_light)
@@ -433,6 +429,7 @@ class Window(QMainWindow):
         self.QPB_start = QPushButton('START')
         self.QPB_stop = QPushButton('STOP')
         self.QPB_manual_buy_bybit = QPushButton('BYBIT 현물매수')
+        self.QCB_mock = QCheckBox('모의')
         self.QL_manual_ticker = QLineEdit('BTC')
         self.QL_manual_price = QLineEdit('100')
         self.QL_wallet = QLabel()
@@ -461,6 +458,7 @@ class Window(QMainWindow):
 
 
         QHB_button = QHBoxLayout()
+        QHB_button.addWidget(self.QCB_mock)
         QHB_button.addWidget(self.QPB_start)
         QHB_button.addWidget(self.QPB_stop)
         QHB_api = QHBoxLayout()
@@ -512,14 +510,24 @@ class Window(QMainWindow):
 
         QW_main.setLayout(QVB_main)
     def save_api(self):
-        if not self.QLE_api.text() == '':
-            self.df_set.loc[f'api','val']=self.QLE_api.text()
-        if not self.QLE_secret.text() == '':
-            self.df_set.loc[f'secret','val']=self.QLE_secret.text()
-        if not self.QLE_id.text() == '':
-            self.df_set.loc[f'id','val']=self.QLE_id.text()
-        if not self.QLE_account.text() == '':
-            self.df_set.loc[f'account','val']=self.QLE_account.text()
+        if self.QCB_mock.isChecked():
+            if not self.QLE_api.text() == '':
+                self.df_set.loc[f'api_mock','val']=self.QLE_api.text()
+            if not self.QLE_secret.text() == '':
+                self.df_set.loc[f'secret_mock','val']=self.QLE_secret.text()
+            # if not self.QLE_id.text() == '':
+            #     self.df_set.loc[f'id_mock','val']=self.QLE_id.text()
+            if not self.QLE_account.text() == '':
+                self.df_set.loc[f'account_mock','val']=self.QLE_account.text()
+        else:
+            if not self.QLE_api.text() == '':
+                self.df_set.loc[f'api','val']=self.QLE_api.text()
+            if not self.QLE_secret.text() == '':
+                self.df_set.loc[f'secret','val']=self.QLE_secret.text()
+            # if not self.QLE_id.text() == '':
+            #     self.df_set.loc[f'id','val']=self.QLE_id.text()
+            if not self.QLE_account.text() == '':
+                self.df_set.loc[f'account','val']=self.QLE_account.text()
         self.QLE_api.clear()
         self.QLE_secret.clear()
         self.QLE_id.clear()
@@ -605,7 +613,7 @@ class Window(QMainWindow):
 
 
     def onStartButtonClicked(self):
-        self.exchange = self.make_exchange_kis()
+        self.exchange = self.make_exchange_kis(self.QCB_mock.isChecked())
 
 
         self.thread = do_trade(self,self.exchange,self.df_set)
@@ -713,10 +721,15 @@ class Window(QMainWindow):
         # table.verticalHeader().setStretchLastSection(True)
         table.setSortingEnabled(True) #소팅한 상태로 로딩 시 데이터가 이상해져 맨 앞과 뒤에 추가
 
-    def make_exchange_kis(self):
-        key = self.df_set.loc['api', 'val']
-        secret = self.df_set.loc['secret', 'val']
-        acc_no = self.df_set.loc['account', 'val']
+    def make_exchange_kis(self,mock):
+        if mock:
+            key = self.df_set.loc['api_mock', 'val']
+            secret = self.df_set.loc['secret_mock', 'val']
+            acc_no = self.df_set.loc['account_mock', 'val']
+        else:
+            key = self.df_set.loc['api', 'val']
+            secret = self.df_set.loc['secret', 'val']
+            acc_no = self.df_set.loc['account', 'val']
         if key == '' or secret == '' or acc_no == '' :
             print('api 확인 필요')
             return 0
@@ -725,7 +738,6 @@ class Window(QMainWindow):
             return 0
         else:
             market = '선옵'
-            mock = False
             exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
         return exchange
 
