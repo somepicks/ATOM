@@ -90,9 +90,12 @@ class do_trade(QThread):
                     if self.df_open.loc[id, '상태'] == '매수주문' or self.df_open.loc[id, '상태'] == '부분체결':
                         self.chegyeol_buy(id)
             for idx in self.df_inverse.index.tolist():
-                self.buy_auto(idx)
                 market = self.df_inverse.loc[idx,'market']
                 ticker = self.df_inverse.loc[idx,'ticker']
+                if ticker == 'USDT':
+                    pass
+                self.buy_auto(idx,market,ticker)
+
                 df = self.get_df(market, ticker, '4시간봉', 10)  # 10일 전부터의 데이터 불러오기
                 dict_division = {'BTC':25, 'ETH':30, 'XRP':25, 'SOL':28}
                 dict_leverage = {'BTC':3, 'ETH':3, 'XRP':3, 'SOL':3}
@@ -111,16 +114,12 @@ class do_trade(QThread):
 
         self._status = False
 
-    def buy_auto(self,idx):
-        market = self.df_inverse.loc[idx,'market']
+    def buy_auto(self, idx, market, ticker):
         주문최소금액 = self.df_inverse.loc[idx,'주문최소금액(USD)']
         현재가 = self.df_inverse.loc[idx,'현재가']
         보유코인합계 = self.df_inverse.loc[idx,'USDT']
         배팅가능합계 = self.df_inverse.loc[idx,'배팅가능합계(USD)']
         # 배팅가능 = self.df_inverse.loc[idx,'free(qty)']
-        ticker = self.df_inverse.loc[idx,'ticker']
-        if ticker == 'USDT':
-            return
         if self.df_set.loc['rate_short','val'] == None:
             rate_short = 0
         else:
@@ -1695,7 +1694,6 @@ class common_define():
                 symbol = ticker+'/USD'
             elif category == 'linear':
                 symbol = ticker + 'USDT'
-            print(f'{market= }, {category= }, {ticker= }, {price= }. {symbol= }')
             return float(self.ex_binance.price_to_precision(symbol=symbol,price=price))
         else:
             print('[price_to_precision] market 확인 필요')
