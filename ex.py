@@ -614,7 +614,20 @@ class FundingRateSimulator:
             '재투자 횟수': self.reinvest_count,
             '평균 펀딩비율': np.mean([h['funding_rate'] for h in self.history]) * 100
         }
+def calculate_short_pnl(entry_price, current_price, quantity):
+    pnl_coin = (entry_price - current_price) * quantity
+    pnl_usd = pnl_coin * current_price
+    return pnl_coin, pnl_usd
 
+# 예제
+entry = 0.6402
+current = 0.8241
+qty = 1458
+
+pnl_coin, pnl_usd = calculate_short_pnl(entry, current, qty)
+print(f"PNL (Coin): {pnl_coin:.8f}")
+print(f"PNL (USD): ${pnl_usd:.2f}")
+quit()
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
 # secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
 # acc_no = '64422606-03'
@@ -644,7 +657,9 @@ class FundingRateSimulator:
 #         delivery("B", 3),
 #         delivery("C", 4)
 #     )
-#
+print(1/0.33333334)
+print(1/0.5)
+quit()
 # market = 'bybit'
 market = 'binance'
 min_cont = 10
