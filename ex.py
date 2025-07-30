@@ -619,15 +619,7 @@ def calculate_short_pnl(entry_price, current_price, quantity):
     pnl_usd = pnl_coin * current_price
     return pnl_coin, pnl_usd
 
-# 예제
-entry = 0.6402
-current = 0.8241
-qty = 1458
 
-pnl_coin, pnl_usd = calculate_short_pnl(entry, current, qty)
-print(f"PNL (Coin): {pnl_coin:.8f}")
-print(f"PNL (USD): ${pnl_usd:.2f}")
-quit()
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
 # secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
 # acc_no = '64422606-03'
@@ -657,15 +649,7 @@ quit()
 #         delivery("B", 3),
 #         delivery("C", 4)
 #     )
-print(1/0.33333334)
-print(1/0.5)
-quit()
-# market = 'bybit'
-market = 'binance'
-min_cont = 10
-future_leverage = 3
-price = 1.9
-qty = 5
+
 
 # 바이낸스 API 설정
 # dt = datetime.datetime.strptime('2015-07-15','%Y-%m-%d')
@@ -693,7 +677,8 @@ qty = 5
 # res = order_open(exchange=binance_futures, market=market, category='linear', ticker=ticker, side='buy',
 #                  orderType='market', price=price, qty=qty, leverage=3)
 # id = res['id']
-
+market = 'bybit'
+ticker = 'XRP'
 if market == 'binance':
     binance_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
     binance_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
@@ -758,14 +743,16 @@ elif market == 'bybit':
     #     api_secret=api_secret,
     # )
     # price = binance.fetch_ticker(symbol=ticker+'USDT')['close']
-    balance, usdt_free, usdt_total = fetch_inverse_detail(bybit,market)
-    pprint(balance)
-    pprint(usdt_free)
-    pprint(usdt_total)
-    print('======================')
+    res = bybit.load_markets()
+
+    pprint(res.keys())
+    print('==============')
+    pprint(res[f"{ticker}/USDT"])
+    print('==============')
+    pprint(res[f"{ticker}/USDT:USDT"])
+    print('==============')
+    pprint(res[f"{ticker}/USD:{ticker}"])
     quit()
-    res= bybit.fetch_closed_orders(symbol='MANAUSDT')
-    pprint(res)
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']
     # min_amount_future = bybit.load_markets()[f'{ticker}USDT']['limits']['cost']['min']
