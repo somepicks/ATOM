@@ -620,6 +620,54 @@ def calculate_short_pnl(entry_price, current_price, quantity):
     return pnl_coin, pnl_usd
 
 
+# 첫 번째 테이블: 보유 포지션 데이터
+holdings_data = {
+    'market': ['bybit', 'bybit', 'bybit'],
+    'ticker': ['BTC', 'MANA', 'ADA'],
+    'category': ['linear', 'linear', 'linear'],
+    '평단가': [118456.2000, 0.3020, 0.7855],
+    '보유수량': [0.001, 66.900, 55.000],
+    '매수금액': [39.0, 10.0, 22.0],
+    '수수료': [0.065151, 0.011112, 0.023761],
+    '체결시간': ['2025-07-31 19:41', '2025-07-31 19:41', '2025-07-31 19:41'],
+    '체결가': [118456.2000, 0.3020, 0.7855],
+    '매수횟수': [1.0, 1.0, 1.0],
+    '레버리지': [3.0, 2.0, 2.0]
+}
+
+# 두 번째 테이블: 포지션 상세 데이터
+positions_data = {
+    'market': ['bybit', 'bybit', 'bybit', 'bybit', 'bybit', 'bybit'],
+    'ticker': ['MNT', 'LTC', 'MANA', 'ADA', 'XRP', 'BTC'],
+    '매수금액': [7.014056, 46.150369, 136.323377, 90.551076, 599.379898, 435.825861],
+    '진입수량': [18.000, 0.900, 915.900, 236.000, 572.000, 0.011],
+    '진입가': [0.778911, 102.500000, 0.297518, 0.766960, 3.136700, 118730.990909],
+    '레버리지': [2.0, 2.0, 2.0, 2.0, 3.0, 3.0],
+    '현재가': [0.7412, 106.1000, 0.2799, 0.7380, 3.0153, 115642.0000],
+    '청산가': [0.4051, 52.2800, 0.1548, 0.3893, 4.1587, 79747.7000],
+    '방향': ['long', 'long', 'long', 'long', 'short', 'long'],
+    '수익률': [-9.683033, 7.024390, -11.843418, -7.551936, 11.610929, -7.805016],
+    '수익금': [-0.678800, 3.240000, -16.136473, -6.834600, 69.440800, -33.978900]
+}
+
+# DataFrame 생성
+df_active = pd.DataFrame(holdings_data)
+df_future = pd.DataFrame(positions_data)
+
+# 인덱스 설정 (원본 데이터와 동일하게)
+df_active.index = ['bybit_BTC', 'bybit_MANA', 'bybit_ADA']
+df_future.index = ['bybit_MNT_long', 'bybit_LTC_long', 'bybit_MANA_long',
+                     'bybit_ADA_long', 'bybit_XRP_short', 'bybit_BTC_long']
+print(df_active)
+print(df_future)
+for idx, row in df_future.iterrows():
+    print(row['현재가'])
+    df_active.loc[df_active['ticker']==row['ticker'],'현재가']=row['현재가']
+    if
+print(df_active)
+print(df_future)
+quit()
+
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
 # secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
 # acc_no = '64422606-03'
@@ -678,6 +726,7 @@ def calculate_short_pnl(entry_price, current_price, quantity):
 #                  orderType='market', price=price, qty=qty, leverage=3)
 # id = res['id']
 market = 'bybit'
+# market = 'binance'
 ticker = 'XRP'
 if market == 'binance':
     binance_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
@@ -701,7 +750,13 @@ if market == 'binance':
         'options': {'position_mode': True, },
     })
     res = binance.fetch_balance(params={"type": 'delivery'})
-    markets = binance.load_markets()
+    markets = binance.fetch_tickers()
+    print("==========================")
+    print(markets.keys())
+    li = [k for k in markets.keys() if k.startswith('XRP')]
+    pprint(markets['XRP/USDT'])
+    pprint(markets['XRP/USDT']['close'])
+    quit()
     # Coin-M Perpetual 종목만 필터링
     perpetual_symbols = []
     for symbol, identity in markets.items():
@@ -742,16 +797,10 @@ elif market == 'bybit':
     #     api_key=api_key,
     #     api_secret=api_secret,
     # )
-    # price = binance.fetch_ticker(symbol=ticker+'USDT')['close']
-    res = bybit.load_markets()
+    res = bybit.fetch_tickers()
 
-    pprint(res.keys())
-    print('==============')
-    pprint(res[f"{ticker}/USDT"])
-    print('==============')
+    print(res.keys())
     pprint(res[f"{ticker}/USDT:USDT"])
-    print('==============')
-    pprint(res[f"{ticker}/USD:{ticker}"])
     quit()
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
     min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']

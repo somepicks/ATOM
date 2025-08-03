@@ -214,7 +214,7 @@ class BinanceAssetChecker:
             res = self.usdm_exchange.fetch_positions()
             dict_linear = {}
             for data in res:
-                ticker = data['symbol'][:-10]
+                ticker = 'binance_'+data['symbol'][:-10]+'_'+data['side']
                 dict_linear[ticker] = {}
                 dict_linear[ticker]['market'] = 'binance'
                 dict_linear[ticker]['ticker'] = ticker
@@ -237,15 +237,16 @@ class BinanceAssetChecker:
                     dict_linear[ticker]['수익금'] = (data['entryPrice'] - data['markPrice']) * data['contracts']
 
             df_linear = pd.DataFrame.from_dict(dict_linear, orient='index')
-            df_linear.index = 'bybit_' + df_linear['ticker'] + '_' + df_linear['방향']
+            # df_linear.index = 'bybit_' + df_linear['ticker']
         elif self.market == 'bybit':
             list_linear = self.ex_bybit.fetch_positions()
+            pprint(list_linear)
             dict_linear = {}
             for data in list_linear:
-                ticker = data['symbol'][:-10]
+                ticker = 'bybit_'+data['symbol'][:-10]+'_'+data['side']
                 dict_linear[ticker] = {}
                 dict_linear[ticker]['market'] = 'bybit'
-                dict_linear[ticker]['ticker'] = ticker
+                dict_linear[ticker]['ticker'] = data['symbol'][:-10]
                 dict_linear[ticker]['매수금액'] = data['collateral']
                 dict_linear[ticker]['진입수량'] = data['contracts']
                 dict_linear[ticker]['진입가'] = data['entryPrice']
@@ -262,7 +263,7 @@ class BinanceAssetChecker:
                         'leverage'] * 100
                     dict_linear[ticker]['수익금'] = (data['entryPrice'] - data['markPrice']) * data['contracts']
             df_linear = pd.DataFrame.from_dict(dict_linear, orient='index')
-            df_linear.index = 'bybit_' + df_linear['ticker'] + '_' + df_linear['방향']
+            # df_linear.index = 'bybit_' + df_linear['ticker']
             USDT = df_linear['매수금액'].sum()
 
         return df_linear, USDT
@@ -272,7 +273,6 @@ class BinanceAssetChecker:
 
     def get_unified_balance(self):
         balance = self.ex_bybit.fetch_balance()
-        pprint(balance)
         if balance['info']['result']['list'][0]['accountType'] == 'UNIFIED':
             # usdm_balance,USDT=self.get_usdm_futures_balance()
             tickers = self.ex_bybit.fetch_tickers()
@@ -341,7 +341,7 @@ class BinanceAssetChecker:
 
         else:
             all_assets, df = self.get_unified_balance()
-            USDT_linear, df_linear = self.get_usdm_futures_balance()
+            df_linear, USDT_linear = self.get_usdm_futures_balance()
 
         return all_assets, df, df_linear
 
@@ -354,8 +354,8 @@ def main():
     BYBIT_API_KEY = 'k3l5BpTorsRTHvPmAj'
     BYBIT_API_SECRET = 'bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc'
 
-    market = 'binance'
-    # market = 'bybit'
+    # market = 'binance'
+    market = 'bybit'
     if market == 'binance':
         API_KEY = BINANCE_API_KEY
         API_SECRET = BINANCE_API_SECRET
@@ -369,8 +369,10 @@ def main():
     # 모든 자산 정보 조회
     all_assets, df, df_linear = asset_checker.get_all_assets()
 
+    print('df')
     print(df)
     print('===================================')
+    print('df_linear')
     print(df_linear)
     print('===================================')
     print(f"총 보유 USDT: {all_assets}")
