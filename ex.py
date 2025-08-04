@@ -656,16 +656,14 @@ df_future = pd.DataFrame(positions_data)
 
 # 인덱스 설정 (원본 데이터와 동일하게)
 df_active.index = ['bybit_BTC', 'bybit_MANA', 'bybit_ADA']
-df_future.index = ['bybit_MNT_long', 'bybit_LTC_long', 'bybit_MANA_long',
-                     'bybit_ADA_long', 'bybit_XRP_short', 'bybit_BTC_long']
+df_future.index = ['bybit_MNT', 'bybit_LTC', 'bybit_MANA',
+                     'bybit_ADA', 'bybit_XRP', 'bybit_BTC']
+df_active = df_active[['평단가']]
+df_future = df_future[['진입가']]
 print(df_active)
 print(df_future)
-for idx, row in df_future.iterrows():
-    print(row['현재가'])
-    df_active.loc[df_active['ticker']==row['ticker'],'현재가']=row['현재가']
-    if
-print(df_active)
-print(df_future)
+df = pd.concat([df_active,df_future],axis=1)
+print(df)
 quit()
 
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'

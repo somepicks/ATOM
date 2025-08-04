@@ -1109,15 +1109,14 @@ class Window(QMainWindow):
     def view_chart(self,market):
         dict_duration = {'1주일':7,'1개월': 30, '2개월': 60,'3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
         self.defi = common_define(self.dict_bybit,self.dict_binance)
-        list_inverse = self.fetch_inverse_list(market)
+        list_inverse = self.defi.fetch_inverse_list(market)
         df_funding = pd.DataFrame()
-        since = datetime.datetime.now() - datetime.timedelta(days=dict_duration['3개월'])
+        since = datetime.datetime.now() - datetime.timedelta(days=dict_duration[self.QCB_chart_duration.currentText()])
         since = self.defi.datetime_to_stamp(since) * 1000  # 밀리초 곱하기
-
         df = self.defi.fetch_funding_rates(market=market,ticker= 'BTC',since= False)
         df.index = df.index // 1000
-        # btc_date_start = df.index[0]
-        btc_date_end = df.index[-1]
+        btc_date_start = df.index[0]
+        btc_date_end = df.index[-1] #최근 일
         list_out = []
         for i, ticker in enumerate(list_inverse):
             df = self.defi.fetch_funding_rates(market=market, ticker=ticker, since=since)
@@ -1127,6 +1126,7 @@ class Window(QMainWindow):
                 df_funding = pd.concat([df_funding, df], axis=1)
             else:
                 list_out.append(ticker)
+        print(df_funding)
         df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
         df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
         df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
@@ -1134,8 +1134,8 @@ class Window(QMainWindow):
 
         df_ma = pd.DataFrame()
         df_ma['단순평균'] = df_funding.mean()
-        print("단순이동평균 상위")
-        print(df_ma.sort_values('단순평균', ascending=False))
+        df_ma = df_ma.sort_values('단순평균', ascending=False)
+        print(df_ma)
         # print(f"{list_out= }")
 
         ema_values = {}
@@ -1151,8 +1151,16 @@ class Window(QMainWindow):
         # df_funding.loc['지수이동평균'] = ema_values
         df_ema = pd.DataFrame(ema_values, index=['지수이동평균'])
         df_ema = df_ema.transpose()
-        print("지수이동평균 상위")
-        print(df_ema.sort_values('지수이동평균', ascending=False))
+        df_ema = df_ema.sort_values('지수이동평균', ascending=False)
+        print(df_ema)
+        df = pd.concat([df_ma,df_ema],axis=1)
+        df['result']=(df['단순평균']+df['지수이동평균'])/2
+        df = df.sort_values('result', ascending=False)
+        print(df)
+        list_ema10 = df_ema.head(10).index.tolist()
+        list_ma10 = df_ma.head(10).index.tolist()
+        list_cross = list(set(list_ema10) & set(list_ma10)) # ema 와 ma의 상위 10개 ticker의 교집합
+        print(list_cross)
 
     def make_exchange_bybit_ccxt(self):
         api = self.df_set.loc['api_bybit','val']
@@ -1682,15 +1690,19 @@ class common_define():
             out_lately = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=None)
 
             from_time = (out_lately[0]['timestamp'] // 1000) * 1000
-            # pprint(since)
             while from_time > since:
                 from_time = from_time - 8 * 3600 * 1000 * 100  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
                 out = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=from_time)
-                from_time = (out[0]['timestamp'] // 1000) * 1000
-                out.extend(out_lately)
-                out_lately = out
-                if since == False:
+                print(f"{ticker= }    {self.stamp_to_str(from_time)}    {(out[0]['timestamp'] // 1000) * 1000}    {from_time}    {self.stamp_to_str(since)}    {since= }")
+
+                if (out[0]['timestamp'] // 1000) * 1000 == from_time:
                     break
+                else:
+                    from_time = (out[0]['timestamp'] // 1000) * 1000
+                    out.extend(out_lately)
+                    out_lately = out
+                    if since == False:
+                        break
             data = [x['fundingRate'] for x in out_lately]
             timestamps = [x['timestamp'] for x in out_lately]
             df = pd.DataFrame({
