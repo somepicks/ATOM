@@ -4,9 +4,9 @@ import sqlite3
 import pandas as pd
 from PyQt5.QtWidgets import (QMainWindow, QGridLayout, QLineEdit, QLabel, QPushButton, QWidget, QVBoxLayout,
                              QHBoxLayout,
-                             QTableWidget, QSplitter, QApplication, QCheckBox, QTextEdit, QTableWidgetItem, QHeaderView,
+                             QTableWidget, QSplitter, QApplication, QCheckBox, QTableWidgetItem, QHeaderView,
                              QComboBox, QDialog, QMessageBox)
-from PyQt5.QtCore import Qt,QThread,pyqtSlot,QTimer,pyqtSignal,QWaitCondition,QMutex
+from PyQt5.QtCore import Qt,QThread,pyqtSlot,QTimer,pyqtSignal,QWaitCondition
 from PyQt5.QtTest import QTest
 import time
 import uuid
@@ -19,6 +19,8 @@ import matplotlib.dates as mdates
 import numpy as np
 import talib
 from pprint import pprint
+
+
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -225,7 +227,7 @@ class do_trade(QThread):
         진입수량 = (100 - (fee * 레버리지)) / 100 * 배팅금액 / 주문가
         진입수량 = self.common.amount_to_precision(market=market, category=category,ticker=ticker, amount=진입수량)
         df = df_inverse.loc[df_inverse['market']==market]
-        보유현금 = df['free(USDT)'].tolist()[0]
+        보유현금 = df[df['ticker']=='USDT']['free(qty)'].values[0] # ticker가 USDT인 행의 free(qty)컬럼 첫번째 값
         매수금액 = (진입수량*주문가)+(진입수량*주문가)*0.001 #수수료 포함
         if 보유현금 < 매수금액:
             print(f"USDT 부족 - 보유한 USDT: {보유현금}, 필요한 USDT: {매수금액}  |  {market= }  {ticker= }   {배팅금액= }  {rate_spot= }")
@@ -263,6 +265,7 @@ class do_trade(QThread):
         else:
             self.df_open = df_open.copy()
         self.qt_open.emit(self.df_open)
+        self.fetch_balance()
     def change_set(self,df_set):
         self.df_set = df_set
     def chegyeol_buy(self, id):
@@ -288,10 +291,10 @@ class do_trade(QThread):
             self.df_closed.loc[id, '체결수량'] = dict_chegyeol['체결수량']
             self.df_closed.loc[id, '상태'] = '체결완료'
             self.save_df.emit(self.df_closed,'closed')
-            # if market == 'bybit':
-            #     pass
-            # elif market == 'binance' and category == 'spot':
-            #     self.common.transfer_to(market, ticker, dict_chegyeol['체결수량'],'spot','inverse')
+            if market == 'bybit':
+                pass
+            elif market == 'binance' and category == 'spot':
+                self.common.transfer_to(market, ticker, dict_chegyeol['체결수량'],'spot','inverse')
         elif dict_chegyeol['체결'] == '주문취소':
             print(f'주문취소 - {market= } | {ticker= } | {category } | {qty= } | {id= }')
             self.df_open.drop(index=id, inplace=True)
@@ -686,6 +689,7 @@ class do_trade(QThread):
                     dict_info = {'체결': True, '체결가': 진입가, '체결수량':체결수량,'체결금액':체결금액, '수수료':수수료,
                                  '체결시간':체결시간, 'id':id,'side':ord_closed.get('side',None)}
                     print(f"fetch_order_체결완료({market}) : {category= } - {ticker= } | {dict_info} ")
+                    self.fetch_balance()
                     return dict_info
                 else:
                     print(f'fetch_order 상태확인 필요  {market= }, {ticker= }, {id= }, {category= }, {qty= }')
@@ -763,7 +767,7 @@ class Window(QMainWindow):
         self.QL_fee_sum = QLabel()
         self.QL_buy_sum = QLabel()
         self.QL_time = QLabel()
-        self.QL_repeat_per = QLineEdit()
+        # self.QL_repeat_per = QLineEdit()
         self.QL_rate_spot = QLineEdit()
         self.QL_rate_short = QLineEdit()
         self.QL_rate_spot.setText(str(self.df_set.loc['rate_spot', 'val']))
@@ -793,7 +797,7 @@ class Window(QMainWindow):
             QLabel('누적수수료'):self.QL_fee_sum,
             QLabel('누적매수'):self.QL_buy_sum,
             QLabel('펀딩비시간'):self.QL_time,
-            QLabel('재투자비율(%)'):self.QL_repeat_per,
+            # QLabel('재투자비율(%)'):self.QL_repeat_per,
             QLabel('현물주문(%)'):self.QL_rate_spot,
             QLabel('인버스주문(%)'):self.QL_rate_short,
             QLabel('ticker(현물)'):self.QL_manual_ticker,
@@ -1038,7 +1042,7 @@ class Window(QMainWindow):
             # df['현재가'] = df['현재가'].apply(lambda int_num: "{:,}".format(int_num))
             # df['합계(USD)'] = df['합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
             # df['배팅가능합계(USD)'] = df['배팅가능합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
-            df = df[['market', 'ticker', 'free(qty)', 'used(qty)', 'total(qty)', '현재가', '배팅가능합계(USD)', '주문최소금액(USD)','합계(USD)']]
+            df = df[['market', 'ticker','합계(USD)', 'free(qty)', 'used(qty)', 'total(qty)', '현재가', '배팅가능합계(USD)', '주문최소금액(USD)']]
             self.set_table_make(self.QT_trade_inverse, df)
             self.df_qtable_have = df.copy()
 
@@ -1064,7 +1068,6 @@ class Window(QMainWindow):
         # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를
         # 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위아래로 붙임
         if not df.empty:
-            df = df[['market', 'ticker', '매수금액', '보유수량', '수익률', '수익금', '평단가','현재가', '방향', '레버리지','매수횟수']]
 
             self.set_table_make(self.QT_trade_linear, df)
         else:
@@ -1122,45 +1125,60 @@ class Window(QMainWindow):
             df = self.defi.fetch_funding_rates(market=market, ticker=ticker, since=since)
             df.index = df.index // 1000
             print(df)  # print를 안하면 데이터에 Nan 이 섞여서 출력됨
+            # 중복 인덱스가 있는지 확인
+            print(f"{ticker}: df_funding 중복 인덱스:", df_funding.index.duplicated().any())
+            print(f"df 중복 인덱스:", df.index.duplicated().any())
+
+            # 중복 제거 후 결합
+            df_funding = df_funding[~df_funding.index.duplicated(keep='first')]
+            df = df[~df.index.duplicated(keep='first')]
             if df.index[-1] == btc_date_end:
                 df_funding = pd.concat([df_funding, df], axis=1)
             else:
                 list_out.append(ticker)
-        print(df_funding)
+        df_funding = df_funding.fillna(0) # nan 값 0으로 변환
+        df_funding = df_funding[df_funding.index >= (since//1000)] #데이터프레임은 밀리초가 아니기때문에 /1000
         df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
         df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
         df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
         df_funding.set_index('날짜', inplace=True)
-
-        df_ma = pd.DataFrame()
-        df_ma['단순평균'] = df_funding.mean()
-        df_ma = df_ma.sort_values('단순평균', ascending=False)
-        print(df_ma)
-        # print(f"{list_out= }")
-
-        ema_values = {}
-        for col in df_funding.columns.tolist():
-            ema_values[col] = df_funding[col].ewm(span=(len(df_funding)/2), adjust=False).mean().iloc[-1]
-
-        # 비숫자 열에 대해서는 '지수이동평균' 라벨 추가
-        for col in df_funding.columns:
-            if col not in df_funding.columns.tolist():
-                ema_values[col] = '지수이동평균'
-
-        # 한 줄로 EMA 행 추가
-        # df_funding.loc['지수이동평균'] = ema_values
-        df_ema = pd.DataFrame(ema_values, index=['지수이동평균'])
-        df_ema = df_ema.transpose()
-        df_ema = df_ema.sort_values('지수이동평균', ascending=False)
-        print(df_ema)
-        df = pd.concat([df_ma,df_ema],axis=1)
-        df['result']=(df['단순평균']+df['지수이동평균'])/2
-        df = df.sort_values('result', ascending=False)
-        print(df)
-        list_ema10 = df_ema.head(10).index.tolist()
-        list_ma10 = df_ma.head(10).index.tolist()
-        list_cross = list(set(list_ema10) & set(list_ma10)) # ema 와 ma의 상위 10개 ticker의 교집합
-        print(list_cross)
+        has_duplicates = df.index.duplicated().any()
+        if has_duplicates:
+            print(f"중복 인덱스 존재 여부: {has_duplicates}")
+            duplicate_indices = df.index[df.index.duplicated()].unique()
+            print("중복된 인덱스들:")
+            print(duplicate_indices)
+        else:
+            df_funding.to_sql('funding_rate', self.conn, if_exists='replace')
+            df_ma = pd.DataFrame()
+            df_ma['단순평균'] = df_funding.mean()
+            df_ma = df_ma.sort_values('단순평균', ascending=False)
+            print(df_ma)
+            # print(f"{list_out= }")
+            ema_values = {}
+            for col in df_funding.columns.tolist():
+                ema_values[col] = df_funding[col].ewm(span=(len(df_funding)/2), adjust=False).mean().iloc[-1]
+            # 비숫자 열에 대해서는 '지수이동평균' 라벨 추가
+            for col in df_funding.columns:
+                if col not in df_funding.columns.tolist():
+                    ema_values[col] = '지수이동평균'
+            # 한 줄로 EMA 행 추가
+            # df_funding.loc['지수이동평균'] = ema_values
+            df_ema = pd.DataFrame(ema_values, index=['지수이동평균'])
+            df_ema = df_ema.transpose()
+            df_ema = df_ema.sort_values('지수이동평균', ascending=False)
+            print(df_ema)
+            df = pd.concat([df_ma,df_ema],axis=1)
+            df['result']=(df['단순평균']+df['지수이동평균'])/2
+            df = df.sort_values('result', ascending=False)
+            print(df)
+            list_ema10 = df_ema.head(10).index.tolist()
+            list_ma10 = df_ma.head(10).index.tolist()
+            list_cross = list(set(list_ema10) & set(list_ma10)) # ema 와 ma의 상위 10개 ticker의 교집합
+            print(f"ema 와 ma의 상위 10개 ticker의 교집합 = {list_cross}")
+            coin_lists = [list_ema10, list_ma10, list_cross]
+            titles = ['지수이동평균', '단순평균', '지수이동평균&단순평균_교차']
+            self.plot_funding_rates(df_funding,coin_lists,titles)
 
     def make_exchange_bybit_ccxt(self):
         api = self.df_set.loc['api_bybit','val']
@@ -1276,6 +1294,60 @@ class Window(QMainWindow):
             except ValueError:
                 pass
         return df
+
+    def plot_funding_rates(self, df, coin_lists, titles):
+        # 한글 폰트 설정 - 맑은고딕
+        plt.rcParams['font.family'] = 'Malgun Gothic'
+        plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
+
+        # 3개 서브플롯 생성 (1행 3열)
+        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+        fig.suptitle('암호화폐 펀딩비 분석', fontsize=16,)
+
+        colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
+
+        for i, (coin_list, title) in enumerate(zip(coin_lists, titles)):
+            ax = axes[i]
+
+            # 해당 리스트의 티커들이 데이터프레임에 있는지 확인하고 필터링
+            available_coins = [coin for coin in coin_list if coin in df.columns]
+
+            if not available_coins:
+                ax.text(0.5, 0.5, f'데이터 없음\n({title})',
+                        ha='center', va='center', transform=ax.transAxes, fontsize=12)
+                ax.set_title(title)
+                continue
+
+            # 데이터 추출 및 플롯
+            subset_df = df[available_coins].dropna(how='all')
+
+            for j, coin in enumerate(available_coins):
+                if coin in subset_df.columns:
+                    # NaN이 아닌 데이터만 플롯
+                    valid_data = subset_df[coin].dropna()
+                    if not valid_data.empty:
+                        ax.plot(valid_data.index, valid_data.values,
+                                label=coin, color=colors[j % len(colors)],
+                                linewidth=1.5, alpha=0.8)
+
+            # 그래프 설정
+            ax.set_title(title, fontsize=14, fontweight='bold')
+            ax.set_xlabel('날짜', fontsize=12)
+            ax.set_ylabel('펀딩비 (%)', fontsize=12)
+            ax.grid(True, alpha=0.3)
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+            # x축 날짜 포맷 설정
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
+            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+
+            # y축에 0선 강조
+            ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8, alpha=0.7)
+
+        plt.tight_layout()
+        plt.show()
+
 class common_define():
     def __init__(self,dict_bybit, dict_binance):
         self.dict_bybit = dict_bybit
@@ -1693,7 +1765,6 @@ class common_define():
         if market == 'bybit':
             symbol = ticker + 'USD'
             out_lately = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=None)
-
             from_time = (out_lately[0]['timestamp'] // 1000) * 1000
             while from_time > since:
                 from_time = from_time - (8 * 3600 * 1000 * 201 ) # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
@@ -1718,14 +1789,22 @@ class common_define():
             symbol = ticker + 'USD_PERP'
             out_lately = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=None)
             from_time = (out_lately[0]['timestamp'] // 1000) * 1000
-            while from_time > since:
-                from_time = from_time - (8 * 3600 * 1000 * 201)  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+            start_time = (out_lately[0]['timestamp'] // 1000) * 1000
+            while start_time > since:
                 out = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=from_time)
-                from_time = (out[0]['timestamp'] // 1000) * 1000
-                out.extend(out_lately)
-                out_lately = out
-                if since == False:
+                if not out:
                     break
+                elif from_time < (out[0]['timestamp'] // 1000) * 1000:
+                    lately_time = (out_lately[0]['timestamp'] // 1000) * 1000
+                    out = [x for x in out if x['timestamp'] < lately_time]
+                    out.extend(out_lately)
+                    out_lately = out
+                    break
+                else:
+                    start_time = (out[0]['timestamp'] // 1000) * 1000
+                    from_time = start_time - ( 8 * 3600 * 1000 * (len(out_lately)))  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+                    out.extend(out_lately)
+                    out_lately = out
             data = [x['fundingRate'] for x in out_lately]
             timestamps = [x['timestamp'] for x in out_lately]
             df = pd.DataFrame({
