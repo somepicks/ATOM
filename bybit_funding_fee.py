@@ -1188,10 +1188,13 @@ class Window(QMainWindow):
                 )
                 active = True
             except:
-                print("에러 - make_exchange_bybit_ccxt ")
                 bybit = None
                 session = None
                 active = False
+                print("바이비트 API 연결 에러")
+                self.text_message('에러', "바이비트 API 연결에 문제가 있습니다. \n api가 유효한지 ip주소가 등록되어있는지 \n"
+                                        "현재 시간이 동기화 되었는지 확인해주세요")
+
         return {'active':active,'exchange':bybit, 'session':session}
 
     def make_exchange_binance(self):
@@ -1232,7 +1235,9 @@ class Window(QMainWindow):
             except:
                 print("바이낸스 API 연결 에러",
                       '''binance {"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}''')
-                self.text_message('에러',"바이낸스 API 연결에 문제가 있습니다. \n api가 유효한지 ip주소가 등록되어있는지 확인해주세요")
+                self.text_message('에러',"바이낸스 API 연결에 문제가 있습니다. \n"
+                                       "api가 유효한지 ip주소가 등록되어있는지 \n"
+                                        "현재 시간이 동기화 되었는지 확인해주세요")
 
         return {'active':active, 'spot':spot, 'linear':linear,'coinm':coinm}
 
@@ -1691,11 +1696,9 @@ class common_define():
 
             from_time = (out_lately[0]['timestamp'] // 1000) * 1000
             while from_time > since:
-                from_time = from_time - 8 * 3600 * 1000 * 100  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+                from_time = from_time - (8 * 3600 * 1000 * 201 ) # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
                 out = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=from_time)
-                print(f"{ticker= }    {self.stamp_to_str(from_time)}    {(out[0]['timestamp'] // 1000) * 1000}    {from_time}    {self.stamp_to_str(since)}    {since= }")
-
-                if (out[0]['timestamp'] // 1000) * 1000 == from_time:
+                if not out:
                     break
                 else:
                     from_time = (out[0]['timestamp'] // 1000) * 1000
@@ -1716,7 +1719,7 @@ class common_define():
             out_lately = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=None)
             from_time = (out_lately[0]['timestamp'] // 1000) * 1000
             while from_time > since:
-                from_time = from_time - 8 * 3600 * 1000 * 100  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+                from_time = from_time - (8 * 3600 * 1000 * 201)  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
                 out = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=from_time)
                 from_time = (out[0]['timestamp'] // 1000) * 1000
                 out.extend(out_lately)

@@ -620,51 +620,51 @@ def calculate_short_pnl(entry_price, current_price, quantity):
     return pnl_coin, pnl_usd
 
 
-# 첫 번째 테이블: 보유 포지션 데이터
-holdings_data = {
-    'market': ['bybit', 'bybit', 'bybit'],
-    'ticker': ['BTC', 'MANA', 'ADA'],
-    'category': ['linear', 'linear', 'linear'],
-    '평단가': [118456.2000, 0.3020, 0.7855],
-    '보유수량': [0.001, 66.900, 55.000],
-    '매수금액': [39.0, 10.0, 22.0],
-    '수수료': [0.065151, 0.011112, 0.023761],
-    '체결시간': ['2025-07-31 19:41', '2025-07-31 19:41', '2025-07-31 19:41'],
-    '체결가': [118456.2000, 0.3020, 0.7855],
-    '매수횟수': [1.0, 1.0, 1.0],
-    '레버리지': [3.0, 2.0, 2.0]
-}
-
-# 두 번째 테이블: 포지션 상세 데이터
-positions_data = {
-    'market': ['bybit', 'bybit', 'bybit', 'bybit', 'bybit', 'bybit'],
-    'ticker': ['MNT', 'LTC', 'MANA', 'ADA', 'XRP', 'BTC'],
-    '매수금액': [7.014056, 46.150369, 136.323377, 90.551076, 599.379898, 435.825861],
-    '진입수량': [18.000, 0.900, 915.900, 236.000, 572.000, 0.011],
-    '진입가': [0.778911, 102.500000, 0.297518, 0.766960, 3.136700, 118730.990909],
-    '레버리지': [2.0, 2.0, 2.0, 2.0, 3.0, 3.0],
-    '현재가': [0.7412, 106.1000, 0.2799, 0.7380, 3.0153, 115642.0000],
-    '청산가': [0.4051, 52.2800, 0.1548, 0.3893, 4.1587, 79747.7000],
-    '방향': ['long', 'long', 'long', 'long', 'short', 'long'],
-    '수익률': [-9.683033, 7.024390, -11.843418, -7.551936, 11.610929, -7.805016],
-    '수익금': [-0.678800, 3.240000, -16.136473, -6.834600, 69.440800, -33.978900]
-}
-
-# DataFrame 생성
-df_active = pd.DataFrame(holdings_data)
-df_future = pd.DataFrame(positions_data)
-
-# 인덱스 설정 (원본 데이터와 동일하게)
-df_active.index = ['bybit_BTC', 'bybit_MANA', 'bybit_ADA']
-df_future.index = ['bybit_MNT', 'bybit_LTC', 'bybit_MANA',
-                     'bybit_ADA', 'bybit_XRP', 'bybit_BTC']
-df_active = df_active[['평단가']]
-df_future = df_future[['진입가']]
-print(df_active)
-print(df_future)
-df = pd.concat([df_active,df_future],axis=1)
-print(df)
-quit()
+# # 첫 번째 테이블: 보유 포지션 데이터
+# holdings_data = {
+#     'market': ['bybit', 'bybit', 'bybit'],
+#     'ticker': ['BTC', 'MANA', 'ADA'],
+#     'category': ['linear', 'linear', 'linear'],
+#     '평단가': [118456.2000, 0.3020, 0.7855],
+#     '보유수량': [0.001, 66.900, 55.000],
+#     '매수금액': [39.0, 10.0, 22.0],
+#     '수수료': [0.065151, 0.011112, 0.023761],
+#     '체결시간': ['2025-07-31 19:41', '2025-07-31 19:41', '2025-07-31 19:41'],
+#     '체결가': [118456.2000, 0.3020, 0.7855],
+#     '매수횟수': [1.0, 1.0, 1.0],
+#     '레버리지': [3.0, 2.0, 2.0]
+# }
+#
+# # 두 번째 테이블: 포지션 상세 데이터
+# positions_data = {
+#     'market': ['bybit', 'bybit', 'bybit', 'bybit', 'bybit', 'bybit'],
+#     'ticker': ['MNT', 'LTC', 'MANA', 'ADA', 'XRP', 'BTC'],
+#     '매수금액': [7.014056, 46.150369, 136.323377, 90.551076, 599.379898, 435.825861],
+#     '진입수량': [18.000, 0.900, 915.900, 236.000, 572.000, 0.011],
+#     '진입가': [0.778911, 102.500000, 0.297518, 0.766960, 3.136700, 118730.990909],
+#     '레버리지': [2.0, 2.0, 2.0, 2.0, 3.0, 3.0],
+#     '현재가': [0.7412, 106.1000, 0.2799, 0.7380, 3.0153, 115642.0000],
+#     '청산가': [0.4051, 52.2800, 0.1548, 0.3893, 4.1587, 79747.7000],
+#     '방향': ['long', 'long', 'long', 'long', 'short', 'long'],
+#     '수익률': [-9.683033, 7.024390, -11.843418, -7.551936, 11.610929, -7.805016],
+#     '수익금': [-0.678800, 3.240000, -16.136473, -6.834600, 69.440800, -33.978900]
+# }
+#
+# # DataFrame 생성
+# df_active = pd.DataFrame(holdings_data)
+# df_future = pd.DataFrame(positions_data)
+#
+# # 인덱스 설정 (원본 데이터와 동일하게)
+# df_active.index = ['bybit_BTC', 'bybit_MANA', 'bybit_ADA']
+# df_future.index = ['bybit_MNT', 'bybit_LTC', 'bybit_MANA',
+#                      'bybit_ADA', 'bybit_XRP', 'bybit_BTC']
+# df_active = df_active[['평단가']]
+# df_future = df_future[['진입가']]
+# print(df_active)
+# print(df_future)
+# df = pd.concat([df_active,df_future],axis=1)
+# print(df)
+# quit()
 
 # api = 'PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I'
 # secret = 'l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk='
@@ -795,26 +795,59 @@ elif market == 'bybit':
     #     api_key=api_key,
     #     api_secret=api_secret,
     # )
-    res = bybit.fetch_tickers()
-
-    print(res.keys())
-    pprint(res[f"{ticker}/USDT:USDT"])
-    quit()
-    min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
-    min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']
+    # res = bybit.fetch_tickers()
+    #
+    # print(res.keys())
+    # pprint(res[f"{ticker}/USDT:USDT"])
+    # quit()
+    # min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']['limits']['amount']['min']
+    # min_amount_future = bybit.load_markets()[f'{ticker}/USDT:USDT']
     # min_amount_future = bybit.load_markets()[f'{ticker}USDT']['limits']['cost']['min']
+    dict_duration = {'1주일': 7, '1개월': 30, '2개월': 60, '3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
+    since = datetime.datetime.now() - datetime.timedelta(days=dict_duration['1년'])
+    since = datetime_to_stamp(since) * 1000  # 밀리초 곱하기
+    ticker = 'BTC'
     symbol = ticker+'USD'
-    res = bybit.fetch_funding_rate_history(symbol=symbol,since=None)
-    pprint(res)
-    print('========================================')
-    pprint(bybit.fetch_positions())
-    min_amount_future = min_amount_future * price
-    res = bybit.fetch_balance()
-    used_inverse = res[ticker]['free']
-    used_usdt = price * used_inverse
+    out_lately = bybit.fetch_funding_rate_history(symbol=symbol,since=None)
+    # pprint(out_lately)
+    from_time = (out_lately[0]['timestamp'] // 1000) * 1000
+    df = pd.DataFrame(out_lately)
+    print(df)
+    print('=======================================================================')
+    print(df.loc[df.index[-1],'timestamp']-df.loc[df.index[0],'timestamp'])
+    print(5731200000/(8 * 3600*1000))
 
-res=fetch_order(exchange=binance,market='binance',ticker='MANA',id='13096869018',category='linear',qty=123)
-pprint(res)
+    while from_time > since:
+        # from_time = from_time - 5731200000  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+        from_time = from_time - (8 * 3600*1000*201)  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+        # from_time = from_time - 5731200000+(8 * 3600*1000)  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+        out = bybit.fetch_funding_rate_history(symbol=symbol,since=from_time)
+#         pprint(out)
+        df = pd.DataFrame(out)
+        print(df)
+        # from_time = (out[0]['timestamp'] // 1000) * 1000
+        print('========================================')
+        if not out:
+            break
+        else:
+            from_time = (out[0]['timestamp'] // 1000) * 1000
+            out.extend(out_lately)
+            out_lately = out
+            if since == False:
+                break
+    data = [x['fundingRate'] for x in out_lately]
+    timestamps = [x['timestamp'] for x in out_lately]
+    df = pd.DataFrame({
+        f'{ticker}': data,
+        '날짜': timestamps
+    })
+    df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
+    df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
+    df['날짜'] = df['날짜'].dt.tz_localize(None)
+    df.set_index('날짜', inplace=True)
+    df.to_sql('test',con=sqlite3.connect('bt.db'),if_exists='replace')
+    print(df)
+    quit()
 quit()
 import pandas as pd
 dict_duration = {'1주일':7,'1개월': 30, '2개월': 60,'3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
