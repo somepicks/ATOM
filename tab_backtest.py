@@ -453,7 +453,8 @@ class Window(QWidget):
                         ohlcv = []
                         total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'],ohlcv=ohlcv,stamp_date_old=start_time,
                                                    ticker_full_name=ticker,ticker=ticker,bong=None,bong_detail=bong)
-                        df_new = common_def.bybit_list_to_df(total_data)
+                        df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+                        df_new = common_def.stamp_to_df(df_new)
                         df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
                     else:
                         df_old.index = pd.to_datetime(df_old.index)  # datime형태로 변환
@@ -469,7 +470,8 @@ class Window(QWidget):
                         start_time = start_time//1000
                         total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'],ohlcv=ohlcv,stamp_date_old=start_time,
                                                    ticker_full_name=ticker,ticker=ticker,bong=None,bong_detail=bong)
-                        df_new = common_def.bybit_list_to_df(total_data)
+                        df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+                        df_new = common_def.stamp_to_df(df_new)
                         if df_old.index[-1] == df_new.index[0]:
                             df_old.drop(index=df_old.index[-1],inplace=True)
                         df = pd.concat([df_old, df_new])
@@ -482,18 +484,26 @@ class Window(QWidget):
                                                             stamp_date_old=start_time,
                                                             ticker_full_name=ticker, ticker=ticker, bong=None,
                                                             bong_detail=bong)
-                    df_new = common_def.bybit_list_to_df(total_data)
+                    df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+                    df_new = common_def.stamp_to_df(df_new)
                     df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
             else: # 펀딩비 데이터 저장
+                print('funding rate 조회')
                 list_inverse = common_def.fetch_inverse_list(market,self.dict_ex)
                 df_funding = pd.DataFrame()
-                df = self.defi.fetch_funding_rates(market=market, ticker='BTC', since=False)
+                since = datetime.datetime.now() - datetime.timedelta(days=365*3)
+                since = common_def.datetime_to_stamp(since) * 1000  # 밀리초 곱하기
+                df = common_def.fetch_funding_rates(market=market, ticker='BTC', since=False)
                 df.index = df.index // 1000
                 btc_date_end = df.index[-1]  # 최근 일
                 list_out = []
                 for i, ticker in enumerate(list_inverse):
-                    df = self.defi.fetch_funding_rates(market=market, ticker=ticker, since=since)
+                    df = common_def.fetch_funding_rates(market=market, ticker=ticker, since=since)
                     df.index = df.index // 1000
+                    print(df)  # print를 안하면 데이터에 Nan 이 섞여서 출력됨
+                    # 중복 인덱스가 있는지 확인
+                    print(f"{ticker}: df_funding 중복 인덱스:", df_funding.index.duplicated().any())
+                    print(f"df 중복 인덱스:", df.index.duplicated().any())
 
                     # 중복 제거 후 결합
                     df_funding = df_funding[~df_funding.index.duplicated(keep='first')]
@@ -516,10 +526,6 @@ class Window(QWidget):
                     print(duplicate_indices)
                 else:
                     df_funding.to_sql('funding_rate', self.conn, if_exists='replace')
-                    df_ma = pd.DataFrame()
-                    df_ma['단순평균'] = df_funding.mean()
-                    df_ma = df_ma.sort_values('단순평균', ascending=False)
-                    print(df_ma)
 
             list_table.insert(0, '전체')
             self.QCB_ticker.clear()

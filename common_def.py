@@ -211,8 +211,8 @@ def get_kis_ohlcv(market, ohlcv):
     df.index.name = "날짜"
     df = df[::-1]  # 거꾸로 뒤집기
     return df
-def bybit_list_to_df(list_data):
-    df = pd.DataFrame(list_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+def stamp_to_df(df):
+    # df = pd.DataFrame(list_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
     df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
     df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
     df['날짜'] = df['날짜'].dt.tz_localize(None)
@@ -245,7 +245,8 @@ def get_bybit_ohlcv(ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, b
                 print(f' {stamp_date_old=}, {ticker_full_name=}, {ticker=}')
                 raise '[get_bybit_ohlcv] 조회에러'
 
-def get_bybit_funding_rate(market,market,ticker,since):
+
+def fetch_funding_rates(market, ticker, since):
     if market == 'bybit':
         symbol = ticker + 'USD'
         out_lately = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=None)
@@ -839,10 +840,15 @@ class CodeEditor(QTextEdit):
         #     self.setTextCursor(cursor)
         else:
             super(CodeEditor, self).keyPressEvent(event)
-
+if __name__ == "__main__":
 # d1 = datetime.datetime.now().date()
 # conn_DB = sqlite3.connect('DB/DB_futopt.db')
 # df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_DB).set_index('날짜')
 # conn_DB.close()
 # d2 = datetime.date(2025,3,13)
 # res = check_holiday(df_holiday,d2)
+    ex,pybit = make_exchange_bybit()
+    dict_ex = {'bybit':ex}
+    market = 'bybit'
+    ticker = 'XLM'
+    get_bybit_funding_rate(market,ticker,dict_ex)
