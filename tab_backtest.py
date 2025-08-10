@@ -438,42 +438,88 @@ class Window(QWidget):
             list_table = []
         cursor.close()
         # now_day = datetime.datetime.now().date()
-
+        # 펀딩비 구하고자 할 경우 ticker = fungding
         if ticker == '':  # 티커가 명시되어 있지 않을 경우
             raise Exception('ticker 확인 필요')
         if market == 'bybit':
             bong = '1분봉'
-            if ticker in list_table:
-                df_old = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn_DB).set_index('날짜')
-                if df_old.empty:
-                    start_time = self.exchange.parse8601(f'2020-01-01T00:00:00Z')
-                    df_new = self.get_db_bybit(ticker, bong, start_time)
-                    df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
+            if not ticker == 'funding':
+                if ticker in list_table:
+                    df_old = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn_DB).set_index('날짜')
+                    if df_old.empty:
+                        start_time = self.dict_ex['bybit'].parse8601(f'2020-01-01T00:00:00Z')
+                        start_time = start_time // 1000  # 초로 변환 후 인자 전달
+                        # df_new = self.get_db_bybit(ticker, bong, start_time)
+                        ohlcv = []
+                        total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'],ohlcv=ohlcv,stamp_date_old=start_time,
+                                                   ticker_full_name=ticker,ticker=ticker,bong=None,bong_detail=bong)
+                        df_new = common_def.bybit_list_to_df(total_data)
+                        df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
+                    else:
+                        df_old.index = pd.to_datetime(df_old.index)  # datime형태로 변환
+                        last = df_old.index[-1] + pd.DateOffset(hours=-9)
+                        # df_old.drop(index=df_old.index[-1], inplace=True)
+                        last_day = str(last)[:10]
+                        last_time = str(last)[11:]
+                        start_time = self.dict_ex['bybit'].parse8601(f'{last_day}T{last_time}Z')
+                        # df_new = self.get_db_bybit(ticker, bong, start_time)
+
+                        # 위에랑 데이터 비교
+                        ohlcv = []
+                        start_time = start_time//1000
+                        total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'],ohlcv=ohlcv,stamp_date_old=start_time,
+                                                   ticker_full_name=ticker,ticker=ticker,bong=None,bong_detail=bong)
+                        df_new = common_def.bybit_list_to_df(total_data)
+                        if df_old.index[-1] == df_new.index[0]:
+                            df_old.drop(index=df_old.index[-1],inplace=True)
+                        df = pd.concat([df_old, df_new])
+                        df.to_sql(ticker, self.conn_DB, if_exists='replace')
                 else:
-                    print(df_old)
-                    df_old.index = pd.to_datetime(df_old.index)  # datime형태로 변환
-                    last = df_old.index[-1] + pd.DateOffset(hours=-9)
-                    # df_old.drop(index=df_old.index[-1], inplace=True)
-                    last_day = str(last)[:10]
-                    last_time = str(last)[11:]
-                    start_time = self.exchange.parse8601(f'{last_day}T{last_time}Z')
-                    df_new = self.get_db_bybit(ticker, bong, start_time)
-                    print(df_new)
-                    quit()
-                    df = pd.concat([df_old, df_new])
-                    df.to_sql(ticker, self.conn_DB, if_exists='replace')
-            else:
-                start_time = self.exchange.parse8601(f'2020-01-01T00:00:00Z')
-                # end_time = self.exchange.milliseconds()  # 현재 시간
-                df_new = self.get_db_bybit(ticker, bong, start_time)
-                df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
-            # raise
-            # cursor.close()
-            # self.conn_DB.close()
-            # print(table_list)
-            # for i, t in enumerate(table_list):
-            #     table_list[i] = str(t)[:t.index('_')]
-            # table_list = list(set(table_list))
+                    start_time = self.dict_ex['bybit'].parse8601(f'2020-01-01T00:00:00Z') #밀리초로 반환
+                    start_time = start_time//1000 #초로 변환 후 인자 전달
+                    ohlcv = []
+                    total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'], ohlcv=ohlcv,
+                                                            stamp_date_old=start_time,
+                                                            ticker_full_name=ticker, ticker=ticker, bong=None,
+                                                            bong_detail=bong)
+                    df_new = common_def.bybit_list_to_df(total_data)
+                    df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
+            else: # 펀딩비 데이터 저장
+                list_inverse = common_def.fetch_inverse_list(market,self.dict_ex)
+                df_funding = pd.DataFrame()
+                df = self.defi.fetch_funding_rates(market=market, ticker='BTC', since=False)
+                df.index = df.index // 1000
+                btc_date_end = df.index[-1]  # 최근 일
+                list_out = []
+                for i, ticker in enumerate(list_inverse):
+                    df = self.defi.fetch_funding_rates(market=market, ticker=ticker, since=since)
+                    df.index = df.index // 1000
+
+                    # 중복 제거 후 결합
+                    df_funding = df_funding[~df_funding.index.duplicated(keep='first')]
+                    df = df[~df.index.duplicated(keep='first')]
+                    if df.index[-1] == btc_date_end:
+                        df_funding = pd.concat([df_funding, df], axis=1)
+                    else:
+                        list_out.append(ticker)
+                df_funding = df_funding.fillna(0)  # nan 값 0으로 변환
+                df_funding = df_funding[df_funding.index >= (since // 1000)]  # 데이터프레임은 밀리초가 아니기때문에 /1000
+                df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
+                df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
+                df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
+                df_funding.set_index('날짜', inplace=True)
+                has_duplicates = df.index.duplicated().any()
+                if has_duplicates:
+                    print(f"중복 인덱스 존재 여부: {has_duplicates}")
+                    duplicate_indices = df.index[df.index.duplicated()].unique()
+                    print("중복된 인덱스들:")
+                    print(duplicate_indices)
+                else:
+                    df_funding.to_sql('funding_rate', self.conn, if_exists='replace')
+                    df_ma = pd.DataFrame()
+                    df_ma['단순평균'] = df_funding.mean()
+                    df_ma = df_ma.sort_values('단순평균', ascending=False)
+                    print(df_ma)
 
             list_table.insert(0, '전체')
             self.QCB_ticker.clear()
@@ -490,7 +536,7 @@ class Window(QWidget):
         else:
             raise print('데이터를 저장 할 시장을 선택해주세요.')
 
-        print('DB저장 완료')
+        print(f'{common_def.red(ticker)}: DB저장 완료')
 
     def save_DB_CYBOS(self, market, ticker, list_table):
         import win32com.client
@@ -754,7 +800,9 @@ class Window(QWidget):
         elif market == 'bybit':
             self.QCB_bong.setCurrentText('4시간봉')
             self.QCB_bong_detail.setCurrentText('1분봉')
-
+        elif market == 'binance':
+            self.QCB_bong.setCurrentText('4시간봉')
+            self.QCB_bong_detail.setCurrentText('1분봉')
     def select_bong(self):
         bong = self.QCB_bong.currentText()
         new_text = f"봉 = {{{bong}:10}}"
@@ -771,8 +819,13 @@ class Window(QWidget):
         list_stg_sell = []
 
         conn_stg = sqlite3.connect('DB/strategy.db')
+        self.dict_ex={'active':False}
         if market == 'bybit':
             self.exchange, self.ex_pybit = common_def.make_exchange_bybit()
+            # if not self.exchange == None:
+            self.dict_ex['simul'] = False
+            self.dict_ex['active'] = True
+            self.dict_ex['bybit'] = self.exchange
             db_file ='DB/DB_bybit.db'
             self.QLE_bet.setText('100')
             market_name = 'coin'
@@ -782,11 +835,17 @@ class Window(QWidget):
             self.QLE_bet.setText('1000000')
             market_name = 'stock'
             # self.stocks_info = pd.read_sql(f"SELECT * FROM 'stocks_info'", self.conn_DB).set_index('종목코드')
+            self.dict_ex['simul'] = True
+            self.dict_ex['active'] = True
+            self.dict_ex['국내주식'] = self.exchange
         elif market == '국내선옵':
             self.exchange = common_def.make_exchange_kis('모의선옵')
             db_file ='DB/DB_futopt.db'
             self.QLE_bet.setText('10000000')
             market_name = 'futopt'
+            self.dict_ex['simul'] = True
+            self.dict_ex['active'] = True
+            self.dict_ex['국내선옵'] = self.exchange
         else:
             market_name = ''
             return 0
@@ -898,54 +957,56 @@ class Window(QWidget):
                                       "")
         return list_sorting
 
-    def get_db_bybit(self,ticker, bong, start_time):
-        total_data = []
-        i = 0
-        num_error = 0
-        while True:
-            i += 1
-            try:
-                # OHLCV 데이터를 조회합니다.
-                ohlcv = self.exchange.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=self.dict_bong[bong],
-                                                  since=start_time, limit=1000)
-                time.sleep(0.5)
-                # 다음 조회를 위해 마지막으로 조회된 데이터의 시간을 업데이트합니다.
-                if ohlcv:
-                    start_time = ohlcv[-1][0] + 1  # 다음 조회는 이전 데이터의 다음 시간부터 시작
-                    print(
-                        f"{common_def.cyan(ticker) + 'USDT'} DB 저장 중...start time - {datetime.datetime.fromtimestamp(math.trunc(start_time / 1000))}[{i}]")
-                    # 조회된 데이터를 출력하거나 다른 작업을 수행할 수 있습니다.
-                    total_data = total_data + ohlcv
-                else:
-                    break
 
-                # 1분 간격으로 조회를 반복합니다. 필요에 따라 이 값을 조절하세요.
-            except ccxt.NetworkError as e:
-                print(f"{common_def.red('NetworkError:')} {common_def.green(e)}")
-                # 필요에 따라 재시도 로직을 추가할 수 있습니다.
-                num_error += 1
-                if num_error == 10:
-                    break
-
-            except ccxt.ExchangeError as e:
-                print(f"{common_def.red('ExchangeError:')} {common_def.green(e)}")
-                # 필요에 따라 예외 처리를 추가할 수 있습니다.
-                num_error += 1
-                if num_error == 10:
-                    break
-
-            except Exception as e:
-                print(f"{common_def.red('Error:')} {common_def.green(e)}")
-                # 기타 예외 처리를 추가할 수 있습니다.
-                num_error += 1
-                if num_error == 10:
-                    break
-        df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
-        df_new['날짜'] = pd.to_datetime(df_new['날짜'], utc=True, unit='ms')
-        df_new['날짜'] = df_new['날짜'].dt.tz_convert("Asia/Seoul")
-        df_new['날짜'] = df_new['날짜'].dt.tz_localize(None)
-        df_new.set_index('날짜', inplace=True)
-        return df_new
+    # def get_db_bybit(self,ticker, bong, start_time):
+    #     total_data = []
+    #     i = 0
+    #     num_error = 0
+    #     print(start_time)
+    #     while True:
+    #         i += 1
+    #         try:
+    #             # OHLCV 데이터를 조회합니다.
+    #             ohlcv = self.exchange.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=self.dict_bong[bong],
+    #                                               since=start_time, limit=1000)
+    #             time.sleep(0.5)
+    #             # 다음 조회를 위해 마지막으로 조회된 데이터의 시간을 업데이트합니다.
+    #             if ohlcv:
+    #                 start_time = ohlcv[-1][0] + 1  # 다음 조회는 이전 데이터의 다음 시간부터 시작
+    #                 print(f"{common_def.cyan(ticker) + 'USDT'} DB 저장 중...start time - "
+    #                       f"{datetime.datetime.fromtimestamp(math.trunc(start_time / 1000))}[{i}]")
+    #                 # 조회된 데이터를 출력하거나 다른 작업을 수행할 수 있습니다.
+    #                 total_data = total_data + ohlcv
+    #             else:
+    #                 break
+    #
+    #             # 1분 간격으로 조회를 반복합니다. 필요에 따라 이 값을 조절하세요.
+    #         except ccxt.NetworkError as e:
+    #             print(f"{common_def.red('NetworkError:')} {common_def.green(e)}")
+    #             # 필요에 따라 재시도 로직을 추가할 수 있습니다.
+    #             num_error += 1
+    #             if num_error == 10:
+    #                 break
+    #
+    #         except ccxt.ExchangeError as e:
+    #             print(f"{common_def.red('ExchangeError:')} {common_def.green(e)}")
+    #             # 필요에 따라 예외 처리를 추가할 수 있습니다.
+    #             num_error += 1
+    #             if num_error == 10:
+    #                 break
+    #
+    #         except Exception as e:
+    #             print(f"{common_def.red('Error:')} {common_def.green(e)}")
+    #             # 기타 예외 처리를 추가할 수 있습니다.
+    #             num_error += 1
+    #             if num_error == 10:
+    #                 break
+    #     df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+    #     df_new['날짜'] = pd.to_datetime(df_new['날짜'], utc=True, unit='ms')
+    #     df_new['날짜'] = df_new['날짜'].dt.tz_convert("Asia/Seoul")
+    #     df_new['날짜'] = df_new['날짜'].dt.tz_localize(None)
+    #     df_new.set_index('날짜', inplace=True)
+    #     return df_new
     def compare_price(self, price, vars):
         i_min = price.min()  # 현재가.min
         i_max = price.max()

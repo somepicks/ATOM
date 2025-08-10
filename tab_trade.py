@@ -1185,7 +1185,8 @@ class Window(QMainWindow):
 
 
         self.dict_market_option['list_tickers'] = self.df_tickers['종목코드'].tolist()
-        self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(),self.ex_kis,self.ex_bybit,self.ex_pybit, self.QCB_simul, self.df_stg,
+        self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(),self.ex_kis,self.ex_bybit,self.ex_pybit,
+                                                self.QCB_simul, self.df_stg,
                                                 self.QCB_chart_duration.currentText(),self.QCB_tele.isChecked(),
                                                 self.dict_market_option,self.QCB_auto_finish.isChecked(),finish_time)
         self.thread.start()

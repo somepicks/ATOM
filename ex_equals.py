@@ -60,324 +60,280 @@
 # non_nan_columns = diff_positions.columns[diff_positions.notna().any()].tolist()
 # print(non_nan_columns)
 
-
-from pprint import pprint
 import ccxt
 import pandas as pd
-from decimal import Decimal
-import math
+import numpy as np
+import sqlite3
+from datetime import datetime, timedelta
+import talib
+import warnings
 
-pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
-pd.set_option('display.max_colwidth', None)
-pd.set_option('display.width', 1500)
-pd.set_option("display.unicode.east_asian_width", True)
-pd.set_option('mode.chained_assignment', None)  # SettingWithCopyWarning 경고를 끈다
+warnings.filterwarnings('ignore')
 
 
-class BinanceAssetChecker:
-    def __init__(self, market, api_key, api_secret, sandbox=False):
-        self.market = market
-        if self.market == 'binance':
-            """
-            바이낸스 자산 조회 클래스
+class FundingRateBacktester:
+    def __init__(self,ticker, initial_capital=10000, min_order_size=100):
+        self.initial_capital = initial_capital
+        self.min_order_size = min_order_size
+        self.ticker = ticker
+        # self.exchange = ccxt.binance({
+        #     'apiKey': 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e',  # 실제 API 키로 교체
+        #     'secret': 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6',  # 실제 시크릿으로 교체
+        #     'sandbox': False,  # 테스트넷 사용 (실제 거래시 False)
+        #     'enableRateLimit': True,
+        # })
 
-            Args:
-                api_key: 바이낸스 API 키
-                api_secret: 바이낸스 API 시크릿
-                sandbox: 테스트넷 사용 여부
-            """
-            # Spot 거래소 초기화
-            self.spot_exchange = ccxt.binance({
-                'apiKey': api_key,
-                'secret': api_secret,
-                # 'sandbox': sandbox,
-                'enableRateLimit': True,
-            })
+    # def fetch_ohlcv_data(self, symbol, timeframe='4h', limit=1000):
+    #     """4시간봉 OHLCV 데이터 가져오기"""
+    #     try:
+    #         ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+    #         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    #         df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+    #         df.set_index('datetime', inplace=True)
+    #         df.drop('timestamp', axis=1, inplace=True)
+    #         return df
+    #     except Exception as e:
+    #         print(f"OHLCV 데이터 가져오기 실패: {e}")
+    #         return None
 
-            # USD-M Futures 거래소 초기화
-            self.usdm_exchange = ccxt.binance({
-                'apiKey': api_key,
-                'secret': api_secret,
-                #                 'sandbox': sandbox,
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'future'  # USD-M Futures
+    # def fetch_funding_rate_history(self, symbol, limit=1000):
+    #     """펀딩비 히스토리 가져오기"""
+    #     try:
+    #         # 바이낸스 선물 펀딩비 히스토리
+    #         funding_rates = self.exchange.fetch_funding_rate_history(symbol, limit=limit)
+    #         df = pd.DataFrame(funding_rates)
+    #         df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+    #         df.set_index('datetime', inplace=True)
+    #         df = df[['fundingRate']].rename(columns={'fundingRate': 'funding_rate'})
+    #         return df
+    #     except Exception as e:
+    #         print(f"펀딩비 데이터 가져오기 실패: {e}")
+    #         return None
+
+    def merge_data(self, ohlcv_df, funding_df):
+        """OHLCV와 펀딩비 데이터 병합"""
+        # 펀딩비는 8시간마다 발생하므로 4시간봉에 맞춰 보간
+        merged_df = ohlcv_df.copy()
+
+        # 펀딩비 데이터를 4시간 간격으로 리샘플링
+        funding_resampled = funding_df.resample('4H').ffill()
+
+        # 데이터 병합
+        merged_df = merged_df.join(funding_resampled, how='left')
+        merged_df['funding_rate'].fillna(method='ffill', inplace=True)
+
+        # RSI 계산 (14 기간)
+        merged_df['rsi'] = talib.RSI(merged_df['close'].values, timeperiod=14)
+
+        return merged_df.dropna()
+
+    def calculate_position_size(self, capital, price):
+        """포지션 크기 계산 (최소 주문 금액 고려)"""
+        max_position_value = capital
+        position_size = max_position_value / price
+
+        # 최소 주문 금액 체크
+        if max_position_value < self.min_order_size:
+            return 0
+
+        return position_size
+
+    def backtest_strategy(self, data, strategy_type='basic'):
+        """백테스트 실행"""
+        results = []
+        capital = self.initial_capital
+        position = 0
+        entry_price = 0
+        profit_for_reinvest = 0
+
+        for idx, row in data.iterrows():
+            current_price = row['close']
+            funding_rate = row['funding_rate']
+            rsi = row['rsi']
+
+            # 포지션이 없을 때 진입
+            if position == 0:
+                can_invest = False
+
+                if strategy_type == 'basic':
+                    can_invest = True
+                elif strategy_type == 'compound':
+                    can_invest = profit_for_reinvest >= self.min_order_size
+                elif strategy_type == 'rsi_compound':
+                    can_invest = profit_for_reinvest >= self.min_order_size and rsi <= 80
+
+                if can_invest and capital >= self.min_order_size:
+                    # 1배 short 포지션 진입 (코인 매수 후 선물 short)
+                    invest_amount = capital if strategy_type == 'basic' else profit_for_reinvest + self.initial_capital
+                    position = self.calculate_position_size(invest_amount, current_price)
+
+                    if position > 0:
+                        entry_price = current_price
+                        if strategy_type != 'basic':
+                            capital += profit_for_reinvest
+                            profit_for_reinvest = 0
+
+            # 포지션이 있을 때 펀딩비 수익 계산
+            if position > 0:
+                # 펀딩비 수익 (4시간마다, short 포지션이므로 음의 펀딩비가 수익)
+                funding_pnl = -funding_rate * position * current_price
+
+                # 현물-선물 차익 (이론적으로는 0에 수렴)
+                price_pnl = 0  # 완전한 헤지라고 가정
+
+                total_pnl = funding_pnl + price_pnl
+                profit_for_reinvest += total_pnl
+
+                # 결과 저장
+                results.append({
+                    'datetime': idx,
+                    'price': current_price,
+                    'funding_rate': funding_rate,
+                    'position': position,
+                    'funding_pnl': funding_pnl,
+                    'total_pnl': total_pnl,
+                    'capital': capital,
+                    'profit_for_reinvest': profit_for_reinvest,
+                    'total_value': capital + profit_for_reinvest,
+                    'rsi': rsi,
+                    'strategy': strategy_type
+                })
+
+        return pd.DataFrame(results)
+
+    def run_all_strategies(self, symbol='BTC/USDT'):
+        """모든 전략 실행 및 비교"""
+        print(f"{symbol} 데이터 수집 중...")
+
+        # 데이터 수집
+        ohlcv_data = self.fetch_ohlcv_data(symbol)
+        if ohlcv_data is None:
+            return None
+
+        funding_data = self.fetch_funding_rate_history(symbol)
+        if funding_data is None:
+            return None
+
+        # 데이터 병합
+        merged_data = self.merge_data(ohlcv_data, funding_data)
+        print(f"데이터 병합 완료: {len(merged_data)} 행")
+
+        strategies = {
+            'basic': '기본 전략 (초기 자본만 사용)',
+            'compound': '복리 전략 (100USD 이상시 재투자)',
+            'rsi_compound': 'RSI 복리 전략 (100USD + RSI≤80시 재투자)'
+        }
+
+        all_results = []
+        strategy_performance = {}
+
+        for strategy_name, strategy_desc in strategies.items():
+            print(f"\n{strategy_desc} 백테스트 중...")
+            result = self.backtest_strategy(merged_data, strategy_name)
+
+            if not result.empty:
+                all_results.append(result)
+
+                # 성과 계산
+                final_value = result['total_value'].iloc[-1]
+                total_return = (final_value - self.initial_capital) / self.initial_capital * 100
+
+                strategy_performance[strategy_name] = {
+                    'final_value': final_value,
+                    'total_return': total_return,
+                    'description': strategy_desc
                 }
-            })
 
-            # COIN-M Futures 거래소 초기화
-            self.coinm_exchange = ccxt.binance({
-                'apiKey': api_key,
-                'secret': api_secret,
-                #                 'sandbox': sandbox,
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'delivery'  # COIN-M Futures
-                }
-            })
-        elif self.market == 'bybit':
-            """
-            바이비트 자산 조회 클래스
+                print(f"최종 자산: ${final_value:,.2f}")
+                print(f"총 수익률: {total_return:.2f}%")
 
-            Args:
-                api_key: 바이비트 API 키
-                api_secret: 바이비트 API 시크릿
-                sandbox: 테스트넷 사용 여부
-            """
-            self.ex_bybit = ccxt.bybit(config={
-                'apiKey': api_key,
-                'secret': api_secret,
-                'enableRateLimit': True,
-                'options': {'position_mode': True, }})
+        # 결과 병합
+        if all_results:
+            combined_results = pd.concat(all_results, ignore_index=True)
+            return combined_results, strategy_performance
 
-    def get_spot_balance(self):
-        """스팟 잔고 조회"""
+        return None, None
 
-        balance = self.spot_exchange.fetch_balance()
-        tickers = self.spot_exchange.fetch_tickers()
-        # 0이 아닌 잔고만 필터링
-        dict_balance = {}
-        USDT_used = 0
-        USDT_free = 0
-        for currency, amounts in balance.items():
-            if currency not in ['info', 'free', 'used', 'total', 'timestamp', 'datetime']:
-                if amounts['total'] > 0:
-                    dict_balance[currency] = amounts
-                    if not currency == 'USDT':
-                        dict_balance[currency]['price'] = tickers[currency + '/USDT']['close']
-                    else:
-                        dict_balance[currency]['price'] = 1
-                    dict_balance[currency]['USDT'] = dict_balance[currency]['price'] * dict_balance[currency]['total']
-                    if dict_balance[currency]['USDT'] < 1:
-                        dict_balance.pop(currency)
-                    else:
-                        if currency == 'USDT':
-                            USDT_free = dict_balance[currency]['free']
-                            USDT_used += dict_balance[currency]['USDT'] - dict_balance[currency]['free']
-                        else:
-                            USDT_used += dict_balance[currency]['USDT']
-        df = pd.DataFrame.from_dict(dict_balance, orient='index')
-        return df, USDT_free, USDT_used
+    def save_to_sqlite(self, results, performance, db_name='funding_backtest.db'):
+        """결과를 SQLite에 저장"""
+        conn = sqlite3.connect(db_name)
 
-    def get_coinm_futures_balance(self):
-        """COIN-M Futures 잔고 조회"""
-        # try:
-        balance = self.coinm_exchange.fetch_balance()
-        tickers = self.coinm_exchange.fetch_tickers()
-        # 0이 아닌 잔고만 필터링
-        # pprint(balance)
-        dict_balance = {}
-        USDT = 0
-        for currency, amounts in balance.items():
-            if currency not in ['info', 'free', 'used', 'total', 'timestamp', 'datetime']:
-                if amounts['total'] > 0:
-                    dict_balance[currency] = amounts
-                    # if not currency == 'USDT':
-                    dict_balance[currency]['price'] = tickers[f"{currency}/USD:{currency}"]['close']
-                    # else:
-                    #     dict_balance[currency]['close'] = 1
-                    dict_balance[currency]['USDT'] = dict_balance[currency]['price'] * dict_balance[currency]['total']
-                    if dict_balance[currency]['USDT'] < 1:
-                        dict_balance.pop(currency)
-                    else:
-                        USDT += dict_balance[currency]['USDT']
-        df = pd.DataFrame.from_dict(dict_balance, orient='index')
-        return df, USDT
+        try:
+            # 백테스트 결과 저장
+            results.to_sql('backtest_results', conn, if_exists='replace', index=False)
 
-        # except Exception as e:
-        #     print(f"COIN-M Futures 잔고 조회 오류: {e}")
-        #     return {}
+            # 전략 성과 저장
+            performance_df = pd.DataFrame(performance).T.reset_index()
+            performance_df.columns = ['strategy', 'final_value', 'total_return', 'description']
+            performance_df.to_sql('strategy_performance', conn, if_exists='replace', index=False)
 
-    def get_usdm_futures_balance(self):
-        """USD-M Futures 잔고 조회"""
-        if self.market == 'binance':
-            # try:
-            balance = self.usdm_exchange.fetch_balance()
-            tickers = self.usdm_exchange.fetch_tickers()
-            # 0이 아닌 잔고만 필터링
-            dict_balance = {}
-            USDT = 0
-            # 전체
-            for currency, amounts in balance.items():
-                if currency not in ['info', 'free', 'used', 'total', 'timestamp', 'datetime', 'debt']:
-                    if amounts['total'] > 0:
-                        dict_balance[currency] = amounts
-                        if not currency == 'USDT':
-                            dict_balance[currency]['price'] = tickers[currency + '/USDT:USDT']['close']
-                        else:
-                            dict_balance[currency]['price'] = 1
-                        dict_balance[currency]['USDT'] = dict_balance[currency]['price'] * dict_balance[currency][
-                            'total']
-                        if not dict_balance[currency]['USDT'] < 1:
-                            USDT += dict_balance[currency]['USDT']
+            print(f"\n결과가 {db_name}에 저장되었습니다.")
 
-            res = self.usdm_exchange.fetch_positions()
-            dict_linear = {}
-            for data in res:
-                ticker = 'binance_'+data['symbol'][:-10]+'_'+data['side']
-                dict_linear[ticker] = {}
-                dict_linear[ticker]['market'] = 'binance'
-                dict_linear[ticker]['ticker'] = ticker
-                dict_linear[ticker]['매수금액'] = data['info']['isolatedWallet']
-                dict_linear[ticker]['진입수량'] = data['contracts']
-                dict_linear[ticker]['진입가'] = data['entryPrice']
-                dict_linear[ticker]['레버리지'] = data['entryPrice']
-                dict_linear[ticker]['현재가'] = data['markPrice']
-                dict_linear[ticker]['방향'] = data['side']
-                dict_linear[ticker]['청산가'] = data['info']['liquidationPrice']
-                dict_linear[ticker]['레버리지'] = round(data['notional'] / data['initialMargin'])
+            # 저장된 테이블 확인
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = cursor.fetchall()
+            print(f"저장된 테이블: {tables}")
 
-                if data['side'] == 'long':
-                    dict_linear[ticker]['수익률'] = ((data['markPrice'] - data['entryPrice']) / data['entryPrice']) * \
-                                                 dict_linear[ticker]['레버리지'] * 100
-                    dict_linear[ticker]['수익금'] = (data['markPrice'] - data['entryPrice']) * data['contracts']
-                elif data['side'] == 'short':
-                    dict_linear[ticker]['수익률'] = ((data['entryPrice'] - data['markPrice']) / data['entryPrice']) * \
-                                                 dict_linear[ticker]['레버리지'] * 100
-                    dict_linear[ticker]['수익금'] = (data['entryPrice'] - data['markPrice']) * data['contracts']
+        except Exception as e:
+            print(f"데이터베이스 저장 실패: {e}")
+        finally:
+            conn.close()
 
-            df_linear = pd.DataFrame.from_dict(dict_linear, orient='index')
-            # df_linear.index = 'bybit_' + df_linear['ticker']
-        elif self.market == 'bybit':
-            list_linear = self.ex_bybit.fetch_positions()
-            pprint(list_linear)
-            dict_linear = {}
-            for data in list_linear:
-                ticker = 'bybit_'+data['symbol'][:-10]+'_'+data['side']
-                dict_linear[ticker] = {}
-                dict_linear[ticker]['market'] = 'bybit'
-                dict_linear[ticker]['ticker'] = data['symbol'][:-10]
-                dict_linear[ticker]['매수금액'] = data['collateral']
-                dict_linear[ticker]['진입수량'] = data['contracts']
-                dict_linear[ticker]['진입가'] = data['entryPrice']
-                dict_linear[ticker]['레버리지'] = data['leverage']
-                dict_linear[ticker]['현재가'] = data['markPrice']
-                dict_linear[ticker]['청산가'] = data['liquidationPrice']
-                dict_linear[ticker]['방향'] = data['side']
-                if data['side'] == 'long':
-                    dict_linear[ticker]['수익률'] = ((data['markPrice'] - data['entryPrice']) / data['entryPrice']) * data[
-                        'leverage'] * 100
-                    dict_linear[ticker]['수익금'] = (data['markPrice'] - data['entryPrice']) * data['contracts']
-                elif data['side'] == 'short':
-                    dict_linear[ticker]['수익률'] = ((data['entryPrice'] - data['markPrice']) / data['entryPrice']) * data[
-                        'leverage'] * 100
-                    dict_linear[ticker]['수익금'] = (data['entryPrice'] - data['markPrice']) * data['contracts']
-            df_linear = pd.DataFrame.from_dict(dict_linear, orient='index')
-            # df_linear.index = 'bybit_' + df_linear['ticker']
-            USDT = df_linear['매수금액'].sum()
+    def display_results(self, performance):
+        """결과 출력"""
+        print("\n" + "=" * 60)
+        print("전략별 성과 비교")
+        print("=" * 60)
 
-        return df_linear, USDT
-        # except Exception as e:
-        #     print(f"USD-M Futures 잔고 조회 오류: {e}")
-        #     return {}
+        # 성과순으로 정렬
+        sorted_strategies = sorted(performance.items(),
+                                   key=lambda x: x[1]['total_return'],
+                                   reverse=True)
 
-    def get_unified_balance(self):
-        balance = self.ex_bybit.fetch_balance()
-        if balance['info']['result']['list'][0]['accountType'] == 'UNIFIED':
-            # usdm_balance,USDT=self.get_usdm_futures_balance()
-            tickers = self.ex_bybit.fetch_tickers()
-            # 0이 아닌 잔고만 필터링
-            dict_balance = {}
-            for currency, amounts in balance.items():
-                if currency not in ['info', 'free', 'used', 'total', 'timestamp', 'datetime',
-                                    'debt']:  # 바이비트에는 'debt'가있음
-                    if amounts['total'] > 0:
-                        dict_balance[currency] = amounts
-                        if not currency == 'USDT':
-                            dict_balance[currency]['현재가'] = tickers[currency + '/USDT:USDT']['close']
-                        else:
-                            dict_balance[currency]['현재가'] = 1
+        for i, (strategy, perf) in enumerate(sorted_strategies, 1):
+            print(f"\n{i}. {perf['description']}")
+            print(f"   최종 자산: ${perf['final_value']:,.2f}")
+            print(f"   총 수익률: {perf['total_return']:.2f}%")
 
-            list_coins = balance['info']['result']['list'][0]['coin']
-            hold_tickers = dict_balance.keys()
-            for data in list_coins:
-                if data['coin'] in hold_tickers:
-                    dict_balance[data['coin']]['market'] = 'bybit'
-                    dict_balance[data['coin']]['ticker'] = data['coin']
-                    # dict_balance[data['coin']]['cumRealisedPnl'] =  float(data['cumRealisedPnl'])
-                    # dict_balance[data['coin']]['unrealisedPnl'] =  float(data['unrealisedPnl'])
-                    # dict_balance[data['coin']]['total'] =  dict_balance[data['coin']]['total']+float(dict_balance[data['coin']]['unrealisedPnl'])
-                    # dict_balance[data['coin']]['total'] =  float(data['equity'])
-                    # dict_balance[data['coin']]['equity'] =  data['equity']
-                    # dict_balance[data['coin']]['USDT'] =  dict_balance[data['coin']]['total']*float(dict_balance[data['coin']]['price'])
-                    dict_balance[data['coin']]['합계(USD)'] = float(data['usdValue'])
-                    if dict_balance[data['coin']]['합계(USD)'] < 1:
-                        dict_balance.pop(data['coin'])
-            df = pd.DataFrame.from_dict(dict_balance, orient='index')
-            df.drop(labels='debt', axis=1, inplace=True)
-            df.rename(columns={'free': 'free(qty)', 'used': 'used(qty)', 'total': 'total(qty)'}, inplace=True)
-            df['배팅가능합계(USD)'] = df['free(qty)'] * df['현재가']
-            df['주문최소금액(USD)'] = 1
-            df.index = 'bybit_' + df['ticker']
-            all_assets = df['합계(USD)'].sum()
-        return all_assets, df
+            if i == 1:
+                print("   ⭐ 최고 수익률 전략!")
 
-    def get_all_assets(self):
-        """모든 자산 정보 조회 및 출력"""
-        print(f"{self.market} 자산 조회 중...")
+        print("\n" + "=" * 60)
 
-        if self.market == 'binance':
-            # 스팟 잔고 조회
-            # spot의 개별티커 종목은 전부 수량*현재가 USDT로-used, USDT 종목은-free
-            # 매수 후 자동으로 계좌를 coin-m으로 옮기기 때문에 free 수량을 따로 잡지 않는다
-            df_spot, USDT_free, USDT_used = self.get_spot_balance()
 
-            # COIN-M Futures 잔고 조회
-            df_coinm, USDT_COIN = self.get_coinm_futures_balance()
+def main():
+    # 백테스터 초기화
+    backtester = FundingRateBacktester(ticker="BTC", initial_capital=10000, min_order_size=100)
 
-            # linear Futures 잔고 조회
-            df_linear, USDT_USD = self.get_usdm_futures_balance()
+    try:
+        # 백테스트 실행
+        results, performance = backtester.run_all_strategies('BTC/USDT')
 
-            df = df_coinm.copy()
-            # usdt 행 추가
-            df.loc['USDT'] = [USDT_free, USDT_used + USDT_USD, USDT_free + USDT_used + USDT_USD, 1,
-                              USDT_free + USDT_used + USDT_USD]  # 각 열에 맞는 값 입력
+        if results is not None and performance is not None:
+            # 결과 출력
+            backtester.display_results(performance)
 
-            df['합계(USD)'] = df['total'] * df['price']
-            df['배팅가능합계(USD)'] = df['free'] * df['price']
-            df.rename(columns={'free': 'free(qty)', 'used': 'used(qty)', 'total': 'total(qty)', 'price': '현재가'},
-                      inplace=True)
-            all_assets = df['합계(USD)'].sum()
+            # SQLite에 저장
+            backtester.save_to_sqlite(results, performance)
+
+            # 추가 분석을 위한 샘플 데이터 출력
+            print(f"\n샘플 백테스트 결과 (최근 5개):")
+            print(results.tail())
 
         else:
-            all_assets, df = self.get_unified_balance()
-            df_linear, USDT_linear = self.get_usdm_futures_balance()
+            print("백테스트 실행에 실패했습니다.")
 
-        return all_assets, df, df_linear
-
-
-# 사용 예시
-def main():
-    # API 키와 시크릿을 입력하세요
-    BINANCE_API_KEY = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
-    BINANCE_API_SECRET = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
-    BYBIT_API_KEY = 'k3l5BpTorsRTHvPmAj'
-    BYBIT_API_SECRET = 'bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc'
-
-    # market = 'binance'
-    market = 'bybit'
-    if market == 'binance':
-        API_KEY = BINANCE_API_KEY
-        API_SECRET = BINANCE_API_SECRET
-    else:
-        API_KEY = BYBIT_API_KEY
-        API_SECRET = BYBIT_API_SECRET
-
-    # 바이낸스 자산 체커 초기화
-    asset_checker = BinanceAssetChecker(market, API_KEY, API_SECRET, sandbox=False)
-
-    # 모든 자산 정보 조회
-    all_assets, df, df_linear = asset_checker.get_all_assets()
-
-    print('df')
-    print(df)
-    print('===================================')
-    print('df_linear')
-    print(df_linear)
-    print('===================================')
-    print(f"총 보유 USDT: {all_assets}")
-    print(df['합계(USD)'].sum())
+    except Exception as e:
+        print(f"실행 중 오류 발생: {e}")
 
 
+# 실행 예제
 if __name__ == "__main__":
-    main()
+    # 실제 사용시 API 키 설정 필요
+    print("암호화폐 펀딩비 백테스팅 시스템")
+    print("=" * 50)
+    print("주의: 실제 사용하려면 바이낸스 API 키를 설정해야 합니다.")
+    print("현재는 데모 모드입니다.")
+
+    main()  # API 키 설정 후 주석 해제

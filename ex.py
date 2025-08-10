@@ -37,7 +37,6 @@ def stamp_to_int(t):
     minutes = str(remaining_seconds // 60)
     seconds = str(remaining_seconds % 60)
     return f"{hours}:{minutes}:{seconds}"
-
 def str_to_datetime( str):
     return datetime.datetime.strptime(str, '%Y-%m-%d %H:%M:%S')
 def int_to_stamp( int_time):
@@ -64,10 +63,8 @@ def fetch_inverse_detail(ex,market):
         markets_binance = ex.load_markets()
         usdt_free = res_spot['USDT']['free']
         usdt_total = res_spot['USDT']['total']
-
     # held_coins = {}
     balance = {}
-
     for ticker, data in res['total'].items():
         # if data > 0 and ticker in res and ticker != 'USDT':
         if data > 0 and ticker in res:
@@ -481,44 +478,6 @@ def bybit_set_tickers(fetch_tickers):
     df = pd.DataFrame.from_dict(data=fetch_tickers, orient='index')  # 딕셔너리로 데이터프레임  만들기 키값으로 행이름을 사용
     return df
 
-def fetch_funding_rates(market,exchange,ticker,since):
-    # since 로 None이 오면 1번으로 끝냄
-    if market == 'binance':
-        out_lately = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=None)
-        pprint(stamp_to_str(out_lately[0]['timestamp'])) #from
-        pprint(stamp_to_str(out_lately[-1]['timestamp'])) #lately
-
-        # if since == None:
-
-        from_time = (out_lately[0]['timestamp']//1000)*1000
-        while from_time > since:
-            from_time = from_time - 8 * 3600 * 1000 * 100  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
-            out = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=from_time)
-            from_time = (out[0]['timestamp']//1000)*1000
-            out.extend(out_lately)
-            out_lately = out
-            if since == False:
-                break
-        data = [x['fundingRate'] for x in out_lately]
-        timestamps = [x['timestamp'] for x in out_lately]
-        df = pd.DataFrame({
-            f'{ticker}': data,
-            '날짜': timestamps
-        })
-        df.set_index('날짜', inplace=True)
-
-    elif market == 'bybit':
-        # res = exchange.fetch_funding_rate_history(symbol=ticker + 'USD_PERP', since=since)
-        # data = [x['fundingRate'] for x in res]
-        # timestamps = [x['timestamp'] for x in res]
-        # df = pd.DataFrame({
-        #     f'{ticker}': data,
-        #     '날짜': timestamps
-        # })
-        # df.set_index('날짜', inplace=True)
-
-        pass
-    return df
 ################################################################
 
 # 펀딩비율 재투자 시뮬레이션 클래스
@@ -613,7 +572,7 @@ class FundingRateSimulator:
             '총 이자 수익': self.total_interest_earned,
             '재투자 횟수': self.reinvest_count,
             '평균 펀딩비율': np.mean([h['funding_rate'] for h in self.history]) * 100
-        }
+            }
 def calculate_short_pnl(entry_price, current_price, quantity):
     pnl_coin = (entry_price - current_price) * quantity
     pnl_usd = pnl_coin * current_price
@@ -627,7 +586,6 @@ if market == 'binance':
     binance_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
     binance_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
 
-
     binance_futures = ccxt.binance(config={
         'apiKey': binance_key,
         'secret': binance_secret,
@@ -637,13 +595,14 @@ if market == 'binance':
             'defaultType': 'future'
         },
     })
-
     binance = ccxt.binance(config={
         'apiKey': binance_key,
         'secret': binance_secret,
         'enableRateLimit': True,
         'options': {'position_mode': True, },
     })
+    print(binance.parse8601(f'2020-01-01T00:00:00Z'))
+    quit()
     dict_duration = {'1주일': 7, '1개월': 30, '2개월': 60, '3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
     since = datetime.datetime.now() - datetime.timedelta(days=dict_duration['1년'])
     since = datetime_to_stamp(since) * 1000  # 밀리초 곱하기

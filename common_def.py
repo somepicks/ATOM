@@ -1,5 +1,5 @@
 from turtledemo.forest import doit1
-
+import math
 import talib
 import numpy as np
 import subprocess
@@ -211,30 +211,133 @@ def get_kis_ohlcv(market, ohlcv):
     df.index.name = "날짜"
     df = df[::-1]  # 거꾸로 뒤집기
     return df
-
+def bybit_list_to_df(list_data):
+    df = pd.DataFrame(list_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+    df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
+    df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
+    df['날짜'] = df['날짜'].dt.tz_localize(None)
+    df.set_index('날짜', inplace=True)
+    return df
 def get_bybit_ohlcv(ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong, bong_detail):
     i = 0
-    # print(f"{ohlcv= }, {stamp_date_old= }, {ticker= },{bong= }, {bong_detail= }")
+    # print(f"{ohlcv= }, {stamp_date_old= }, {ticker_full_name=}, {ticker= },{bong= }, {bong_detail= }")
     dict_bong_stamp ={'1분봉': 1*60, '3분봉': 3*60, '5분봉': 5*60, '15분봉': 15*60, '30분봉': 30*60, '60분봉': 60*60, '4시간봉': 240*60, '일봉': 1440*60,
                        '주봉': 10080*60}
     dict_bong = {'1분봉': '1m', '3분봉': '3m','5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '1h', '4시간봉':'4h','일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
 
     while True:
+        i += 1
         try:
             list_ohlcv = ex_bybit.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong_detail],
                                                    limit=10000, since=int(stamp_date_old*1000)) #밀리초로 전달
             # pprint(list_ohlcv)
+            QTest.qWait(10)
             ohlcv = ohlcv + list_ohlcv
             stamp_date_old = list_ohlcv[-1][0]/1000 + dict_bong_stamp[bong_detail]  # 다음봉 시간 계산
-
+            print(f"{cyan(ticker) + 'USDT'} DB 저장 중...start time - {datetime.datetime.fromtimestamp(math.trunc(stamp_date_old))}[{i}]")
             if stamp_date_old > time.time():
                 return ohlcv
         except:
             time.sleep(1)
-            i += 1
+
             if i > 9:
                 print(f' {ticker_full_name=}, {bong=}, {i}회 이상 fetch_ohlcv 조회 에러')
-                raise '조회에러'
+                print(f' {stamp_date_old=}, {ticker_full_name=}, {ticker=}')
+                raise '[get_bybit_ohlcv] 조회에러'
+
+def get_bybit_funding_rate(market,market,ticker,since):
+    if market == 'bybit':
+        symbol = ticker + 'USD'
+        out_lately = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=None)
+        from_time = (out_lately[0]['timestamp'] // 1000) * 1000
+        while from_time > since:
+            from_time = from_time - (8 * 3600 * 1000 * 201)  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+            out = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=from_time)
+            if not out:
+                break
+            else:
+                from_time = (out[0]['timestamp'] // 1000) * 1000
+                out.extend(out_lately)
+                out_lately = out
+                if since == False:
+                    break
+        data = [x['fundingRate'] for x in out_lately]
+        timestamps = [x['timestamp'] for x in out_lately]
+        df = pd.DataFrame({
+            f'{ticker}': data,
+            '날짜': timestamps
+        })
+        df.set_index('날짜', inplace=True)
+
+    elif market == 'binance':
+        symbol = ticker + 'USD_PERP'
+        out_lately = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=None,
+                                                                          params={'type': 'delivery'})
+        from_time = (out_lately[0]['timestamp'] // 1000) * 1000
+        start_time = (out_lately[0]['timestamp'] // 1000) * 1000
+        while start_time > since:
+            out = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=from_time,
+                                                                       params={'type': 'delivery'})
+            if not out:
+                break
+            elif from_time < (out[0]['timestamp'] // 1000) * 1000:
+                lately_time = (out_lately[0]['timestamp'] // 1000) * 1000
+                out = [x for x in out if x['timestamp'] < lately_time]
+                out.extend(out_lately)
+                out_lately = out
+                break
+            else:
+                start_time = (out[0]['timestamp'] // 1000) * 1000
+                from_time = start_time - (
+                            8 * 3600 * 1000 * (len(out_lately)))  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+                out.extend(out_lately)
+                out_lately = out
+        data = [x['fundingRate'] for x in out_lately]
+        timestamps = [x['timestamp'] for x in out_lately]
+        df = pd.DataFrame({
+            f'{ticker}': data,
+            '날짜': timestamps
+        })
+        df.set_index('날짜', inplace=True)
+    return df
+
+def fetch_inverse_list(market,dict_ex):
+    if market == 'bybit':
+        # 바이비트 inverse 종목 정리
+        list_bybit_inverse = []
+        if not dict_ex['bybit'] == None:
+            markets = dict_ex['bybit'].load_markets()
+            # inverse 종목만 필터링
+            inverse_markets = {}
+            for symbol, market in markets.items():
+                if market.get('inverse') == True:
+                    inverse_markets[symbol] = market
+            # inverse 종목 목록 출력
+            for symbol in inverse_markets:
+                list_bybit_inverse.append(symbol[:symbol.index('/')])
+        else:
+            list_bybit_inverse = []
+        list_inverse = list(set(list_bybit_inverse))
+    elif market == 'binance':
+        # res = ex_binance.fetch_balance(params={"type": 'delivery'})
+        markets = dict_ex['spot'].load_markets()
+        # Coin-M Perpetual 종목만 필터링
+        perpetual_symbols = []
+        for symbol, identity in markets.items():
+            if identity['type'] == 'swap' and identity['settle'] != 'USDT' and identity['quote'] == 'USD':
+                perpetual_symbols.append({
+                    'symbol': symbol,
+                    'base': identity['base'],
+                    'quote': identity['quote'],
+                    'settle': identity['settle'],
+                    'contract_size': identity['contractSize'],
+                    'active': identity['active']
+                })
+        df_inverse = pd.DataFrame(perpetual_symbols)
+        list_inverse = df_inverse['base'].tolist()
+    else:
+        list_inverse = []
+    return list_inverse
 
 def detail_to_spread(df_min, bong, bong_detail, compare):
     dict_bong_stamp = {'1분봉': 1, '3분봉': 3, '5분봉': 5, '15분봉': 15, '30분봉': 30, '60분봉': 60, '4시간봉': 240, '일봉': 1440,

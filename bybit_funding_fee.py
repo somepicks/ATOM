@@ -1118,7 +1118,6 @@ class Window(QMainWindow):
         since = self.defi.datetime_to_stamp(since) * 1000  # 밀리초 곱하기
         df = self.defi.fetch_funding_rates(market=market,ticker= 'BTC',since= False)
         df.index = df.index // 1000
-        btc_date_start = df.index[0]
         btc_date_end = df.index[-1] #최근 일
         list_out = []
         for i, ticker in enumerate(list_inverse):
@@ -1787,11 +1786,11 @@ class common_define():
 
         elif market == 'binance':
             symbol = ticker + 'USD_PERP'
-            out_lately = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=None)
+            out_lately = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=None, params={'type':'delivery'})
             from_time = (out_lately[0]['timestamp'] // 1000) * 1000
             start_time = (out_lately[0]['timestamp'] // 1000) * 1000
             while start_time > since:
-                out = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=from_time)
+                out = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=from_time, params={'type':'delivery'})
                 if not out:
                     break
                 elif from_time < (out[0]['timestamp'] // 1000) * 1000:
