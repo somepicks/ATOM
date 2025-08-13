@@ -1116,7 +1116,7 @@ class Window(QMainWindow):
         df_funding = pd.DataFrame()
         since = datetime.datetime.now() - datetime.timedelta(days=dict_duration[self.QCB_chart_duration.currentText()])
         since = self.defi.datetime_to_stamp(since) * 1000  # 밀리초 곱하기
-        df = self.defi.fetch_funding_rates(market=market,ticker= 'BTC',since= False)
+        df = self.defi.fetch_funding_rates(market=market, ticker='BTC', since=False)
         df.index = df.index // 1000
         btc_date_end = df.index[-1] #최근 일
         list_out = []

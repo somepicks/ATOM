@@ -246,60 +246,107 @@ def get_bybit_ohlcv(ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, b
                 raise '[get_bybit_ohlcv] 조회에러'
 
 
-def fetch_funding_rates(market, ticker, since):
+def get_funding_rates(market, dict_ex, list_inverse):
     if market == 'bybit':
-        symbol = ticker + 'USD'
-        out_lately = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=None)
-        from_time = (out_lately[0]['timestamp'] // 1000) * 1000
-        while from_time > since:
-            from_time = from_time - (8 * 3600 * 1000 * 201)  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
-            out = self.dict_bybit['exchange'].fetch_funding_rate_history(symbol=symbol, since=from_time)
-            if not out:
-                break
-            else:
-                from_time = (out[0]['timestamp'] // 1000) * 1000
-                out.extend(out_lately)
-                out_lately = out
-                if since == False:
-                    break
-        data = [x['fundingRate'] for x in out_lately]
-        timestamps = [x['timestamp'] for x in out_lately]
-        df = pd.DataFrame({
-            f'{ticker}': data,
-            '날짜': timestamps
-        })
-        df.set_index('날짜', inplace=True)
-
+        list_res_btc = dict_ex['bybit'].fetch_funding_rate_history(symbol='BTCUSD', since=None )
     elif market == 'binance':
-        symbol = ticker + 'USD_PERP'
-        out_lately = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=None,
-                                                                          params={'type': 'delivery'})
-        from_time = (out_lately[0]['timestamp'] // 1000) * 1000
-        start_time = (out_lately[0]['timestamp'] // 1000) * 1000
-        while start_time > since:
-            out = self.dict_binance['spot'].fetch_funding_rate_history(symbol=symbol, since=from_time,
-                                                                       params={'type': 'delivery'})
-            if not out:
-                break
-            elif from_time < (out[0]['timestamp'] // 1000) * 1000:
-                lately_time = (out_lately[0]['timestamp'] // 1000) * 1000
-                out = [x for x in out if x['timestamp'] < lately_time]
-                out.extend(out_lately)
-                out_lately = out
+        list_res_btc = dict_ex['spot'].fetch_funding_rate_history(symbol='BTCUSD_PERP', since=None, params={'type': 'delivery'})
+    else:
+        print(f"market 확인 필요")
+    std_len = len(list_res_btc)
+    btc_date_end = (list_res_btc[-1]['timestamp']//1000)*1000
+    btc_date_from = (list_res_btc[0]['timestamp']//1000)*1000
+    df_funding = pd.DataFrame()
+    for i, ticker in enumerate(list_inverse):
+        list_res_total = []
+        from_time = btc_date_from
+        i = 0
+        while True:
+            if market == 'bybit':
+                symbol = ticker + 'USD'
+                list_res = dict_ex['bybit'].fetch_funding_rate_history(symbol=symbol, since=from_time)
+            elif market == 'binance':
+                symbol = ticker + 'USD_PERP'
+                list_res = dict_ex['spot'].fetch_funding_rate_history(symbol=symbol, since=None,params={'type': 'delivery'})
+            else:
+                list_res = []
+            for item in list_res:
+                del item['info']
+                # del item['fundingRate']
+                del item['symbol']
+            pprint(list_res)
+            print('===========================================')
+            if not list_res:
                 break
             else:
-                start_time = (out[0]['timestamp'] // 1000) * 1000
-                from_time = start_time - (
-                            8 * 3600 * 1000 * (len(out_lately)))  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
-                out.extend(out_lately)
-                out_lately = out
-        data = [x['fundingRate'] for x in out_lately]
-        timestamps = [x['timestamp'] for x in out_lately]
+                for item in list_res:
+                    item['timestamp'] = item['timestamp'] // 1000 *1000 # 데이터 시간이 1000/1 초정도 잘못 찍히는 경우가 있어서 변환
+                    # del item['info']
+
+                if len(list_res) < std_len:
+                    list_res.extend(list_res_total)
+                    list_res_total = list_res
+                    break
+
+                else:
+                    get_time = list_res[0]['timestamp']
+                    from_time = get_time - (8 * 3600 * 1000 * len(list_res))
+                    print(f"{get_time=}    {stamp_to_datetime(get_time-32400000)}    | {len(list_res)} |    {from_time=}    {stamp_to_datetime(from_time-32400000)}   ")
+                    list_res.extend(list_res_total)
+                    list_res_total = list_res
+                # i += 1
+                # if i ==9:
+                #     quit()
+
+        data = [x['fundingRate'] for x in list_res_total]
+        timestamps = [x['timestamp'] for x in list_res_total]
         df = pd.DataFrame({
             f'{ticker}': data,
             '날짜': timestamps
         })
-        df.set_index('날짜', inplace=True)
+        # df.set_index('날짜', inplace=True)
+
+        print(df)
+        print(len(df))
+        df = df[~df.날짜.duplicated(keep='last')]
+
+        print(df)
+        print(len(df))
+        if df.index[-1] == btc_date_end:
+            df_funding = pd.concat([df_funding, df], axis=1)
+        df = stamp_to_df(df)
+        df.to_sql('test',sqlite3.connect('bt.db'),if_exists='replace')
+        # else:
+        #     list_out.append(ticker)
+        #     #제외되는 ticker 표시용
+
+    #
+    # from_time = (out_lately[0]['timestamp'] // 1000) * 1000
+    # start_time = (out_lately[0]['timestamp'] // 1000) * 1000
+    # while start_time > since:
+    #     out = dict_ex['spot'].fetch_funding_rate_history(symbol=symbol, since=from_time,
+    #                                                                params={'type': 'delivery'})
+    #     if not out:
+    #         break
+    #     elif from_time < (out[0]['timestamp'] // 1000) * 1000:
+    #         lately_time = (out_lately[0]['timestamp'] // 1000) * 1000
+    #         out = [x for x in out if x['timestamp'] < lately_time]
+    #         out.extend(out_lately)
+    #         out_lately = out
+    #         break
+    #     else:
+    #         start_time = (out[0]['timestamp'] // 1000) * 1000
+    #         from_time = start_time - (
+    #                     8 * 3600 * 1000 * (len(out_lately)))  # 8시간 , 한시간에 3600초, 밀리초 1000, 최대 200개 조회가능
+    #         out.extend(out_lately)
+    #         out_lately = out
+    # data = [x['fundingRate'] for x in out_lately]
+    # timestamps = [x['timestamp'] for x in out_lately]
+    # df = pd.DataFrame({
+    #     f'{ticker}': data,
+    #     '날짜': timestamps
+    # })
+    # df.set_index('날짜', inplace=True)
     return df
 
 def fetch_inverse_list(market,dict_ex):
@@ -669,7 +716,6 @@ def convert_column_types(df): #데이터프레임 중 숫자로 바꿀 수 있�
 def stamp_to_int(stamp_time):
     dt = datetime.datetime.fromtimestamp(stamp_time)
     dt = dt.strftime('%Y%m%d%H%M')
-    # print(f"{stamp_time=},,,{dt=}")
     return int(dt)
 def stamp_to_str(stamp_time):
     date_time = stamp_to_datetime(stamp_time)
@@ -690,8 +736,10 @@ def int_to_stamp(int_time):
 def int_to_datetime(int_time):
     return datetime.datetime.strptime(str(int_time),'%Y%m%d%H%M')
 def stamp_to_datetime(stamp_time):
-    int_time=stamp_to_int(stamp_time)
-    return datetime.datetime.strptime(str(int_time),'%Y%m%d%H%M')
+    if len(str(int(stamp_time))) == 13:
+        stamp_time = stamp_time / 1000  # 밀리초단위일 경우
+    int_time = stamp_to_int(stamp_time)
+    return datetime.datetime.strptime(str(int_time), '%Y%m%d%H%M')
 def datetime_to_stamp(date_time):
     return int(time.mktime(date_time.timetuple()))
 def datetime_to_str(date_time):
@@ -850,5 +898,7 @@ if __name__ == "__main__":
     ex,pybit = make_exchange_bybit()
     dict_ex = {'bybit':ex}
     market = 'bybit'
-    ticker = 'XLM'
-    get_bybit_funding_rate(market,ticker,dict_ex)
+    list_inverse = ['XLM']
+    datetime.datetime.now()
+    # list_inverse = fetch_inverse_list(market,dict_ex)
+    get_funding_rates(market, dict_ex, list_inverse)
