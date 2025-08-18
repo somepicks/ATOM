@@ -441,19 +441,21 @@ class Window(QWidget):
         # 펀딩비 구하고자 할 경우 ticker = fungding
         if ticker == '':  # 티커가 명시되어 있지 않을 경우
             raise Exception('ticker 확인 필요')
-        if market == 'bybit':
+        if market == 'bybit' or market == 'binance' :
             bong = '1분봉'
             if not ticker == 'funding':
                 if ticker in list_table:
                     df_old = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn_DB).set_index('날짜')
                     if df_old.empty:
-                        start_time = self.dict_ex['bybit'].parse8601(f'2020-01-01T00:00:00Z')
-                        start_time = start_time // 1000  # 초로 변환 후 인자 전달
-                        # df_new = self.get_db_bybit(ticker, bong, start_time)
+                        if market == 'bybit':
+                            since = self.dict_ex['bybit'].parse8601(f'2020-01-01T00:00:00Z')
+                        elif market == 'binance':
+                            since = self.dict_ex['spot'].parse8601(f'2020-01-01T00:00:00Z')
+                        since = since // 1000  # 밀리초 -> 초로 변환 후 인자 전달
+                        # df_new = self.get_db_bybit(ticker, bong, since)
                         ohlcv = []
-                        total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'], ohlcv=ohlcv,
-                                                                stamp_date_old=start_time, ticker_full_name=ticker,
-                                                                ticker=ticker,bong=None,bong_detail=bong)
+                        total_data = common_def.get_coin_ohlcv(market= market,dict_ex=self.dict_ex, ohlcv=ohlcv,
+                                                                since=since, ticker=ticker, bong_detail=bong)
                         df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
                         df_new = common_def.stamp_to_df(df_new)
                         df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
@@ -463,15 +465,17 @@ class Window(QWidget):
                         # df_old.drop(index=df_old.index[-1], inplace=True)
                         last_day = str(last)[:10]
                         last_time = str(last)[11:]
-                        start_time = self.dict_ex['bybit'].parse8601(f'{last_day}T{last_time}Z')
-                        # df_new = self.get_db_bybit(ticker, bong, start_time)
+                        if market == 'bybit':
+                            since = self.dict_ex['bybit'].parse8601(f'{last_day}T{last_time}Z')
+                        elif market == 'binance':
+                            since = self.dict_ex['spot'].parse8601(f'{last_day}T{last_time}Z')
+                        # df_new = self.get_db_bybit(ticker, bong, since)
 
                         # 위에랑 데이터 비교
                         ohlcv = []
-                        start_time = start_time//1000
-                        total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'], ohlcv=ohlcv,
-                                                                stamp_date_old=start_time, ticker_full_name=ticker,
-                                                                ticker=ticker,bong=None, bong_detail=bong)
+                        since = since//1000
+                        total_data = common_def.get_coin_ohlcv(market= market,dict_ex=self.dict_ex, ohlcv=ohlcv,
+                                                                since=since, ticker=ticker, bong_detail=bong)
                         df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
                         df_new = common_def.stamp_to_df(df_new)
                         if df_old.index[-1] == df_new.index[0]:
@@ -479,50 +483,27 @@ class Window(QWidget):
                         df = pd.concat([df_old, df_new])
                         df.to_sql(ticker, self.conn_DB, if_exists='replace')
                 else:
-                    start_time = self.dict_ex['bybit'].parse8601(f'2020-01-01T00:00:00Z') #밀리초로 반환
-                    start_time = start_time//1000 #초로 변환 후 인자 전달
+                    if market == 'bybit':
+                        since = self.dict_ex['bybit'].parse8601(f'2020-01-01T00:00:00Z')
+                    elif market == 'binance':
+                        since = self.dict_ex['spot'].parse8601(f'2020-01-01T00:00:00Z')
+                    since = since//1000 #초로 변환 후 인자 전달
                     ohlcv = []
-                    total_data = common_def.get_bybit_ohlcv(ex_bybit=self.dict_ex['bybit'], ohlcv=ohlcv,
-                                                            stamp_date_old=start_time,
-                                                            ticker_full_name=ticker, ticker=ticker, bong=None,
-                                                            bong_detail=bong)
+                    total_data = common_def.get_coin_ohlcv(market= market,dict_ex=self.dict_ex, ohlcv=ohlcv,
+                                                            since=since, ticker=ticker, bong_detail=bong)
                     df_new = pd.DataFrame(total_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
+                    print(df_new)
                     df_new = common_def.stamp_to_df(df_new)
+                    print(df_new)
                     df_new.to_sql(ticker, self.conn_DB, if_exists='replace')
             else: # 펀딩비 데이터 저장
                 print('funding rate 조회') #펀딩비 저장하고자 할 경우 ticker에 funding이라고 쓸 것
                 list_inverse = common_def.fetch_inverse_list(market,self.dict_ex)
-                df_funding = pd.DataFrame()
-
-                for i, ticker in enumerate(list_inverse):
-                    df = common_def.get_funding_rates(market=market, ticker=ticker, dict_ex=self.dict_ex, list_inverse=list_inverse)
-                    df.index = df.index // 1000
-                    print(df)  # print를 안하면 데이터에 Nan 이 섞여서 출력됨
-                    # 중복 인덱스가 있는지 확인
-                    print(f"{ticker}: df_funding 중복 인덱스:", df_funding.index.duplicated().any())
-                    print(f"df 중복 인덱스:", df.index.duplicated().any())
-
-                    # 중복 제거 후 결합
-                    df_funding = df_funding[~df_funding.index.duplicated(keep='first')]
-                    df = df[~df.index.duplicated(keep='first')]
-                    if df.index[-1] == btc_date_end:
-                        df_funding = pd.concat([df_funding, df], axis=1)
-                    else:
-                        list_out.append(ticker)
-                df_funding = df_funding.fillna(0)  # nan 값 0으로 변환
-                df_funding = df_funding[df_funding.index >= (since // 1000)]  # 데이터프레임은 밀리초가 아니기때문에 /1000
-                df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
-                df_funding['날짜'] = df_funding['날짜'].dt.tz_convert("Asia/Seoul")
-                df_funding['날짜'] = df_funding['날짜'].dt.tz_localize(None)
-                df_funding.set_index('날짜', inplace=True)
-                has_duplicates = df.index.duplicated().any()
-                if has_duplicates:
-                    print(f"중복 인덱스 존재 여부: {has_duplicates}")
-                    duplicate_indices = df.index[df.index.duplicated()].unique()
-                    print("중복된 인덱스들:")
-                    print(duplicate_indices)
-                else:
-                    df_funding.to_sql('funding_rate', self.conn, if_exists='replace')
+                df = common_def.get_funding_rates(market, self.dict_ex, list_inverse)
+                df.index = pd.to_datetime(df.index, unit='ms', utc=True).tz_convert('Asia/Seoul')
+                df.index = df.index.tz_localize(None)
+                df = df.sort_index()
+                df.to_sql(f'funding_rate', self.conn_DB, if_exists='replace')
 
             list_table.insert(0, '전체')
             self.QCB_ticker.clear()
@@ -698,7 +679,7 @@ class Window(QWidget):
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         table_list = cursor.fetchall()
         if not table_list:
-            print('* DB 테이블이 비어있음 - 확인 필요 *')
+            print('[selectedCombo_stg_buy] DB 테이블이 비어있음 - 확인 필요')
         elif market == '국내주식' or market == '국내선옵':
             table_list = np.concatenate(
                 table_list).tolist()
@@ -726,7 +707,7 @@ class Window(QWidget):
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         table_list = cursor.fetchall()
         if not table_list:
-            print('* DB 테이블이 비어있음 - 확인 필요 *')
+            print('[selectedCombo_stg_sell] DB 테이블이 비어있음 - 확인 필요')
         elif market == '국내주식' or market == '국내선옵':
             table_list = np.concatenate(table_list).tolist()
             if 'krx_sell' in table_list:
@@ -735,7 +716,7 @@ class Window(QWidget):
                 self.QTE_stg_sell.clear()
                 self.QTE_stg_sell.setText(text_stg)
                 self.QLE_stg_sell.setText(self.QCB_stg_sell.currentText())
-        elif market == 'bybit':
+        elif market == 'bybit' or market == 'binance':
             table_list = np.concatenate(table_list).tolist()
             if 'coin_sell' in table_list:
                 df = pd.read_sql(f"SELECT * FROM 'coin_sell'", conn).set_index('index')
@@ -767,7 +748,7 @@ class Window(QWidget):
                 #     if (ticker[:3] == '201' or ticker[:3] == '301'):
                 #     ticker = ticker
 
-        elif market == 'bybit':
+        elif market == 'bybit' or market == 'binance':
             ticker = f"'{ticker}'"
         new_text = f"진입대상 = {ticker}"
         line_num = 0
@@ -825,11 +806,17 @@ class Window(QWidget):
         self.dict_ex={'active':False}
         if market == 'bybit':
             self.exchange, self.ex_pybit = common_def.make_exchange_bybit()
-            # if not self.exchange == None:
             self.dict_ex['simul'] = False
             self.dict_ex['active'] = True
             self.dict_ex['bybit'] = self.exchange
             db_file ='DB/DB_bybit.db'
+            self.QLE_bet.setText('100')
+            market_name = 'coin'
+        elif market == 'binance':
+            self.dict_ex = common_def.make_exchange_binance()
+            self.dict_ex['simul'] = False
+            self.dict_ex['active'] = True
+            db_file ='DB/DB_binance.db'
             self.QLE_bet.setText('100')
             market_name = 'coin'
         elif market == '국내주식':
@@ -860,7 +847,7 @@ class Window(QWidget):
         cursor.close()
         if not list_table:
             # print(f"{list_table= }")
-            print(f'* {db_file}: DB 테이블이 비어있음 - 확인 필요 *')
+            print(f'[select_market] {db_file}: DB 테이블이 비어있음 - 확인 필요')
             # raise
         else:
             list_table = np.concatenate(list_table).tolist()
@@ -1518,7 +1505,7 @@ class Window(QWidget):
 
     def init_file(self):
         import os
-        stg_file = ['DB/DB_stock.db', 'DB/DB_bybit.db', 'DB/DB_futopt.db']
+        stg_file = ['DB/DB_stock.db', 'DB/DB_futopt.db', 'DB/DB_bybit.db', 'DB/DB_binance.db']
         for market in stg_file:
             if not os.path.isfile(market):  # stg_file.db 파일이 없으면
                 print(f"{market} 파일 없음")

@@ -328,6 +328,8 @@ class Window(QMainWindow):
             self.df_set.loc['차트상세봉','value'] = self.QCB_chart_bong_detail.currentText()
             self.df_set.loc['bybit_API', 'value'] = ''
             self.df_set.loc['bybit_SECRET', 'value'] = ''
+            self.df_set.loc['binance_API', 'value'] = ''
+            self.df_set.loc['binance_SECRET', 'value'] = ''
             self.df_set.loc['국내주식_API', 'value'] = ''
             self.df_set.loc['국내주식_SECRET', 'value'] = ''
             self.df_set.loc['국내주식_ACCOUNT', 'value'] = ''
@@ -1415,10 +1417,10 @@ class Window(QMainWindow):
         if bong_since == '기간(일)':
             bong_since = 1
         date_old = present.date() - datetime.timedelta(days=int(bong_since))
-        stamp_date_old = common_def.datetime_to_stamp(date_old)
+        since = common_def.datetime_to_stamp(date_old)
         ohlcv = []
-        if market == 'bybit' :
-            ohlcv = common_def.get_bybit_ohlcv(self.ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong,bong_detail)
+        if market == 'bybit' or market == 'binance' :
+            ohlcv = common_def.get_coin_ohlcv(market, self.ex_bybit, ohlcv, since, ticker, bong_detail)
             df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
             df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
             df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
@@ -1455,10 +1457,10 @@ class Window(QMainWindow):
         if bong_since == '기간(일)':
             bong_since = 1
         date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
-        stamp_date_old = common_def.datetime_to_stamp(date_old)
+        since = common_def.datetime_to_stamp(date_old)
         ohlcv = []
-        if market == 'bybit' :
-            df = common_def.get_bybit_ohlcv(self.ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong, bong_detail)
+        if market == 'bybit' or market == 'binance' :
+            df = common_def.get_coin_ohlcv(market, self.ex_bybit, ohlcv, since, ticker, bong_detail)
             df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
             df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
             df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")

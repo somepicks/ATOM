@@ -391,10 +391,17 @@ class do_trade(QThread):
                 res = self.common.dict_binance['spot'].fetch_balance(params={"type": 'delivery'})
                 free_qty = res[ticker]['free'] * 0.9  # 전부 옮기려니 안됨
                 self.common.transfer_to(market=market, ticker=ticker, amount=free_qty, departure='inverse', destination='spot')
-                QTest.qWait(1000)
+                for i in range(20):
+                    QTest.qWait(1000)
+                    res = self.common.dict_binance['spot'].fetch_balance()
+                    print(f"market == 'binance': {free_qty}  <=  {res[ticker]['free']= }")
+                    if free_qty <= res[ticker]['free']:
+                        break
             elif market == 'bybit':
                 res = self.common.dict_bybit['exchange'].fetch_balance()
                 free_qty = res[ticker]['free'] * 0.9
+                QTest.qWait(1000)
+
             category = 'spot'
             free_qty = self.common.amount_to_precision(market,category,ticker,free_qty)
             res = self.common.order_open(market=market, category=category, ticker=ticker, side='sell',
@@ -1132,9 +1139,16 @@ class Window(QMainWindow):
             df_funding = df_funding[~df_funding.index.duplicated(keep='first')]
             df = df[~df.index.duplicated(keep='first')]
             if df.index[-1] == btc_date_end:
-                df_funding = pd.concat([df_funding, df], axis=1)
-            else:
-                list_out.append(ticker)
+                if not df_funding.empty:
+                    if df_funding.index[0] < df.index[0]:
+                        df_funding = pd.concat([df_funding, df], axis=1)
+                    else:
+                        df_funding = pd.concat([df, df_funding], axis=1)
+                else:
+                    df_funding = df
+            # else:
+            #     list_out.append(ticker)
+        df_funding = df_funding.sort_index() # 시간순 정렬
         df_funding = df_funding.fillna(0) # nan 값 0으로 변환
         df_funding = df_funding[df_funding.index >= (since//1000)] #데이터프레임은 밀리초가 아니기때문에 /1000
         df_funding['날짜'] = pd.to_datetime(df_funding.index, utc=True, unit='s')
@@ -1457,8 +1471,14 @@ class common_define():
                 elif category == 'linear':
                     res = self.ex_binance_future.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
                                              price=price, params=params)
+            except ccxt.base.errors.InsufficientFunds as e:
+                print(f"[order_open] 에러 {e} {market=}  {category=}  {symbol=}  {orderType=}  {side=}  {qty=}  {price=}  {params=}  ")
+                res = self.ex_binance.fetch_balance()
+                print(f"{res[ticker]['free']= }")
+
             except:
                 print(f"[order_open] 에러 {market=}  {category=}  {symbol=}  {orderType=}  {side=}  {qty=}  {price=}  {params=}  ")
+
                 if category == 'spot' or category == 'inverse':
                     res = self.ex_binance.create_order(symbol=symbol, type=orderType, side=side, amount=qty, price=price, params=params)
                 elif category == 'linear':
@@ -1814,7 +1834,6 @@ class common_define():
         return df
 
     def convert_df(self,ticker, df):
-        # print(convert_df)
         df['등락율'] = round((df['종가'] - df['종가'].shift(1)) / df['종가'].shift(1) * 100, 2)
         df['변화율'] = round((df['종가'] - df['시가']) / df['시가'] * 100, 2)
         df['이평9'] = talib.MA(df['종가'], 9)
