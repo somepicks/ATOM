@@ -579,6 +579,19 @@ def calculate_short_pnl(entry_price, current_price, quantity):
     return pnl_coin, pnl_usd
 
 
+student_data = {'name': ['Alice', 'Bob', 'Charlie'], 'grade': [95, 87, 92], 'subject': ['Math', 'English', 'Science']}
+df = pd.DataFrame.from_dict(student_data)
+print(df)
+id1 =298149
+id2 =137466
+id3 =305270
+dic = {id1:{'체결':True,'ticker':'BTC','market':'bybit'},id2:{'체결':'체결','ticker':'BTC','market':'binance'},id3:{'체결':'주문취소','ticker':'XRP','market':'binance'}}
+df = pd.DataFrame(dic).T
+
+
+
+quit()
+
 
 market = 'binance'
 ticker = 'BTC'

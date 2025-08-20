@@ -67,6 +67,18 @@ class do_trade(QThread):
         # 현재 시간의 분, 초, 마이크로초를 0으로 만들고 1시간 추가 (다음으로 올 정시 구하기)
         next_hour = self.dict_option['start_time'].replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
         self.fetch_balance()
+
+        # df_linear을 수동으로 청산할 경우가 있기 때문에 교집합으로 종목이 있는지 확인
+        list_cross = list(set(self.df_linear.index.tolist()) & set(self.df_future.index.tolist()))
+        self.df_linear = self.df_linear.loc[list_cross] #리스트에있는 행만 추출
+        self.df_linear = self.df_linear.sort_values('market')
+        for idx,row in self.df_future.iterrows():
+            if row['진입수량'] < self.df_linear.loc[idx,'보유수량']:
+                self.df_linear.loc[idx, '보유수량'] = row['진입수량']
+                self.df_linear.loc[idx, '매수금액'] = self.df_linear.loc[idx, '보유수량']+self.df_linear.loc[idx, '평단가']
+                self.df_linear.loc[idx, '평단가'] = self.df_linear.loc[idx, '진입가']
+                self.df_linear.loc[idx, '매수횟수'] = 1
+        self.save_df.emit(self.df_linear,'linear')
         start_time = self.df_set.loc['start_time', 'val']
         finish_time = self.df_set.loc['auto_finish', 'val']
         if str == type(start_time):
@@ -90,13 +102,19 @@ class do_trade(QThread):
             self.text_time = f"{hours:02}:{minutes:02}:{seconds:02}"
             self.change_price()
             if now_time > next_hour:# 매 정시마다 잔고 조회
-                print('잔고조회')
+                # print('잔고조회')
                 self.fetch_balance()
                 next_hour = datetime.datetime.now().replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
             if not self.df_open.empty:
+                dict_txt = {}
                 for id in self.df_open.index.tolist():
                     if self.df_open.loc[id, '상태'] == '매수주문' or self.df_open.loc[id, '상태'] == '부분체결':
-                        self.chegyeol_buy(id)
+                        dict_txt = self.chegyeol_buy(id, dict_txt)
+                df_txt = pd.DataFrame(dict_txt).T #id가 행으로 오게해서 체결을 데이터프레임으로 보여주기
+                if '체결' in df_txt['체결'].tolist() or '주문취소' in df_txt['체결'].tolist() or '주문 자동취소' in df_txt['체결'].tolist() or '부분체결' in df_txt['체결'].tolist():
+                    print(df_txt) #체결이 있을 경우에만 프린트
+            dict_txt_linear = {}
+            dict_txt_inverse = {}
             for idx in self.df_inverse.index.tolist():
                 market = self.df_inverse.loc[idx,'market']
                 ticker = self.df_inverse.loc[idx,'ticker']
@@ -106,13 +124,18 @@ class do_trade(QThread):
                     continue
                 elif market == 'binance' and not ticker in self.list_inverse_binance:
                     continue
-                self.buy_auto(idx,market,ticker)
+                dict_txt_inverse = self.buy_auto(idx,market,ticker,dict_txt_inverse)
                 df = self.common.get_df(market, ticker, '4시간봉', 10)  # 10일 전부터의 데이터 불러오기
                 dict_division = {'BTC':25, 'ETH':30, 'XRP':25, 'SOL':28}
                 dict_leverage = {'BTC':3, 'ETH':3, 'XRP':3, 'SOL':3}
-                self.buy_linear(df=df,idx=idx,division=dict_division.get(ticker,40),future_leverage=dict_leverage.get(ticker,2))
+                dict_txt_linear = self.buy_linear(df=df,idx=idx,division=dict_division.get(ticker,40),
+                                           future_leverage=dict_leverage.get(ticker,2),dict_txt=dict_txt_linear)
                 if idx in self.df_linear.index.tolist():
                     self.sell_future(df=df,idx=idx)
+            if dict_txt_linear:
+                print(pd.DataFrame(dict_txt_linear).T)
+            if dict_txt_inverse:
+                print(pd.DataFrame(dict_txt_inverse).T)
             self.active_light()
             QTest.qWait(500)
             if datetime.datetime.now() > finish_time:
@@ -165,7 +188,7 @@ class do_trade(QThread):
                 self.df_linear.loc[index,'수익금'] = round(수익금,2)
 
 
-    def buy_auto(self, idx, market, ticker):
+    def buy_auto(self, idx, market, ticker,dict_txt):
         주문최소금액 = self.df_inverse.loc[idx,'주문최소금액(USD)']
         현재가 = self.df_inverse.loc[idx,'현재가']
         보유코인합계 = self.df_inverse.loc[idx,'합계(USD)']
@@ -187,7 +210,6 @@ class do_trade(QThread):
         진입수량 = math.trunc(배팅가능금액) #소수점 절사
 
         order = True if 진입수량 >= 주문최소금액 else False
-
         # if 배팅가능수량 * 주문가 > 주문최소금액: #최소수량보다 잔고가 많을경우마다 주문하면 마이너스피 일 때는 갖고있는 잔고에서 매번 수수료가 나가기 때문
         if order : # 현재 잔고가 진입수량*펀딩비율*5배 보다 많아야 매수 조건 성립 (최소수량보다 잔고가 많을경우마다 주문하면 마이너스피 일 때는 갖고있는 잔고에서 매번 수수료가 나가기 때문)
             df_open = pd.DataFrame()
@@ -208,13 +230,25 @@ class do_trade(QThread):
             df_open.loc[id, '상태'] = '매수주문'
             df_open.loc[id, 'category'] = 'inverse'
             df_open.loc[id, '주문가'] = 주문가
-            print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
+            # print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
             if not self.df_open.empty:
                 self.df_open = pd.concat([self.df_open, df_open], axis=0).astype(self.df_open.dtypes)
             else:
                 self.df_open = df_open.copy()
+            dict_txt[id] = {}
+            dict_txt[id]['market'] = market
+            dict_txt[id]['ticker'] = ticker
+            dict_txt[id]['category'] = 'inverse'
+            dict_txt[id]['주문수량'] = 진입수량
+            dict_txt[id]['매수금액'] = 진입수량*주문최소금액
+            dict_txt[id]['주문가'] = 주문가
+
             self.qt_open.emit(self.df_open)
             self.fetch_balance() # 주문이 나가면 기존의 free 잔고가 변경되기 때문에 주문시 마다 조회를 해줘야됨
+        else:
+            pass
+        return dict_txt
+
     def buy_manual(self,market,ticker,배팅금액,rate_spot,df_inverse):
         print("현물 매수 요청 수신!")
         df_open = pd.DataFrame()
@@ -268,21 +302,21 @@ class do_trade(QThread):
         self.fetch_balance()
     def change_set(self,df_set):
         self.df_set = df_set
-    def chegyeol_buy(self, id):
+    def chegyeol_buy(self, id, dict_txt):
+        market = self.df_open.loc[id, 'market']
         ticker = self.df_open.loc[id, 'ticker']
         category = self.df_open.loc[id, 'category']
-        market = self.df_open.loc[id, 'market']
-
         주문시간 = self.df_open.loc[id,'주문시간']
         qty = self.df_open.loc[id,'주문수량']
         주문시간 = datetime.datetime.strptime(주문시간,'%Y-%m-%d %H:%M')
         dict_chegyeol = self.fetch_order(market=market, ticker=ticker, id=id , category=category,qty=qty)
-
+        dict_txt[id] = {}
+        dict_txt[id]['market'] = market
+        dict_txt[id]['ticker'] = ticker
+        dict_txt[id]['category'] = category
         if dict_chegyeol['체결'] == True:
-
-            print('=============================')
-            print(f"{ticker}  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간{dict_chegyeol['체결시간']} id:{id}")
-
+            # print('=============================')
+            # print(f"{ticker}  {dict_chegyeol['체결수량']} 개  체결 완료 - 체결시간{dict_chegyeol['체결시간']} id:{id}")
             self.df_closed.loc[id] = self.df_open.loc[id].copy()
             self.df_open.drop(index=id, inplace=True)
             self.df_closed.loc[id, '체결가'] = dict_chegyeol['체결가']
@@ -295,24 +329,35 @@ class do_trade(QThread):
                 pass
             elif market == 'binance' and category == 'spot':
                 self.common.transfer_to(market, ticker, dict_chegyeol['체결수량'],'spot','inverse')
+            dict_txt[id]['체결'] = '체결'
+            dict_txt[id]['체결수량'] = dict_chegyeol['체결수량']
         elif dict_chegyeol['체결'] == '주문취소':
-            print(f'주문취소 - {market= } | {ticker= } | {category } | {qty= } | {id= }')
+#             print(f'주문취소 - {market= } | {ticker= } | {category } | {qty= } | {id= }')
             self.df_open.drop(index=id, inplace=True)
-
+            dict_txt[id]['체결'] = '주문취소'
+            dict_txt[id]['체결수량'] = 0
         elif 주문시간 + datetime.timedelta(hours=8) < datetime.datetime.now(): #주문시간에서 8시간 동안 체결안되면 취소
-            print(f'주문취소 - {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | {market= } | {ticker= } | {category= } | {qty= } | {id= }')
+#             print(f'주문취소 - {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | {market= } | {ticker= } | {category= } | {qty= } | {id= }')
             배팅금액 = self.df_open.loc[id, '매수금액']
             self.common.order_cancel(market,category,ticker,id)
             self.df_open.drop(index=id,inplace=True)
             if category == 'spot':
                 rate_spot = self.dict_option['현물호가']
                 self.buy_manual(market=market,ticker=ticker,배팅금액=배팅금액,rate_spot=rate_spot,df_usdt=self.df_inverse)
-
+            dict_txt[id]['체결'] = '주문 자동취소'
+            dict_txt[id]['체결수량'] = 0
         elif dict_chegyeol['체결'] == '부분체결':
             self.df_open.loc[id,'상태'] = '부분체결'
+            dict_txt[id]['체결'] = '부분체결'
+            dict_txt[id]['체결수량'] = dict_chegyeol['체결수량']
+        else:
+            dict_txt[id]['체결'] = False
+            dict_txt[id]['체결수량'] = 0
+
+        return dict_txt
 
 
-    def buy_linear(self,df,idx,division,future_leverage):
+    def buy_linear(self,df,idx,division,future_leverage,dict_txt):
         market = self.df_inverse.loc[idx,'market']
         ticker = self.df_inverse.loc[idx,'ticker']
         min_cont = self.df_inverse.loc[idx,'주문최소금액(USD)']
@@ -494,7 +539,15 @@ class do_trade(QThread):
                     print(f'{market}buy_linear 에러 3')
                     quit()
                 QTest.qWait(1000)
-
+            dict_txt[id] = {}
+            dict_txt[id]['market'] = market
+            dict_txt[id]['ticker'] = ticker
+            dict_txt[id]['category'] = 'linear'
+            dict_txt[id]['체결수량'] = dict_chegyeol['체결수량']
+            dict_txt[id]['매수금액'] = self.df_linear.loc[idx,'매수금액']
+        else:
+            pass
+        return dict_txt
     def get_buy_signal(self,df,market,ticker):
         signal = False
         if (df.loc[df.index[-3],'RSI14'] > 30) and (df.loc[df.index[-2],'RSI14'] < 30):
@@ -695,7 +748,7 @@ class do_trade(QThread):
                             체결수량 = res[ticker]['free']
                     dict_info = {'체결': True, '체결가': 진입가, '체결수량':체결수량,'체결금액':체결금액, '수수료':수수료,
                                  '체결시간':체결시간, 'id':id,'side':ord_closed.get('side',None)}
-                    print(f"fetch_order_체결완료({market}) : {category= } - {ticker= } | {dict_info} ")
+                    # print(f"fetch_order_체결완료({market}) : {category= } - {ticker= } | {dict_info} ")
                     self.fetch_balance()
                     return dict_info
                 else:
@@ -706,6 +759,8 @@ class do_trade(QThread):
 
     def fetch_balance(self):
         self.df_inverse, self.df_future, assets_binance, assets_bybit = self.common.get_all_assets()
+
+
         self.val_wallet.emit(assets_binance, assets_bybit)
         self.qt_inverse.emit(self.df_inverse)
         self.qt_future.emit(self.df_future)
@@ -1075,7 +1130,7 @@ class Window(QMainWindow):
         # 초기에 qtable에 history를 표기하기위해 기존의 데이터를 불러오기 때문에 기존데이터를
         # 위, 아래로 붙이므로 중복행일 경우는 무시하고 신규 데이터 일 때만 위아래로 붙임
         if not df.empty:
-
+            df = df[['market', 'ticker', '수익률','수익금','매수금액','현재가','평단가','매수횟수','보유수량','방향','category', '주문가', '체결가',  '주문수량',   '수수료', '체결시간',  '레버리지',    ]]
             self.set_table_make(self.QT_trade_linear, df)
         else:
             self.set_table_make(self.QT_trade_linear, pd.DataFrame())

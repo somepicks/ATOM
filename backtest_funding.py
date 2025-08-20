@@ -64,11 +64,9 @@ class FundingRateBacktester:
         """포지션 크기 계산 (최소 주문 금액 고려)"""
         max_position_value = capital
         position_size = max_position_value / price
-
         # 최소 주문 금액 체크
         if max_position_value < self.min_order_size:
             return 0
-
         return position_size
 
     def backtest_strategy(self, df, strategy_type,hoga):
@@ -86,10 +84,13 @@ class FundingRateBacktester:
         df['pnl'] = np.nan # 인버스 수익률
         df['주문가'] = np.nan # 인버스로 숏 들어갈 때 주문가 (지정가로 들어갔을 때 가장 좋은 지정가 찾기위함)
         df['체결'] = np.nan # 체결여부
+        df['매수금액'] = np.nan
+        df['현재자산가치'] = np.nan
         df['수익률'] = np.nan
         df['수수료'] = 0
         진입수량 = USDT/df.loc[df.index[0],'시가']
         진입가 = df.loc[df.index[0],'시가']
+        매수금액 = USDT
         free_qty = 0
         for i,(idx, row) in enumerate(df.iterrows()):
             종가 = row['종가']
@@ -102,21 +103,23 @@ class FundingRateBacktester:
             df.loc[idx, '진입수량'] = 진입수량
             df.loc[idx, '진입가'] = 진입가
             df.loc[idx, 'spot(free)'] = free_qty
-
+            df.loc[idx, '매수금액'] = 매수금액
+            재투자신호 = False
             if strategy_type == 'basic':
-                signal = True
+                재투자신호 = True
             elif strategy_type == 'compound':
-                signal = profit_for_reinvest >= self.min_order_size
+                # 펀딩비로 받은 코인이 최소주문금액 이상이면 재투자
+                재투자신호 = profit_for_reinvest >= self.min_order_size
             elif strategy_type == 'rsi_compound':
-                signal = profit_for_reinvest >= self.min_order_size and rsi <= 80
+                # 펀딩비 조건 + RSI 조건
+                재투자신호 = profit_for_reinvest >= self.min_order_size and rsi <= 80
 
             if not np.isnan(funding_rate):
                 df.loc[idx, '펀비'] = 진입수량*funding_rate
                 df.loc[idx, 'spot(free)'] = free_qty+df.loc[idx, '펀비']
                 free_qty = df.loc[idx, 'spot(free)']
 
-            if signal and free_qty*시가 >= self.min_order_size:
-
+            if 재투자신호 and free_qty*시가 >= self.min_order_size:
                 if strategy_type == 'basic':
                     invest_amount = free_qty * 시가
                 else:
@@ -132,11 +135,15 @@ class FundingRateBacktester:
                     신규매수금액 = free_qty * 주문가
                     df.loc[idx, '진입수량'] = 진입수량 + free_qty
                     df.loc[idx, '진입가'] = (매수금액+신규매수금액)/(진입수량+free_qty)
+                    df.loc[idx, '매수금액'] = 매수금액+신규매수금액
                     df.loc[idx, '체결'] = float(True)
-
+            df.loc[idx, '수익률'] = (df.loc[idx, '진입가']-df.loc[idx, '종가'])/df.loc[idx, '진입가']*100
+            df.loc[idx, '현재자산가치'] = df.loc[idx, '진입수량']*df.loc[idx, '종가']
+            # df.loc[idx, 'pnl'] =
             USDT = df.loc[idx, 'USDT']
             진입수량 = df.loc[idx, '진입수량']
             진입가 = df.loc[idx, '진입가']
+            매수금액 = df.loc[idx, '매수금액']
             free_qty = df.loc[idx, 'spot(free)']
 
         return df
