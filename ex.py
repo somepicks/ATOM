@@ -496,95 +496,27 @@ if market == 'binance':
                 'options': {
                     'defaultType': 'delivery'  # COIN-M Futures
                 }})
+    import asyncio
+    import ccxt.pro as ccxtpro
+
+    symbol = "BTC/USDT"
 
 
+    async def future_trades_socket():
+        bs = ccxtpro.binance({
+            'apiKey': binance_key,
+            'secret': binance_secret,
+            'enableRateLimit': True,
+            'options': {
+                'defaultType': 'future'
+            }
+        })
 
-    import schedule
-    import time
-    import datetime
-
-
-    def my_job():
-        """매시간 정시와 30분에 실행될 함수"""
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"작업이 실행되었습니다: {current_time}")
-        # 여기에 실제로 수행할 작업을 작성
-        res = binance_m.fetch_funding_history()
-        # pprint(res)
-
-        print('============')
-        balance = binance_m.fetch_balance()
-        tickers = binance_m.fetch_tickers()
-        markets_binance = binance_m.load_markets()
-        # 0이 아닌 잔고만 필터링
-        pprint(balance)
-        print("="*50)
-        dict_balance = {}
-        USDT = 0
-
-        for currency, amounts in balance.items():
-            if currency not in ['info', 'free', 'used', 'total', 'timestamp', 'datetime']:
-                if amounts['total'] > 0:
-                    dict_balance[currency] = amounts
-                    dict_balance[currency]['price'] = tickers[f"{currency}/USD:{currency}"]['close']
-                    # dict_balance[currency]['USDT'] = dict_balance[currency]['price'] * dict_balance[currency]['total']
-                    currency_USDT = dict_balance[currency]['price'] * dict_balance[currency]['total']
-                    dict_balance[currency]['주문최소금액(USD)'] = markets_binance[f"{currency}/USD:{currency}"]['contractSize']
-                    if currency_USDT < 1:
-                        dict_balance.pop(currency)
-                    else:
-                        USDT += currency_USDT
-        df = pd.DataFrame.from_dict(dict_balance, orient='index')
-        list_ticker = df.index.tolist()
-        df_assets = pd.DataFrame(balance['info']['assets'])
-        df_assets.index = df_assets['asset']
-        df_assets = df_assets.loc[list_ticker]
-        df_assets = df_assets.drop(columns=['openOrderInitialMargin','updateTime']) # 나중에 합칠 때 중복되므로 삭제
-        df_positions = pd.DataFrame(balance['info']['positions'])
-        df_positions = df_positions[df_positions['symbol'].str.endswith('USD_PERP')] #symbol행의 'USD_PERP'라고 써있는 행만 추출
-        df_positions['symbol'] = df_positions['symbol'].str.replace('USD_PERP', '', regex=False) #symbol행의 'USD_PERP'라고 써있는 거 지우기
-        df_positions.index = df_positions['symbol']
-        df_positions = df_positions.loc[list_ticker]
-        df_positions = df_positions.drop(columns=['maintMargin','positionInitialMargin','openOrderInitialMargin','initialMargin',
-                                                  'unrealizedProfit','isolated','positionSide','isolatedWallet']) # 나중에 합칠 때 중복되므로 삭제
-
-        # print(df_assets)
-        # print(df_positions)
-        # print(df)
-        df = pd.concat([df,df_assets],axis=1)
-        df = pd.concat([df,df_positions],axis=1)
-        # 방법 1: 모든 값이 0인 열 찾기
-        zero_columns = df.columns[(df == 0).all()].tolist()
-        # 방법 2: 조건에 맞는 열들 제거
-        columns_to_drop = zero_columns + ['symbol','주문최소금액(USD)','asset','leverage','updateTime']
-        df = df.drop(columns=columns_to_drop)
-        print(df)
-        now = datetime.datetime.now().replace(second=0, microsecond=0)
-        df.to_sql(stamp_to_str(time.time()),sqlite3.connect('bt.db'),if_exists='replace')
-        df.to_excel(excel_writer=f'{str(stamp_to_int(time.time()))}.xlsx')
-        row_dict = df.loc["BTC"].to_dict()
-        print(row_dict)
-
-    my_job()
-    # # 매시간 정시(00분)에 실행
-    # schedule.every().hour.at(":00").do(my_job)
-    #
-    # # 매시간 30분에 실행
-    # schedule.every().hour.at(":30").do(my_job)
-
-    # 10분마다 실행하도록 스케줄링
-    schedule.every(10).minutes.do(my_job)
-    # 스케줄러 실행
-    print("스케줄러가 시작되었습니다...")
-    print("매시간 정시와 30분에 작업이 실행됩니다.")
-    while True:
-        schedule.run_pending()
-        time.sleep(0.5)  # CPU 사용률을 줄이기 위해 1초 대기
+        while True:
+            trades = await bs.watch_trades(symbol=symbol)
+            pprint(trades)
+    asyncio.run(future_trades_socket())
     quit()
-
-
-
-
 elif market == 'bybit':
     api_key = "k3l5BpTorsRTHvPmAj"
     api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"

@@ -1,6 +1,3 @@
-'''
-한국투자증권 python wrapper
-'''
 import json
 import pickle
 import asyncio
@@ -27,8 +24,7 @@ import numpy as np
 from PyQt5 import QtTest
 from PyQt5.QtTest import *
 from dateutil.relativedelta import relativedelta
-
-
+from tornado.websocket import WebSocketClientConnection
 
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
@@ -36,176 +32,31 @@ pd.set_option('display.width',1500)
 # pd.set_option('display.max_rows', None)  # 출력 옵션 설정: 모든 열의 데이터 유형을 출력
 pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
-EXCHANGE_CODE = {
-    "홍콩": "HKS",
-    "뉴욕": "NYS",
-    "나스닥": "NAS",
-    "아멕스": "AMS",
-    "도쿄": "TSE",
-    "상해": "SHS",
-    "심천": "SZS",
-    "상해지수": "SHI",
-    "심천지수": "SZI",
-    "호치민": "HSX",
-    "하노이": "HNX"
-}
-
-# 해외주식 주문
-# 해외주식 잔고
-EXCHANGE_CODE2 = {
-    "미국전체": "NASD",
-    "나스닥": "NAS",
-    "뉴욕": "NYSE",
-    "아멕스": "AMEX",
-    "홍콩": "SEHK",
-    "상해": "SHAA",
-    "심천": "SZAA",
-    "도쿄": "TKSE",
-    "하노이": "HASE",
-    "호치민": "VNSE"
-}
-
-EXCHANGE_CODE3 = {
-    "나스닥": "NASD",
-    "뉴욕": "NYSE",
-    "아멕스": "AMEX",
-    "홍콩": "SEHK",
-    "상해": "SHAA",
-    "심천": "SZAA",
-    "도쿄": "TKSE",
-    "하노이": "HASE",
-    "호치민": "VNSE"
-}
-
-EXCHANGE_CODE4 = {
-    "나스닥": "NAS",
-    "뉴욕": "NYS",
-    "아멕스": "AMS",
-    "홍콩": "HKS",
-    "상해": "SHS",
-    "심천": "SZS",
-    "도쿄": "TSE",
-    "하노이": "HNX",
-    "호치민": "HSX",
-    "상해지수": "SHI",
-    "심천지수": "SZI"
-}
-
-CURRENCY_CODE = {
-    "나스닥": "USD",
-    "뉴욕": "USD",
-    "아멕스": "USD",
-    "홍콩": "HKD",
-    "상해": "CNY",
-    "심천": "CNY",
-    "도쿄": "JPY",
-    "하노이": "VND",
-    "호치민": "VND"
-}
-
-execution_items = [
-    "유가증권단축종목코드", "주식체결시간", "주식현재가", "전일대비부호", "전일대비",
-    "전일대비율", "가중평균주식가격", "주식시가", "주식최고가", "주식최저가",
-    "매도호가1", "매수호가1", "체결거래량", "누적거래량", "누적거래대금",
-    "매도체결건수", "매수체결건수", "순매수체결건수", "체결강도", "총매도수량",
-    "총매수수량", "체결구분", "매수비율", "전일거래량대비등락율", "시가시간",
-    "시가대비구분", "시가대비", "최고가시간", "고가대비구분", "고가대비",
-    "최저가시간", "저가대비구분", "저가대비", "영업일자", "신장운영구분코드",
-    "거래정지여부", "매도호가잔량", "매수호가잔량", "총매도호가잔량", "총매수호가잔량",
-    "거래량회전율", "전일동시간누적거래량", "전일동시간누적거래량비율", "시간구분코드",
-    "임의종료구분코드", "정적VI발동기준가"
-]
-
-orderbook_items = [
-    "유가증권 단축 종목코드",
-    "영업시간",
-    "시간구분코드",
-    "매도호가01",
-    "매도호가02",
-    "매도호가03",
-    "매도호가04",
-    "매도호가05",
-    "매도호가06",
-    "매도호가07",
-    "매도호가08",
-    "매도호가09",
-    "매도호가10",
-    "매수호가01",
-    "매수호가02",
-    "매수호가03",
-    "매수호가04",
-    "매수호가05",
-    "매수호가06",
-    "매수호가07",
-    "매수호가08",
-    "매수호가09",
-    "매수호가10",
-    "매도호가잔량01",
-    "매도호가잔량02",
-    "매도호가잔량03",
-    "매도호가잔량04",
-    "매도호가잔량05",
-    "매도호가잔량06",
-    "매도호가잔량07",
-    "매도호가잔량08",
-    "매도호가잔량09",
-    "매도호가잔량10",
-    "매수호가잔량01",
-    "매수호가잔량02",
-    "매수호가잔량03",
-    "매수호가잔량04",
-    "매수호가잔량05",
-    "매수호가잔량06",
-    "매수호가잔량07",
-    "매수호가잔량08",
-    "매수호가잔량09",
-    "매수호가잔량10",
-    "총매도호가 잔량", # 43
-    "총매수호가 잔량",
-    "시간외 총매도호가 잔량",
-    "시간외 총매수호가 증감",
-    "예상 체결가",
-    "예상 체결량",
-    "예상 거래량",
-    "예상체결 대비",
-    "부호",
-    "예상체결 전일대비율",
-    "누적거래량",
-    "총매도호가 잔량 증감",
-    "총매수호가 잔량 증감",
-    "시간외 총매도호가 잔량",
-    "시간외 총매수호가 증감",
-    "주식매매 구분코드"
-]
-
-notice_items = [
-    "고객ID", "계좌번호", "주문번호", "원주문번호", "매도매수구분", "정정구분", "주문종류",
-    "주문조건", "주식단축종목코드", "체결수량", "체결단가", "주식체결시간", "거부여부",
-    "체결여부", "접수여부", "지점번호", "주문수량", "계좌명", "체결종목명", "신용구분",
-    "신용대출일자", "체결종목명40", "주문가격"
-]
 
 
-class KoreaInvestmentWS(Process):
+
+class KiwoomWS(Process):
     """WebSocket
     """
-    def __init__(self, api_key: str, api_secret: str, tr_id_list: list,
-                 tr_key_list: list, user_id: str = None):
-        super().__init__()
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.tr_id_list = tr_id_list
-        self.tr_key_list = tr_key_list
-        self.user_id = user_id
-        self.aes_key = None
-        self.aes_iv = None
+    def __init__(self, uri, ex):
+        # super().__init__()
+        self.uri = uri
+        self.websockt = None
+        self.connected = False
+        self.keep_runing = True
+        self.token = ex
+        self.condition_name_to_idx_dict = dict()
+        self.target_condition_name = "시가"
+
+
         self.queue = Queue()
         self.base_url = "https://openapi.koreainvestment.com:9443"
 
-    def run(self):
-        """_summary_
-        """
-        asyncio.run(self.ws_client())
+    # def run(self):
+    #     """_summary_
+    #     """
+    #     asyncio.run(self.ws_client())
+
 
     async def ws_client(self):
         """_summary_
@@ -345,46 +196,27 @@ class KoreaInvestmentWS(Process):
             self.kill()
 
 
-class KoreaInvestment:
+class kiwoom_finance:
     '''
     한국투자증권 REST API
     '''
-    def __init__(self, api_key: str, api_secret: str, acc_no: str, market: str,
+    def __init__(self, api_key: str, api_secret: str, market: str,
                  exchange: str = "서울", mock: bool = False):
-        """생성자
-        Args:
-            api_key (str): 발급받은 API key
-            api_secret (str): 발급받은 API secret
-            acc_no (str): 계좌번호 체계의 앞 8자리-뒤 2자리
-            exchange (str): "서울", "나스닥", "뉴욕", "아멕스", "홍콩", "상해", "심천",
-                            "도쿄", "하노이", "호치민"
-            mock (bool): True (mock trading), False (real trading)
-            market (str): "주식", "선옵"
-        """
         self.mock = mock
         self.market = market
-        self.set_base_url(market, mock)
+        self.set_base_url(market, mock) # self.base_url 설정
         self.api_key = api_key
         self.api_secret = api_secret
-
-        # account number
-        self.acc_no = acc_no
-        print(f"{self.acc_no= }")
-        self.acc_no_prefix = acc_no.split('-')[0]
-        # print(f"{self.acc_no_prefix= }")
-        self.acc_no_postfix = acc_no.split('-')[1]
-        # print(f"{self.acc_no_postfix= }")
 
         if self.market == '해외선옵' or self.market == '해외주식':
             exchange = '해외'
         self.exchange = exchange
 
-        # access token
         self.access_token = None
-        if self.check_access_token():
+        if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
             self.load_access_token()
         else:
-            self.issue_access_token()
+            self.issue_access_token() #없을 경우 토큰 발행
 
     def set_base_url(self, market: str = '주식', mock: bool = True):
         """테스트(모의투자) 서버 사용 설정
@@ -393,25 +225,19 @@ class KoreaInvestment:
         """
         if market == '주식':
             if mock:
-                self.base_url = "https://openapivts.koreainvestment.com:29443"
-                # print(f'{market}: 돌다리도 두드리자')
+                self.base_url = "https://mockapi.kiwoom.com"
             else:
-                self.base_url = "https://openapi.koreainvestment.com:9443"
-                # print(f'{market}: 인생은 실전')
+                self.base_url = "https://api.kiwoom.com"
         elif market == '선옵':
             if mock:
                 self.base_url = "https://openapivts.koreainvestment.com:29443"
-                # print(f'{market}: 돌다리도 두드리자')
             else:
                 self.base_url = "https://openapi.koreainvestment.com:9443"
-                # print(f'{market}: 인생은 실전')
         elif market == '해외선옵':
             if mock:
                 self.base_url = "https://openapivts.koreainvestment.com:29443"
-                # print(f'{market}: 돌다리도 두드리자')
             else:
                 self.base_url = "https://openapi.koreainvestment.com:9443"
-                # print(f'{market}: 인생은 실전')
         else:
             raise
     def issue_access_token(self):
@@ -419,35 +245,32 @@ class KoreaInvestment:
             # print(' KIS 테스트모드')
             pass
         else:
-            """OAuth인증/접근토큰발급
-            """
-            path = "oauth2/tokenP"
-            url = f"{self.base_url}/{path}"
-            headers = {"content-type": "application/json"}
-            data = {
-                "grant_type": "client_credentials",
-                "appkey": self.api_key,
-                "appsecret": self.api_secret
+            endpoint = 'oauth2/token'
+            url = f"{self.base_url}/{endpoint}"
+            headers = {'Content-Type': 'application/json;charset=UTF-8'}
+            params = {
+                'grant_type': 'client_credentials',  # grant_type
+                'appkey': self.api_key,  # 앱키
+                'secretkey': self.api_secret,  # 시크릿키
             }
 
-            resp = requests.post(url, headers=headers, data=json.dumps(data))
-            resp_data = resp.json()
+            response = requests.post(url, headers=headers, json=params)
+            print('Code:', response.status_code)
+            print('Header:',json.dumps({key: response.headers.get(key) for key in ['next-key', 'cont-yn', 'api-id']}, indent=4,
+                             ensure_ascii=False))
+            print('Body:', json.dumps(response.json(), indent=4, ensure_ascii=False))  # JSON 응답을 파싱하여 출력
             try:
-                self.access_token = f'Bearer {resp_data["access_token"]}'
+                self.access_token = f'Bearer {response.json()["token"]}'
             except Exception as e:
                 print(f"API 오류 발생: {e}")
-                print(f"{resp_data= }")
-
-
-            # add extra information for the token verification
-            now = datetime.datetime.now()
-            resp_data['timestamp'] = int(now.timestamp()) + resp_data["expires_in"]
-            resp_data['api_key'] = self.api_key
-            resp_data['api_secret'] = self.api_secret
-
-            # dump access token
-            with open("token.dat", "wb") as f:
-                pickle.dump(resp_data, f)
+                print(f"{response.json()= }")
+            response.json()['expires_dt'] = response.json()["expires_dt"]
+            if self.mock:
+                file_name = "token_mock.dat"
+            else:
+                file_name = "token.dat"
+            with open(file_name, "wb") as f:
+                pickle.dump(response.json(), f)
 
     def check_access_token(self):
         """check access token
@@ -455,17 +278,16 @@ class KoreaInvestment:
             Bool: True: token is valid, False: token is not valid
         """
         try:
-            f = open("token.dat", "rb")
+            if self.mock:
+                file_name = "token_mock.dat"
+            else:
+                file_name = "token.dat"
+            f = open(file_name, "rb")
             data = pickle.load(f)
             f.close()
 
-            expire_epoch = data['timestamp']
-            now_epoch = int(datetime.datetime.now().timestamp())
-            status = False
-
-            if ((now_epoch - expire_epoch > 0) or
-                (data['api_key'] != self.api_key) or
-                (data['api_secret'] != self.api_secret)):
+            expire_epoch = data['expires_dt']
+            if datetime.datetime.strptime(expire_epoch,"%Y%m%d%H%M%S")-datetime.datetime.now() < datetime.timedelta(hours=12):
                 status = False
             else:
                 status = True
@@ -476,9 +298,13 @@ class KoreaInvestment:
     def load_access_token(self):
         """load access token
         """
-        with open("token.dat", "rb") as f:
+        if self.mock:
+            file_name = "token_mock.dat"
+        else:
+            file_name = "token.dat"
+        with open(file_name, "rb") as f:
             data = pickle.load(f)
-            self.access_token = f'Bearer {data["access_token"]}'
+            self.access_token = f'Bearer {data["token"]}'
     def inquiry_TR(self, path, tr_id:str, params:dict):
         url = f"{self.base_url}/{path}"
         data = {
@@ -1554,52 +1380,21 @@ class KoreaInvestment:
         }
         resp = requests.get(url, headers=headers, params=params)
         return resp.json()
-    def fetch_ohlcv(self, symbol: str, timeframe: str = 'D', early_day:str="", lately_day:str="",
-                    adj_price: bool = True) -> dict:
-        """fetch OHLCV (day, week, month)
-        Args:
-            symbol (str): 종목코드
-            timeframe (str): "D" (일), "W" (주), "M" (월)
-            early_day (str): 조회시작일자
-            lately_day (str): 조회종료일자
-            adj_price (bool, optional): True: 수정주가 반영, False: 수정주가 미반영. Defaults to True.
-        Returns:
-            dict: _description_
-        """
+    def fetch_ohlcv(self, symbol: str, ) -> dict:
         if self.exchange == '서울':
             ohlcv = []
+            base_dt = datetime.datetime.now().strftime("%Y%m%d")
             if self.market == '주식':
-                if early_day == '':
-                    early_day = datetime.datetime.now().date() - datetime.timedelta(days=600) # early_day 비어있으면 600일 이전 조회
-                    early_day = early_day.strftime("%Y%m%d")
-                while True :
-                    # print(early_day, lately_day)
-                    resp = self._fetch_ohlcv_domestic(symbol, timeframe, early_day, lately_day, adj_price)
-                    if [item for item in resp['output2'] if item == {}]: #output2가 빈 딕셔너리를 보내면 탈출
-                        break
-                    elif resp['msg1'] == '정상처리 되었습니다.':
-                        ohlcv.extend(resp['output2'])
-
-                        start_day = resp['output2'][-1]['stck_bsop_date']
-                        start_day = datetime.datetime.strptime(start_day,"%Y%m%d").date()
-                        lately_day = start_day - datetime.timedelta(days=1)
-                        lately_day = lately_day.strftime("%Y%m%d")
-                        if datetime.datetime.strptime(early_day,"%Y%m%d").date() >= start_day:
-                            break
-                        elif datetime.datetime.strptime(early_day,"%Y%m%d").date() >= datetime.datetime.strptime(lately_day,"%Y%m%d").date():
-                            break
-                        elif len(resp['output2']) < 100:
-                            break
-                        # time.sleep(0.5)
-                        QTest.qWait(500)
-                        # print(early_day, "==" ,lately_day)
-                    elif resp['msg1'] == '기간이 만료된 token 입니다.':
-                        raise
-                    else:
-                        QTest.qWait(300)
-                        # if not resp:
-                        #     break
-
+                # if early_day == '':
+                #     early_day = datetime.datetime.now().date() - datetime.timedelta(days=600) # early_day 비어있으면 600일 이전 조회
+                #     early_day = early_day.strftime("%Y%m%d")
+                resp = self._fetch_ohlcv_domestic(symbol, base_dt)
+                df = pd.DataFrame(resp['stk_dt_pole_chart_qry'])
+                df.rename(
+                    columns={'cur_prc': '현재가', 'trde_qty': '거래량', 'trde_prica': '거래대금', 'dt': '일자', 'open_pric': '시가',
+                             'high_pric': '고가', 'low_pric': '저가', 'upd_stkpc_tp': '수정주가구분', 'upd_rt': '수정비율',
+                             'stk_infr': '종목정보', 'pred_close_pric': '전일종가'}, inplace=True)
+                return df
             elif self.market == '선옵':
                 trade_market = '선물' if symbol[:1] == '1' else '콜옵션' if symbol[:1] == '2' else '풋옵션' if symbol[:1] == '3' else '스프레드'
                 if trade_market == '선물': market = 'F'
@@ -1956,7 +1751,8 @@ class KoreaInvestment:
             i = 0
             while True:
                 data = self.fetch_balance_domestic()
-                if data['msg1'][:18] == '조회 되었습니다. (마지막 자료)'or data['msg1'][:16] == '모의투자 조회가 완료되었습니다':
+                pprint(data)
+                if data.get('msg1')[:18] == '조회 되었습니다. (마지막 자료)'or data.get('msg1')[:16] == '모의투자 조회가 완료되었습니다':
                     break
                 else:
                     # time.sleep(0.5)
@@ -2081,36 +1877,20 @@ class KoreaInvestment:
 
 
 
-    def fetch_balance_domestic(self, ctx_area_fk100: str = "", ctx_area_nk100: str = "") -> dict:
+    def fetch_balance_domestic(self):
         if self.market == '주식':
-            """국내주식주문/주식잔고조회
-            Args:
-                ctx_area_fk100 (str): 연속조회검색조건100
-                ctx_areak_nk100 (str): 연속조회키100
-            Returns:
-                dict: _description_
-            """
-            path = "uapi/domestic-stock/v1/trading/inquire-balance"
-            url = f"{self.base_url}/{path}"
+            endpoint = '/api/dostk/acnt'
+            url = f"{self.base_url}{endpoint}"
             headers = {
-               "content-type": "application/json",
-               "authorization": self.access_token,
-               "appKey": self.api_key,
-               "appSecret": self.api_secret,
-               "tr_id": "VTTC8434R" if self.mock else "TTTC8434R"
+                'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
+                'authorization': self.access_token,  # 접근토큰
+                'cont-yn': "N",  # 연속조회여부
+                'next-key': "",  # 연속조회키
+                'api-id': 'kt00018',  # TR명
             }
             params = {
-                'CANO': self.acc_no_prefix,
-                'ACNT_PRDT_CD': self.acc_no_postfix,
-                'AFHR_FLPR_YN': 'N',
-                'OFL_YN': 'N',
-                'INQR_DVSN': '01',
-                'UNPR_DVSN': '01',
-                'FUND_STTL_ICLD_YN': 'N',
-                'FNCG_AMT_AUTO_RDPT_YN': 'N',
-                'PRCS_DVSN': '01',
-                'CTX_AREA_FK100': ctx_area_fk100,
-                'CTX_AREA_NK100': ctx_area_nk100
+                'qry_tp': '1',  # 조회구분 1:합산, 2:개별
+                'dmst_stex_tp': 'KRX',  # 국내거래소구분 KRX:한국거래소,NXT:넥스트트레이드
             }
 
             res = requests.get(url, headers=headers, params=params)
@@ -2938,48 +2718,35 @@ class KoreaInvestment:
 
         return resp.json()
 
-    def _fetch_ohlcv_domestic(self, symbol: str, timeframe:str='D', early_day:str="",
-                             lately_day:str="", adj_price:bool=True):
-        """국내주식시세/국내주식 기간별 시세(일/주/월/년)
-
-        Args:
-            symbol (str): symbol
-            timeframe (str, optional): "D": 일, "W": 주, "M": 월, 'Y': 년
-            early_day (str, optional): 조회시작일자(YYYYMMDD)
-            lately_day (str, optional): 조회종료일자(YYYYMMDD)
-            adjusted (bool, optional): False: 수정주가 미반영, True: 수정주가 반영
-        """
-        path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
-        url = f"{self.base_url}/{path}"
+    def _fetch_ohlcv_domestic(self, symbol: str,base_dt: str):
+        endpoint = '/api/dostk/chart'
+        url = f"{self.base_url}{endpoint}"
 
         headers = {
-           "content-type": "application/json",
-           "authorization": self.access_token,
-           "appKey": self.api_key,
-           "appSecret": self.api_secret,
-           "tr_id": "FHKST03010100"
+            'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
+            'authorization': self.access_token,  # 접근토큰
+            'cont-yn': "N",  # cont_yn 연속조회여부
+            'next-key': "",  # next_key 연속조회키
+            'api-id': 'ka10081',  # TR명
         }
 
-        if lately_day == "":
-            now = datetime.datetime.now()
-            lately_day = now.strftime("%Y%m%d")
-
-        if early_day == "":
-            early_day = "19800104"
+        # if lately_day == "":
+        #     now = datetime.datetime.now()
+        #     lately_day = now.strftime("%Y%m%d")
+        #
+        # if early_day == "":
+        #     early_day = "19800104"
 
         params = {
-            "FID_COND_MRKT_DIV_CODE": "J",
-            "FID_INPUT_ISCD": symbol,
-            "FID_INPUT_DATE_1": early_day,
-            "FID_INPUT_DATE_2": lately_day,
-            "FID_PERIOD_DIV_CODE": timeframe,
-            "FID_ORG_ADJ_PRC": 0 if adj_price else 1
+            'stk_cd': symbol,  # 종목코드 거래소별 종목코드 (KRX:039490,NXT:039490_NX,SOR:039490_AL)
+            'base_dt': base_dt,  # 기준일자 YYYYMMDD
+            'upd_stkpc_tp': '1',  # 수정주가구분 0 or 1
         }
         i = 0
         while True:
-            res = requests.get(url, headers=headers, params=params)
+            response = requests.post(url, headers=headers, json=params)
             # hrd = {'User_Agent': generate_user_agent(os='win', device_type='desktop')}
-            if res.json()['msg1'] == '정상처리 되었습니다.':
+            if response.json()['return_msg'] == '정상적으로 처리되었습니다':
                 break
             elif i == 10:
                 raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_ohlcv_domestic')
@@ -2987,7 +2754,7 @@ class KoreaInvestment:
                 # time.sleep(1)
                 QTest.qWait(1000)
             i += 1
-        return res.json()
+        return response.json()
 
 
     def _fetch_futopt_ohlcv_domestic(self, symbol: str, timeframe:str='D', start_day:str="",
@@ -3698,48 +3465,126 @@ class KoreaInvestment:
         elif mydate > thismonth_duedate :
             nextmonth_duedate = self.nth_weekday(mydate+relativedelta(months=1),2, 3)
             return nextmonth_duedate
-    # def add_trend(self,현재시간,df_trend,COND_MRKT):
-    #     dict_trend = {}
-    #     dict_trend.update(ex_kis.investor_trend_time('코스피'))
-    #     dict_trend.update(ex_kis.investor_trend_time('선물'))
-    #     dict_trend.update(ex_kis.investor_trend_time('주식선물'))
-    #     dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
-    #     dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
-    #     if COND_MRKT == "WKM":
-    #         dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
-    #         dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
-    #     elif COND_MRKT == "WKI":
-    #         dict_trend.update(ex_kis.investor_trend_time('콜_위클리_목'))
-    #         dict_trend.update(ex_kis.investor_trend_time('풋_위클리_목'))
-    #     # current_time = datetime.datetime.now().replace(second=0, microsecond=0)
-    #     df = pd.DataFrame([dict_trend], index=[현재시간])
-    #     if not df_trend.empty:
-    #         df_trend = pd.concat([df_trend, df],axis=0)
-    #     else:
-    #         df_trend = df
-    #     return df_trend
+###########################################################
+#웹소켓
+class WebSocketClient:
+    def __init__(self, uri, ACCESS_TOKEN):
+        self.uri = uri
+        self.ACCESS_TOKEN = ACCESS_TOKEN
+        self.websocket = None
+        self.connected = False
+        self.keep_running = True
+
+    # WebSocket 서버에 연결합니다.
+    async def connect(self):
+        try:
+            self.websocket = await websockets.connect(self.uri, ping_interval=None)
+            self.connected = True
+            print("서버와 연결을 시도 중입니다.")
+
+            # 로그인 패킷
+            param = {
+                'trnm': 'LOGIN',
+                'token': self.ACCESS_TOKEN
+            }
+
+            print('실시간 시세 서버로 로그인 패킷을 전송합니다.')
+            # 웹소켓 연결 시 로그인 정보 전달
+            await self.send_message(message=param)
+
+        except Exception as e:
+            print(f'Connection error: {e}')
+            self.connected = False
+
+    # 서버에 메시지를 보냅니다. 연결이 없다면 자동으로 연결합니다.
+    async def send_message(self, message):
+        if not self.connected:
+            await self.connect()  # 연결이 끊어졌다면 재연결
+        if self.connected:
+            # message가 문자열이 아니면 JSON으로 직렬화
+            if not isinstance(message, str):
+                message = json.dumps(message)
+
+        await self.websocket.send(message)
+        print(f'Message sent: {message}')
+
+    # 서버에서 오는 메시지를 수신하여 출력합니다.
+    async def receive_messages(self):
+        while self.keep_running:
+            try:
+                # 서버로부터 수신한 메시지를 JSON 형식으로 파싱
+                response = json.loads(await self.websocket.recv())
+
+                # 메시지 유형이 LOGIN일 경우 로그인 시도 결과 체크
+                if response.get('trnm') == 'LOGIN':
+                    if response.get('return_code') != 0:
+                        print('로그인 실패하였습니다. : ', response.get('return_msg'))
+                        await self.disconnect()
+                    else:
+                        print('로그인 성공하였습니다.')
+
+                # 메시지 유형이 PING일 경우 수신값 그대로 송신
+                elif response.get('trnm') == 'PING':
+                    await self.send_message(response)
+
+                if response.get('trnm') != 'PING':
+                    print(f'실시간 시세 서버 응답 수신: {response}')
+
+            except websockets.ConnectionClosed:
+                print('Connection closed by the server')
+                self.connected = False
+                await self.websocket.close()
+
+    # WebSocket 실행
+    async def run(self):
+        await self.connect()
+        await self.receive_messages()
+
+    # WebSocket 연결 종료
+    async def disconnect(self):
+        self.keep_running = False
+        if self.connected and self.websocket:
+            await self.websocket.close()
+            self.connected = False
+            print('Disconnected from WebSocket server')
+
+
 
 if __name__ == "__main__":
+    mock = False
+    if mock:
+        api_key = "zSQr2jdgor8SPPF5DigW5Vq64xKRQcbNQY_2O4muS2o"
+        secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
+    else:
+        api_key = "P0FfJ6jrHYYv5rOroape_sHsMatIGQhdACJfA3K2TkM"
+        secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
+    ex = kiwoom_finance(api_key=api_key,api_secret=secret_key,market='주식',mock=mock)
+    # ex.fetch_balance()
+    df = ex.fetch_ohlcv("005930")
+    print(df)
+    access_token = ex.access_token.replace('Bearer ','')
+    print(access_token)
 
-    # import common_def
-    # conn_set = sqlite3.connect('DB/setting.db')
-    # df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_set).set_index('index')
-    # print(df_set)
-    # exchange = common_def.make_exchange_kis(df_set=df_set,trade_type='모의선옵')
-    # res,df = exchange.fetch_balance()
-    # print(df)
-    key = "PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I"
-    secret = "l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk="
-    if __name__ == "__main__":
-        broker_ws = KoreaInvestmentWS(key, secret, ["H0STCNT0", "H0STASP0"], ["005930", "000660"],
-                                             user_id="idjhh82")
-        broker_ws.start()
-        while True:
-            data_ = broker_ws.get()
-            if data_[0] == '체결':
-                print(data_[1])
-            elif data_[0] == '호가':
-                print(data_[1])
-            elif data_[0] == '체잔':
-                print(data_[1])
 
+
+    # socket 정보
+    # SOCKET_URL = 'wss://mockapi.kiwoom.com:10000/api/dostk/websocket'  # 모의투자 접속 URL
+    SOCKET_URL = 'wss://api.kiwoom.com:10000/api/dostk/websocket'  # 접속 URL
+
+    async def main():
+        # WebSocketClient 전역 변수 선언
+        websocket_client = WebSocketClient(SOCKET_URL,access_token)
+
+        # WebSocket 클라이언트를 백그라운드에서 실행합니다.
+        receive_task = asyncio.create_task(websocket_client.run())
+
+        # 실시간 항목 등록
+        await asyncio.sleep(1)
+        await websocket_client.send_message({
+            'trnm': 'CNSRLST', # TR명
+        })
+        # 수신 작업이 종료될 때까지 대기
+        await receive_task
+
+    # asyncio로 프로그램을 실행합니다.
+    asyncio.run(main())

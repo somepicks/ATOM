@@ -130,12 +130,13 @@ class do_trade(QThread):
                     continue
                 elif market == 'binance' and not ticker in self.list_inverse_binance:
                     continue
-                dict_txt_inverse = self.buy_auto(idx,market,ticker,dict_txt_inverse)
                 df = self.common.get_df(market, ticker, '4시간봉', 10)  # 10일 전부터의 데이터 불러오기
+                dict_txt_inverse = self.buy_auto(idx,market,ticker,dict_txt_inverse)
+
                 dict_division = {'BTC':25, 'ETH':30, 'XRP':25, 'SOL':28}
                 dict_leverage = {'BTC':3, 'ETH':3, 'XRP':3, 'SOL':3}
-                dict_txt_linear = self.buy_linear(df=df,idx=idx,division=dict_division.get(ticker,40),
-                                           future_leverage=dict_leverage.get(ticker,2),dict_txt=dict_txt_linear)
+                # dict_txt_linear = self.buy_linear(df=df,idx=idx,division=dict_division.get(ticker,40),
+                #                            future_leverage=dict_leverage.get(ticker,2),dict_txt=dict_txt_linear)
                 if idx in self.df_linear.index.tolist():
                     self.sell_future(df=df,idx=idx)
             if dict_txt_linear:
@@ -227,39 +228,40 @@ class do_trade(QThread):
         order = True if 진입수량 >= 주문최소금액 else False
         # if 배팅가능수량 * 주문가 > 주문최소금액: #최소수량보다 잔고가 많을경우마다 주문하면 마이너스피 일 때는 갖고있는 잔고에서 매번 수수료가 나가기 때문
         if order : # 현재 잔고가 진입수량*펀딩비율*5배 보다 많아야 매수 조건 성립 (최소수량보다 잔고가 많을경우마다 주문하면 마이너스피 일 때는 갖고있는 잔고에서 매번 수수료가 나가기 때문)
-            df_open = pd.DataFrame()
+            df = self.common.get_df(market, ticker, '일봉', 60)  # 일봉의 이평이 데드크로스일 때만 신규 진입
+            if df.loc[df.index[-1],'이평9'] < df.loc[df.index[-1],'이평20']:
+                df_open = pd.DataFrame()
 
-            진입수량 = 진입수량//주문최소금액
-            주문가 = self.common.price_to_precision(market=market,category='inverse',ticker=ticker,price=price)
-            res = self.common.order_open(market=market, category='inverse', ticker=ticker, side='sell',
-                                             orderType="limit", price=주문가, qty=진입수량)
-            id = res['id']
-            df_open.loc[id, 'market'] = market
-            df_open.loc[id, 'ticker'] = ticker
-            df_open.loc[id, '주문시간'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-            df_open.loc[id, '주문수량'] = 진입수량
-            # df_open.loc[id, 'short비율'] = rate_short
-            # df_open.loc[id, 'spot비율'] = np.nan
-            df_open.loc[id, 'id'] = id
-            df_open.loc[id, '매수금액'] = 진입수량*주문최소금액
-            df_open.loc[id, '상태'] = '매수주문'
-            df_open.loc[id, 'category'] = 'inverse'
-            df_open.loc[id, '주문가'] = 주문가
-            # print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
-            if not self.df_open.empty:
-                self.df_open = pd.concat([self.df_open, df_open], axis=0).astype(self.df_open.dtypes)
-            else:
-                self.df_open = df_open.copy()
-            dict_txt[id] = {}
-            dict_txt[id]['market'] = market
-            dict_txt[id]['ticker'] = ticker
-            dict_txt[id]['category'] = 'inverse'
-            dict_txt[id]['주문수량'] = 진입수량
-            dict_txt[id]['매수금액'] = 진입수량*주문최소금액
-            dict_txt[id]['주문가'] = 주문가
+                진입수량 = 진입수량//주문최소금액
+                주문가 = self.common.price_to_precision(market=market,category='inverse',ticker=ticker,price=price)
+                res = self.common.order_open(market=market, category='inverse', ticker=ticker, side='sell',
+                                                 orderType="limit", price=주문가, qty=진입수량)
+                id = res['id']
+                df_open.loc[id, 'market'] = market
+                df_open.loc[id, 'ticker'] = ticker
+                df_open.loc[id, '주문시간'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                df_open.loc[id, '주문수량'] = 진입수량
+                # df_open.loc[id, 'short비율'] = rate_short
+                # df_open.loc[id, 'spot비율'] = np.nan
+                df_open.loc[id, 'id'] = id
+                df_open.loc[id, '매수금액'] = 진입수량*주문최소금액
+                df_open.loc[id, '상태'] = '매수주문'
+                df_open.loc[id, 'category'] = 'inverse'
+                df_open.loc[id, '주문가'] = 주문가
+                # print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 자동매수 {ticker}: {진입수량=}, {주문가=}, {진입수량 * 주문가}')
+                if not self.df_open.empty:
+                    self.df_open = pd.concat([self.df_open, df_open], axis=0).astype(self.df_open.dtypes)
+                else:
+                    self.df_open = df_open.copy()
+                dict_txt[id] = {}
+                dict_txt[id]['market'] = market
+                dict_txt[id]['ticker'] = ticker
+                dict_txt[id]['category'] = 'inverse'
+                dict_txt[id]['주문수량'] = 진입수량
+                dict_txt[id]['매수금액'] = 진입수량*주문최소금액
+                dict_txt[id]['주문가'] = 주문가
 
-            self.qt_open.emit(self.df_open)
-            # self.fetch_balance() # 주문이 나가면 기존의 free 잔고가 변경되기 때문에 주문시 마다 조회를 해줘야됨
+                self.qt_open.emit(self.df_open)
         else:
             pass
         return dict_txt
@@ -1932,8 +1934,6 @@ class common_define():
         dict_bong_stamp = {'1분봉': 1 * 60, '3분봉': 3 * 60, '5분봉': 5 * 60, '15분봉': 15 * 60, '30분봉': 30 * 60,
                            '60분봉': 60 * 60, '4시간봉': 240 * 60, '일봉': 1440 * 60,
                            '주봉': 10080 * 60}
-        dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '1h', '4시간봉': '4h',
-                     '일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
         present = datetime.datetime.now()
         date_old = present.date() - datetime.timedelta(days=int(since_day))
         stamp_date_old = self.datetime_to_stamp(date_old)
@@ -1942,9 +1942,13 @@ class common_define():
         while True:
             try:
                 if market == 'bybit':
+                    dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '1h', '4시간봉': '4h',
+                                 '일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
                     list_ohlcv = self.dict_bybit['exchange'].fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong],
                                                    limit=10000, since=int(stamp_date_old * 1000))  # 밀리초로 전달
                 if market == 'binance':
+                    dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '1h', '4시간봉': '4h',
+                                 '일봉': '1d', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
                     list_ohlcv = self.dict_binance['linear'].fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong],
                                                    limit=10000, since=int(stamp_date_old * 1000))  # 밀리초로 전달
                 ohlcv = ohlcv + list_ohlcv
@@ -1955,7 +1959,7 @@ class common_define():
                 time.sleep(1)
                 i += 1
                 if i > 9:
-                    print(f' {ticker=}, {bong=}, {i}회 이상 fetch_ohlcv 조회 에러')
+                    print(f'{market} {ticker=}, {bong=}, {i}회 이상 fetch_ohlcv 조회 에러')
                     break
         df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
         df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')

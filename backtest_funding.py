@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import sqlite3
-
+import common_def
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -17,11 +17,12 @@ class FundingRateBacktester:
             self.conn = sqlite3.connect('DB/DB_bybit.db')
         if market == 'binance':
             self.conn = sqlite3.connect('DB/DB_binance.db')
-        self.conn = sqlite3.connect('funding_backtest.db')
+        # self.conn = sqlite3.connect('funding_backtest.db')
     def merge_data(self, ticker):
         """OHLCV와 펀딩비 데이터 병합"""
         # ohlcv_df = pd.read_sql(f"SELECT * FROM '{ticker}'", self.conn).set_index('날짜')
-        # funding_df = pd.read_sql(f"SELECT * FROM 'funding_rate'", self.conn).set_index('날짜')
+        # funding_df = pd.read_s
+        # l(f"SELECT * FROM 'funding_rate'", self.conn).set_index('날짜')
         # funding_df = funding_df[[ticker]]
         # funding_df.rename(columns={ticker: 'funding_rate'}, inplace=True)  # 컬럼명 변경
         # ohlcv_df.index = pd.to_datetime(ohlcv_df.index)
@@ -33,10 +34,10 @@ class FundingRateBacktester:
         # df, df_detail = common_def.detail_to_spread(df_min=ohlcv_df,bong=bong,bong_detail='1분봉',compare=False)
         # df.index = df.index + pd.Timedelta(hours=9)
         # df = pd.concat([df,funding_df],axis=1)
-
-
-
+        # print(df)
         # df.to_sql('test',sqlite3.connect('bt.db'),if_exists='replace')
+
+
         df = pd.read_sql(f"SELECT * FROM 'test'", sqlite3.connect('bt.db')).set_index('날짜')
         df.index = pd.to_datetime(df.index)
         df.drop(['데이터길이', '시가_4시간봉', '고가_4시간봉', '저가_4시간봉', '종가_4시간봉', '거래량_4시간봉',
@@ -44,7 +45,6 @@ class FundingRateBacktester:
         df.drop(['등락율', '변화율', '이평5', '이평20', '이평60', '이평120', '이평240', '거래량이평3',
                  '거래량이평20', '거래량이평60', 'MACD', 'MACD_SIGNAL', 'MACD_HIST', 'RSI18', 'RSI30', 'ATR',
                  'TRANGE', '이격도20이평' , '이격도60이평' , '밴드상' , '밴드중' , '밴드하' , '고저평균대비등락율'],axis=1,inplace=True)
-        print(df)
         if market == 'binance':
             if ticker == 'BTC':
                 self.min_order_size = 100
@@ -60,35 +60,37 @@ class FundingRateBacktester:
 
         return df
 
-    def calculate_position_size(self, capital, price):
-        """포지션 크기 계산 (최소 주문 금액 고려)"""
-        max_position_value = capital
-        position_size = max_position_value / price
-        # 최소 주문 금액 체크
-        if max_position_value < self.min_order_size:
-            return 0
-        return position_size
+    # def calculate_position_size(self, capital, price):
+    #     """포지션 크기 계산 (최소 주문 금액 고려)"""
+    #     max_position_value = capital
+    #     position_size = max_position_value / price
+    #     # 최소 주문 금액 체크
+    #     if max_position_value < self.min_order_size:
+    #         return 0
+    #     return position_size
 
-    def backtest_strategy(self, df, strategy_type,hoga):
+    def backtest_strategy(self, df, strategy_type, hoga):
         """백테스트 실행"""
         results = []
         USDT = self.initial_capital
         position = 0
         entry_price = 0
         profit_for_reinvest = 0
-        df['USDT'] = float(USDT)
-        df['진입수량'] = np.nan
+        # df['USDT'] = float(USDT)
+        df['free'] = 0.0 # 펀딩비로 받는 수량 누적
+        df['used'] = np.nan # 진입수량
+        df['total'] = np.nan
+        df['pnl'] = np.nan # 인버스 수익률
         df['진입가'] = np.nan
         df['펀비'] = np.nan # 펀딩비로 받는 수량
-        df['spot(free)'] = 0.0 # 펀딩비로 받는 수량 누적
-        df['pnl'] = np.nan # 인버스 수익률
-        df['주문가'] = np.nan # 인버스로 숏 들어갈 때 주문가 (지정가로 들어갔을 때 가장 좋은 지정가 찾기위함)
-        df['체결'] = np.nan # 체결여부
-        df['매수금액'] = np.nan
+        df['매수금액'] = np.nan # used*진입가
+        df['진입수량'] = np.nan # 매수금액/진입가
         df['현재자산가치'] = np.nan
         df['수익률'] = np.nan
         df['수수료'] = 0
-        진입수량 = USDT/df.loc[df.index[0],'시가']
+        df['주문가'] = np.nan # 인버스로 숏 들어갈 때 주문가 (지정가로 들어갔을 때 가장 좋은 지정가 찾기위함)
+        df['체결'] = np.nan # 체결여부
+        used = USDT/df.loc[df.index[0],'시가']
         진입가 = df.loc[df.index[0],'시가']
         매수금액 = USDT
         free_qty = 0
@@ -99,14 +101,14 @@ class FundingRateBacktester:
             funding_rate = row['funding_rate']
             rsi = row['RSI14']
             # 포지션이 없을 때 진입
-            df.loc[idx, 'USDT'] = USDT
-            df.loc[idx, '진입수량'] = 진입수량
+            # df.loc[idx, 'USDT'] = USDT
+            df.loc[idx, 'used'] = used
             df.loc[idx, '진입가'] = 진입가
-            df.loc[idx, 'spot(free)'] = free_qty
+            df.loc[idx, 'free'] = free_qty
             df.loc[idx, '매수금액'] = 매수금액
             재투자신호 = False
             if strategy_type == 'basic':
-                재투자신호 = True
+                재투자신호 = False
             elif strategy_type == 'compound':
                 # 펀딩비로 받은 코인이 최소주문금액 이상이면 재투자
                 재투자신호 = profit_for_reinvest >= self.min_order_size
@@ -115,37 +117,51 @@ class FundingRateBacktester:
                 재투자신호 = profit_for_reinvest >= self.min_order_size and rsi <= 80
 
             if not np.isnan(funding_rate):
-                df.loc[idx, '펀비'] = 진입수량*funding_rate
-                df.loc[idx, 'spot(free)'] = free_qty+df.loc[idx, '펀비']
-                free_qty = df.loc[idx, 'spot(free)']
+                df.loc[idx, '펀비'] = used*funding_rate
+                df.loc[idx, 'free'] = free_qty+df.loc[idx, '펀비']
+                free_qty = df.loc[idx, 'free']
 
             if 재투자신호 and free_qty*시가 >= self.min_order_size:
-                if strategy_type == 'basic':
-                    invest_amount = free_qty * 시가
-                else:
-                    invest_amount = profit_for_reinvest + self.initial_capital
-                # position = self.calculate_position_size(invest_amount, 종가)
+                # if strategy_type == 'basic':
+                #     invest_amount = free_qty * 시가
+                # else:
+                #     invest_amount = profit_for_reinvest + self.initial_capital
+                # # position = self.calculate_position_size(invest_amount, 종가)
                 주문가 = 시가+(시가*0.01*hoga)
                 df.loc[idx, '주문가'] = 주문가
                 if 주문가 < 고가:
-                    bet = 주문가 * free_qty
-                    df.loc[idx, 'spot(free)'] = 0
-                    df.loc[idx, 'USDT'] = df.loc[idx, 'USDT']+bet
-                    매수금액 = 진입수량 * 진입가
+                    # bet = 주문가 * free_qty
+                    df.loc[idx, 'free'] = 0
+                    # df.loc[idx, 'USDT'] = df.loc[idx, 'USDT']+bet
+                    매수금액 = used * 진입가
                     신규매수금액 = free_qty * 주문가
-                    df.loc[idx, '진입수량'] = 진입수량 + free_qty
-                    df.loc[idx, '진입가'] = (매수금액+신규매수금액)/(진입수량+free_qty)
+                    df.loc[idx, 'used'] = used + free_qty
+                    df.loc[idx, '진입가'] = (매수금액+신규매수금액)/(used+free_qty)
+
                     df.loc[idx, '매수금액'] = 매수금액+신규매수금액
                     df.loc[idx, '체결'] = float(True)
-            df.loc[idx, '수익률'] = (df.loc[idx, '진입가']-df.loc[idx, '종가'])/df.loc[idx, '진입가']*100
-            df.loc[idx, '현재자산가치'] = df.loc[idx, '진입수량']*df.loc[idx, '종가']
+                    # print(f"{i}  {주문가=}  {고가=}  {매수금액= }  {신규매수금액= }  {used=}  {free_qty= }")
+                    # print(df)
+                    # quit()
+            df.loc[idx, 'used'] = df.loc[idx, '매수금액'] / 종가
+            df.loc[idx, 'total'] = df.loc[idx, 'free'] + df.loc[idx, 'used']
+            df.loc[idx, '진입수량'] = df.loc[idx, '매수금액'] / df.loc[idx, '진입가']
+            df.loc[idx, 'pnl'] = (df.loc[idx, '진입가'] - 종가)*(df.loc[idx, '진입수량'])/종가
+            df.loc[idx, '현재자산가치'] = df.loc[idx, 'total']*종가
+            df.loc[idx, '수익률'] = (df.loc[idx, '현재자산가치']-self.initial_capital)/self.initial_capital*100
+            # print(f"{df.loc[idx, '수익률']}  {df.loc[idx, '현재자산가치']}  {self.initial_capital}")
             # df.loc[idx, 'pnl'] =
-            USDT = df.loc[idx, 'USDT']
-            진입수량 = df.loc[idx, '진입수량']
+            # USDT = df.loc[idx, 'USDT']
+            used = df.loc[idx, 'used']
             진입가 = df.loc[idx, '진입가']
             매수금액 = df.loc[idx, '매수금액']
-            free_qty = df.loc[idx, 'spot(free)']
-
+            free_qty = df.loc[idx, 'free']
+            복리 = (1 + df['funding_rate']).prod() - 1
+            단리 = df['funding_rate'].sum()
+            print(df)
+            print(f"{복리= }")
+            print(f"{단리= }")
+            quit()
         return df
 
     def run_all_strategies(self, ticker,hoga):
@@ -244,11 +260,11 @@ class FundingRateBacktester:
 
 if __name__ == '__main__':
     # 실제 사용시 API 키 설정 필요
-    print("암호화폐 펀딩비 백테스팅 시스템")
-    print("=" * 50)
     market = 'binance'
     ticker = 'OP'
     bong ='4시간봉'
+    print(f"{market} 암호화폐 펀딩비 백테스팅 시스템")
+    print("=" * 50)
     backtester = FundingRateBacktester(market=market, initial_capital=10000, bong=bong)
 
     # try:
