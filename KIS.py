@@ -190,13 +190,15 @@ class KoreaInvestmentWS(Process):
     """WebSocket
     """
     def __init__(self, api_key: str, api_secret: str, tr_id_list: list,
-                 tr_key_list: list, user_id: str = None):
+                 tr_key_list: list, country:str,mock:bool,user_id: str = None):
         super().__init__()
         self.api_key = api_key
         self.api_secret = api_secret
         self.tr_id_list = tr_id_list
         self.tr_key_list = tr_key_list
         self.user_id = user_id
+        self.mock = mock
+        self.country = country
         self.aes_key = None
         self.aes_iv = None
         self.queue = Queue()
@@ -208,13 +210,26 @@ class KoreaInvestmentWS(Process):
         asyncio.run(self.ws_client())
 
     async def ws_client(self):
-        """_summary_
-        """
-        # uri = "ws://ops.koreainvestment.com:21000"
-        uri = "ws://ops.koreainvestment.com:31000"
-
-        approval_key = self.get_approval()
-
+        dict_tr = {}
+        if self.country == '국내':
+            if self.mock:
+                uri = "ws://ops.koreainvestment.com:31000"
+                dict_tr['체결가'] = "H0STCNT0"
+                dict_tr['호가'] = "H0STASP0"
+            else :
+                uri = "ws://ops.koreainvestment.com:21000"
+                dict_tr['체결가'] = "H0STCNT0"
+                dict_tr['호가'] = "H0STASP0"
+        else:
+            if self.mock:
+                uri = ""
+            else:
+                uri = "ws://ops.koreainvestment.com:21000"
+                dict_tr['체결가'] = "HDFFF020"
+                dict_tr['호가'] = "HDFFF010"
+                dict_tr['주문내역'] = "HDFFF1C0"
+                dict_tr['주문내역'] = "HDFFF2C0"
+        approval_key = self.get_approval() #웹소켓 접근키 발급
         async with websockets.connect(uri, ping_interval=None) as websocket:
             header = {
                 "approval_key": approval_key,
@@ -278,11 +293,6 @@ class KoreaInvestmentWS(Process):
                         await websocket.send(data)
 
     def get_approval(self) -> str:
-        """실시간 (웹소켓) 접속키 발급
-
-        Returns:
-            str: 웹소켓 접속키
-        """
         headers = {"content-type": "application/json"}
         body = {"grant_type": "client_credentials",
                 "appkey": self.api_key,
@@ -3730,9 +3740,21 @@ if __name__ == "__main__":
     # print(df)
     key = "PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I"
     secret = "l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk="
+
+    #해외주식
+    account = "63761517"
+    key = "PSCwuAVwC8EGMp0wzmsoA4AixvXd3nngII3K"
+    secret = "x9/Sv7NKSKw3MJXZVrSibfiFNHqelAJAsuvFitxwyiLtclPWme8M4GEoVHUoPynUN+o6KFHnYA3TN7z3LIXns/3WRMeuicf/TiUbPKo1ReDidNRsGw72ecb/NRzybehs72JZt0buNzkzN3bXYSr5tbqihkuVmY1f6BT/0R/8ktxPaJB1Hrc="
+    mock = False
+    country = '국내'
+    cmd = input("rasdf")
+    print(type(cmd))
+    print(cmd)
+    quit()
     if __name__ == "__main__":
-        broker_ws = KoreaInvestmentWS(key, secret, ["H0STCNT0", "H0STASP0"], ["005930", "000660"],
-                                             user_id="idjhh82")
+        broker_ws = KoreaInvestmentWS(key, secret, ["H0STCNT0", "H0STASP0"],
+                                      ["005930", "000660"],country,
+                                      mock, user_id="idjhh82")
         broker_ws.start()
         while True:
             data_ = broker_ws.get()

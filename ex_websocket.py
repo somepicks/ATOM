@@ -475,38 +475,7 @@
 
 
 # websocket은 코루틴을 사용하므로 asyncio 패키지 추가
-import asyncio
-# websockets 패키지 추가
-import websockets
 
-# 클라이언트가 연결되면 실행되는 함수
-async def echo(ws):
-    # 클라이언트가 연결되서 끊어질때 까지 무한 루프
-    while True:
-        try:
-            # 클라이언트가 보내올 메시지를 받기 위해 대기
-            msg = await ws.recv()
-            # 메시지가 들어오면 화면에 출력
-            print('receive the msg {}'.format(msg))
-            # 원 메시지에 'send: '라는 문구를 추가해 클라이언트로 다시 보냄
-            await ws.send('send: ' + msg)
-        except:
-            # 예외가 발생했다면 클라이언트가 연결해제 됐다고 보고 해당 함수 종료
-            print('client disconnected')
-            break
-
-# 클라이언트를 대기하는 함수
-async def server_loop():
-    print('waiting for the client')
-    # 무한 루프
-    while True:
-        # 서버 실행
-        async with websockets.serve(echo, 'localhost', 3000) as ws:
-            # 무한 대기
-            await asyncio.Future()
-
-# 서버 루프 시작
-asyncio.run(server_loop())
 
 
 

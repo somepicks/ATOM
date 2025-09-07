@@ -467,6 +467,64 @@ def bybit_set_tickers(fetch_tickers):
 
 ################################################################
 
+import requests
+import json
+
+# 접근토큰 발급
+def fn_au10001(data):
+    host = 'https://api.kiwoom.com'
+    endpoint = '/oauth2/token'
+    url = host + endpoint
+
+    headers = {
+        'Content-Type': 'application/json;charset=UTF-8',
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    return response.json()
+
+# 계좌 잔고 조회
+def fn_kt00018(token, data):
+    host = 'https://api.kiwoom.com'
+    endpoint = '/api/dostk/acnt'
+    url = host + endpoint
+    print(url)
+    headers = {
+        'Content-Type': 'application/json;charset=UTF-8',
+        'authorization': f'Bearer {token}',
+        'api-id': 'kt00018',
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    return response.json()
+
+# 실행 구간
+if __name__ == '__main__':
+    api_key = "yldEAW1zfmbEnyK0X0M_v91AqSk-b3LO5dvALqSLfRo"
+    secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
+    # 1. 접근토큰 발급 데이터
+    token_params = {
+        'grant_type': 'client_credentials',
+        'appkey': api_key,
+        'secretkey': secret_key,
+    }
+
+    # 2. 접근토큰 발급
+    # token_response = fn_au10001(data=token_params)
+    # access_token = token_response['token']  # 발급받은 접근토큰
+    access_token = 'l314k2EMJGYaMdwAeqcvPHDyA7bWriht_18KqaKRORh6gVPfwb4idWXlcqlbBz63EL5e5cBWShjgKKbq_qVwnw'
+    print(f"{access_token= }")
+    # 3. 계좌 잔고 조회 데이터
+    balance_params = {
+        'qry_tp': '1',
+        'dmst_stex_tp': 'KRX',
+    }
+
+    # 4. 계좌 잔고 조회
+    balance_response = fn_kt00018(token=access_token, data=balance_params)
+    pprint(balance_response)
+
+quit()
 market = 'binance'
 ticker = 'BTC'
 if market == 'binance':

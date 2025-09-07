@@ -26,6 +26,8 @@ from PyQt5.QtTest import *
 from dateutil.relativedelta import relativedelta
 from tornado.websocket import WebSocketClientConnection
 
+import common_def
+
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -66,7 +68,7 @@ class KiwoomWS(Process):
 
         approval_key = self.get_approval()
 
-        async with websockets.connect(uri, ping_interval=None) as websocket:
+        async with websockets.connect(uri, ping_interval=60) as websocket:
             header = {
                 "approval_key": approval_key,
                 "personalseckey": "1",
@@ -197,9 +199,6 @@ class KiwoomWS(Process):
 
 
 class kiwoom_finance:
-    '''
-    한국투자증권 REST API
-    '''
     def __init__(self, api_key: str, api_secret: str, market: str,
                  exchange: str = "서울", mock: bool = False):
         self.mock = mock
@@ -214,8 +213,10 @@ class kiwoom_finance:
 
         self.access_token = None
         if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
+            print('기존 토큰 로드')
             self.load_access_token()
         else:
+            print('신규 토큰 발행')
             self.issue_access_token() #없을 경우 토큰 발행
 
     def set_base_url(self, market: str = '주식', mock: bool = True):
@@ -253,41 +254,35 @@ class kiwoom_finance:
                 'appkey': self.api_key,  # 앱키
                 'secretkey': self.api_secret,  # 시크릿키
             }
-
             response = requests.post(url, headers=headers, json=params)
-            print('Code:', response.status_code)
-            print('Header:',json.dumps({key: response.headers.get(key) for key in ['next-key', 'cont-yn', 'api-id']}, indent=4,
-                             ensure_ascii=False))
-            print('Body:', json.dumps(response.json(), indent=4, ensure_ascii=False))  # JSON 응답을 파싱하여 출력
+            data = response.json()
             try:
-                self.access_token = f'Bearer {response.json()["token"]}'
+                self.access_token = data["token"]
             except Exception as e:
                 print(f"API 오류 발생: {e}")
-                print(f"{response.json()= }")
-            response.json()['expires_dt'] = response.json()["expires_dt"]
+                print(f"{data= }")
+                return
+            data['api'] = self.api_key
             if self.mock:
                 file_name = "token_mock.dat"
             else:
                 file_name = "token.dat"
             with open(file_name, "wb") as f:
-                pickle.dump(response.json(), f)
+                pickle.dump(data, f)
 
     def check_access_token(self):
-        """check access token
-        Returns:
-            Bool: True: token is valid, False: token is not valid
-        """
+        if self.mock:
+            file_name = "token_mock.dat"
+        else:
+            file_name = "token.dat"
         try:
-            if self.mock:
-                file_name = "token_mock.dat"
-            else:
-                file_name = "token.dat"
             f = open(file_name, "rb")
             data = pickle.load(f)
             f.close()
-
             expire_epoch = data['expires_dt']
             if datetime.datetime.strptime(expire_epoch,"%Y%m%d%H%M%S")-datetime.datetime.now() < datetime.timedelta(hours=12):
+                status = False #기존 토큰 제거
+            elif not data['api'] == self.api_key:
                 status = False
             else:
                 status = True
@@ -304,7 +299,7 @@ class kiwoom_finance:
             file_name = "token.dat"
         with open(file_name, "rb") as f:
             data = pickle.load(f)
-            self.access_token = f'Bearer {data["token"]}'
+            self.access_token = data["token"]
     def inquiry_TR(self, path, tr_id:str, params:dict):
         url = f"{self.base_url}/{path}"
         data = {
@@ -1740,54 +1735,41 @@ class kiwoom_finance:
         return data
 
     def fetch_balance(self) -> dict:
-        """잔고 조회
-        Args:
-        Returns:
-            dict: response data
-        """
         if self.exchange == '서울':
-            output = {}
             dict_amount = {}
             i = 0
             while True:
                 data = self.fetch_balance_domestic()
-                pprint(data)
-                if data.get('msg1')[:18] == '조회 되었습니다. (마지막 자료)'or data.get('msg1')[:16] == '모의투자 조회가 완료되었습니다':
+                if data.get('return_msg') == '조회가 완료되었습니다':
                     break
                 else:
-                    # time.sleep(0.5)
                     QTest.qWait(1000)
                     i += 1
                     if i > 10:
                         print('fetch_balance 조회에러')
-                        pprint(data['msg1'])
-                        quit()
+                        pprint(data)
+                        return {},pd.DataFrame()
 
             if self.market == '주식':
-                # pprint(data)
-                output['output1'] = data['output1']
-                output['output2'] = data['output2']
-                #
-                # while data['tr_cont'] == 'M':
-                #     fk100 = data['ctx_area_fk100']
-                #     nk100 = data['ctx_area_nk100']
-                #
-                #     data = self.fetch_balance_domestic(fk100, nk100)
-                #     output['output1'].extend(data['output1'])
-                #     output['output2'].extend(data['output2'])
-                #####################################
-                dict_amount["예수금"] = int(output['output2'][0]['dnca_tot_amt'])
-                dict_amount["총평가금액"] = int(output['output2'][0]['tot_evlu_amt'])
-                df_instock = pd.DataFrame(output['output1'])
-                if not df_instock.empty:
-                    df_instock.rename(
-                        columns={'prdt_name':'종목명','pdno':'종목코드','thdt_buyqty':'금일매수수량','thdt_sll_qty':'금일매도수량',
-                                 'hldg_qty':'보유수량','ord_psbl_qty':'주문가능수량','pchs_amt':'매입금액','evlu_amt':'평가금액',
-                                 'evlu_pfls_amt':'평가손익','evlu_pfls_rt':'평가손익율','evlu_erng_rt':'평가수익율','fltt_rt':'등락율',
-                                 'bfdy_cprs_icdc':'전일대비증감'}, inplace=True)
-                    df_instock = df_instock[['종목명','종목코드','금일매수수량','금일매도수량','보유수량','주문가능수량',
-                                             '매입금액','평가금액','평가손익','평가손익율','평가수익율']]
-                    df_instock.set_index('종목코드', inplace=True)
+                dict_amount['총매입금액'] = int(data['tot_pur_amt'])
+                dict_amount['총평가금액'] = int(data['tot_evlt_amt'])
+                dict_amount['총평가손익금액'] = int(data['tot_evlt_pl'])
+                dict_amount['총수익률'] = float(data['tot_prft_rt'])
+                dict_amount['추정예탁자산'] = int(data['prsm_dpst_aset_amt'])
+                dict_amount['총대출금'] = int(data['tot_loan_amt'])
+                dict_amount['총융자금액'] = int(data['tot_crd_loan_amt'])
+                # dict_amount['계좌평가잔고개별합산'] = int(data['acnt_evlt_remn_indv_tot'])
+                df = pd.DataFrame(data['acnt_evlt_remn_indv_tot'])
+                df = common_def.convert_column_types(df)
+                if not df.empty:
+                    df.rename(
+                        columns={'stk_nm':'종목명','stk_cd':'종목코드',
+                                 'rmnd_qty':'보유수량','pur_pric':'매입가','cur_prc':'현재가','pur_amt':'매입금액',
+                                 'pur_cmsn':'매입수수료','evlt_amt':'평가금액','crd_tp':'신용구분'}, inplace=True)
+                    df = df[['종목명','종목코드',
+                                 '보유수량','매입가','현재가','매입금액',
+                                 '매입수수료','평가금액','신용구분']]
+                    df.set_index('종목코드', inplace=True)
             elif self.market == '선옵':
                 # output['output1'] = data['output1']
                 # output['output2'] = data['output2']
@@ -1822,7 +1804,7 @@ class kiwoom_finance:
                     df_instock.index = df_instock['종목코드']
                     # df_instock = df_instock[df_instock['청산가능수량'] > 0]
 
-            return dict_amount, df_instock
+            return dict_amount, df
         if self.exchange == '해외':
             output = {}
             dict_amount = {}
@@ -1875,15 +1857,13 @@ class kiwoom_finance:
                 output['output2'].extend(data['output2'])
 
 
-
-
     def fetch_balance_domestic(self):
         if self.market == '주식':
             endpoint = '/api/dostk/acnt'
             url = f"{self.base_url}{endpoint}"
             headers = {
                 'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
-                'authorization': self.access_token,  # 접근토큰
+                'authorization': f'Bearer {self.access_token}',  # 접근토큰
                 'cont-yn': "N",  # 연속조회여부
                 'next-key': "",  # 연속조회키
                 'api-id': 'kt00018',  # TR명
@@ -1893,9 +1873,8 @@ class kiwoom_finance:
                 'dmst_stex_tp': 'KRX',  # 국내거래소구분 KRX:한국거래소,NXT:넥스트트레이드
             }
 
-            res = requests.get(url, headers=headers, params=params)
+            res = requests.post(url, headers=headers, json=params)
             data = res.json()
-            # data['tr_cont'] = res.headers['tr_cont']
             return data
         elif self.market == '선옵':
             """국내선물옵션/선물옵션잔고조회 """
@@ -2721,10 +2700,10 @@ class kiwoom_finance:
     def _fetch_ohlcv_domestic(self, symbol: str,base_dt: str):
         endpoint = '/api/dostk/chart'
         url = f"{self.base_url}{endpoint}"
-
+        print(f"{self.access_token= }")
         headers = {
             'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
-            'authorization': self.access_token,  # 접근토큰
+            'authorization': f'Bearer {self.access_token}',  # 접근토큰
             'cont-yn': "N",  # cont_yn 연속조회여부
             'next-key': "",  # next_key 연속조회키
             'api-id': 'ka10081',  # TR명
@@ -3511,6 +3490,7 @@ class WebSocketClient:
     # 서버에서 오는 메시지를 수신하여 출력합니다.
     async def receive_messages(self):
         while self.keep_running:
+            print('receive_messages')
             try:
                 # 서버로부터 수신한 메시지를 JSON 형식으로 파싱
                 response = json.loads(await self.websocket.recv())
@@ -3547,7 +3527,7 @@ class WebSocketClient:
             await self.websocket.close()
             self.connected = False
             print('Disconnected from WebSocket server')
-
+    async def
 
 
 if __name__ == "__main__":
@@ -3555,36 +3535,83 @@ if __name__ == "__main__":
     if mock:
         api_key = "zSQr2jdgor8SPPF5DigW5Vq64xKRQcbNQY_2O4muS2o"
         secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
+        SOCKET_domain = 'wss://mockapi.kiwoom.com:10000'  # 모의투자 접속 URL
+        SOCKET_URL = "/api/dostk/websocket"
+
     else:
-        api_key = "P0FfJ6jrHYYv5rOroape_sHsMatIGQhdACJfA3K2TkM"
-        secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
+        # api_key = "P0FfJ6jrHYYv5rOroape_sHsMatIGQhdACJfA3K2TkM"
+        # secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
+        api_key = "yldEAW1zfmbEnyK0X0M_v91AqSk-b3LO5dvALqSLfRo"
+        secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
+        SOCKET_domain = 'wss://api.kiwoom.com:10000'  # 접속 URL
+        SOCKET_URL = "/api/dostk/websocket"
+    uri = SOCKET_domain + SOCKET_URL
     ex = kiwoom_finance(api_key=api_key,api_secret=secret_key,market='주식',mock=mock)
-    # ex.fetch_balance()
-    df = ex.fetch_ohlcv("005930")
-    print(df)
-    access_token = ex.access_token.replace('Bearer ','')
-    print(access_token)
+    access_token = ex.access_token
 
 
+    async def trade_stocks(ACCESS_TOKEN):
+        # 조건검색식 조회
+        search_params = {
+            'trnm': 'CNSRREQ',
+            'seq': '16',  # '종가' 검색식의 일련번호
+            'search_type': '0',
+            'stex_tp': 'K',
+        }
+        response = requests.post('wss://api.kiwoom.com:10000/api/dostk/websocket', json=search_params)
+        stocks = response.json().get('data', [])
+        print(stocks)
+        quit()
 
-    # socket 정보
-    # SOCKET_URL = 'wss://mockapi.kiwoom.com:10000/api/dostk/websocket'  # 모의투자 접속 URL
-    SOCKET_URL = 'wss://api.kiwoom.com:10000/api/dostk/websocket'  # 접속 URL
+        # 오후 3시 29분에 매수
+        target_time = datetime.datetime.now().replace(hour=15, minute=29, second=0, microsecond=0)
+        while datetime.datetime.now() < target_time:
+            time.sleep(1)
+
+        for stock in stocks:
+            buy_params = {
+                'dmst_stex_tp': 'KRX',
+                'stk_cd': stock['jmcode'],  # 종목코드
+                'ord_qty': '1',
+                'trde_tp': '3',  # 시장가
+            }
+            # 매수 주문
+            requests.post('https://api.kiwoom.com/api/dostk/ordr', headers={'authorization': f'Bearer {ACCESS_TOKEN}'},
+                          json=buy_params)
+
+        # 다음날 아침 9시에 매도
+        next_day = datetime.datetime.now() + datetime.timedelta(days=1)
+        target_time = next_day.replace(hour=9, minute=0, second=0, microsecond=0)
+        while datetime.datetime.now() < target_time:
+            time.sleep(1)
+
+        for stock in stocks:
+            sell_params = {
+                'dmst_stex_tp': 'KRX',
+                'stk_cd': stock['jmcode'],  # 종목코드
+                'ord_qty': '1',
+                'trde_tp': '3',  # 시장가
+            }
+            # 매도 주문
+            requests.post('https://api.kiwoom.com/api/dostk/ordr', headers={'authorization': f'Bearer {ACCESS_TOKEN}'},
+                          json=sell_params)
+
 
     async def main():
         # WebSocketClient 전역 변수 선언
-        websocket_client = WebSocketClient(SOCKET_URL,access_token)
+        websocket_client = WebSocketClient(uri,access_token)
 
         # WebSocket 클라이언트를 백그라운드에서 실행합니다.
         receive_task = asyncio.create_task(websocket_client.run())
 
         # 실시간 항목 등록
-        await asyncio.sleep(1)
-        await websocket_client.send_message({
-            'trnm': 'CNSRLST', # TR명
-        })
+        # await asyncio.sleep(1)
+        # await websocket_client.send_message({
+        #     'trnm': 'CNSRLST', # TR명
+        # })
         # 수신 작업이 종료될 때까지 대기
-        await receive_task
+        # await receive_task
+        await trade_stocks(access_token)
 
     # asyncio로 프로그램을 실행합니다.
     asyncio.run(main())
