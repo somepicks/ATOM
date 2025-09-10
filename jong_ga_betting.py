@@ -5,7 +5,12 @@ import datetime
 import requests
 import pandas as pd
 import websockets
-
+pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
+pd.set_option('display.max_colwidth', None)
+pd.set_option('display.width',1500)
+# pd.set_option('display.max_rows', None)  # 출력 옵션 설정: 모든 열의 데이터 유형을 출력
+pd.set_option("display.unicode.east_asian_width", True)
+pd.set_option('mode.chained_assignment',  None)
 class kiwoom_finance:
     def __init__(self, api_key: str, api_secret: str, market: str,
                  exchange: str = "서울", mock: bool = False):
@@ -16,6 +21,7 @@ class kiwoom_finance:
         self.api_secret = api_secret
         self.exchange = exchange
         self.access_token = None
+        self.fetch_access = True
         if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
             print('기존 토큰 로드')
             self.load_access_token()
@@ -48,7 +54,7 @@ class kiwoom_finance:
             except Exception as e:
                 print(f"API 오류 발생: {e}")
                 print(f"{data= }")
-                return
+                quit()
             data['api'] = self.api_key
             if self.mock:
                 file_name = "token_mock.dat"
@@ -118,7 +124,8 @@ class WebSocketClient:
         self.websocket = None
         self.connected = False
         self.keep_running = True
-
+        self.search_chennel = None
+        self.df = pd.DataFrame()
     # WebSocket 서버에 연결합니다.
     async def connect(self):
         try:
@@ -149,14 +156,12 @@ class WebSocketClient:
             # message가 문자열이 아니면 JSON으로 직렬화
             if not isinstance(message, str):
                 message = json.dumps(message)
-
         await self.websocket.send(message)
         print(f'async def send_message: {message}')
 
     # 서버에서 오는 메시지를 수신하여 출력합니다.
     async def receive_messages(self):
         while self.keep_running:
-            print('receive_messages')
             try:
                 # 서버로부터 수신한 메시지를 JSON 형식으로 파싱
                 response = json.loads(await self.websocket.recv())
@@ -167,12 +172,35 @@ class WebSocketClient:
                         await self.disconnect()
                     else:
                         print('로그인 성공하였습니다.')
+                        print('조건검색 목록조회 패킷을 전송합니다.')
+                        # 로그인 패킷
+                        param = {
+                            'trnm': 'CNSRLST'
+                        }
+                        await self.send_message(message=param)
                 # 메시지 유형이 PING일 경우 수신값 그대로 송신
                 elif response.get('trnm') == 'PING':
                     await self.send_message(response)
+                elif response.get('trnm') == 'CNSRLST': #전체 조건 검색 시 불러오기
+                    for i, li in enumerate(response['data']):
+                            if title in li:
+                                num_str = li[0]
+                                print(f"{num_str= }")
+                                self.search_chennel = num_str
+                elif response.get('trnm') == 'CNSRREQ':
+                    self.df = pd.DataFrame(response['data'])
+                    self.df.rename(
+                        columns={'9001': '종목코드', '302': '종목명', '10': '현재가', '25': '전일대비기호',
+                                 '11': '전일대비', '12': '등락율', '13': '누적거래량', '16': '시가', '17': '고가', '18': '저가'}, inplace=True)
+                    for col in self.df.columns:
+                        try:
+                            self.df[col] = pd.to_numeric(self.df[col], errors='raise')
+                        except ValueError:
+                            pass
+                    print(self.df)
                 if response.get('trnm') != 'PING':
                     print(f'실시간 시세 서버 응답 수신: {response}')
-                    self.keep_running = False
+
             except websockets.ConnectionClosed:
                 print('Connection closed by the server')
                 self.connected = False
@@ -192,47 +220,50 @@ class WebSocketClient:
             self.connected = False
             print('Disconnected from WebSocket server')
 
-    async def fetch_tickers(self,search):
-        message ={
-                    'trnm': 'CNSRLST',  # TR명
-                }
-        if not self.connected:
-            await self.connect()  # 연결이 끊어졌다면 재연결
-        if self.connected:
-            # message가 문자열이 아니면 JSON으로 직렬화
-            if not isinstance(message, str):
-                message = json.dumps(message)
-        await self.websocket.send(message)
-        while True:
-            response = json.loads(await self.websocket.recv())
-            print(f'조건검색 식 서버 응답 수신: {response}')
-            if response['trnm'] == 'CNSRLST':
-                print(f"{response= }")
-                for li in response['data']:
-                    if title in li:
-                        num_str = li[0]
-        if not self.connected:
-            await self.connect()  # 연결이 끊어졌다면 재연결
-        if self.connected:
-            message ={
-                'trnm': 'CNSRREQ',  # 서비스명
-                'seq': num_str,  # 조건검색식 일련번호
-                'search_type': '0',  # 조회타입
-                'stex_tp': 'K',  # 거래소구분
-                'cont_yn': 'N',  # 연속조회여부
-                'next_key': '',  # 연속조회키
-                    }
-            # message가 문자열이 아니면 JSON으로 직렬화
-            if not isinstance(message, str):
-                message = json.dumps(message)
-        await self.websocket.send(message)
-        while True:
-            response = json.loads(await self.websocket.recv())
-            print(f'조건검색 리스트 서버 응답 수신: {response}')
-            if response['trnm'] == 'CNSRREQ ':
-                print(f"{response= }")
-                break
-        return response
+    # async def fetch_tickers(self,search):
+    #     # message ={
+    #     #             'trnm': 'CNSRLST',  # TR명
+    #     #         }
+    #     # if not self.connected:
+    #     #     await self.connect()  # 연결이 끊어졌다면 재연결
+    #     # if self.connected:
+    #     #     # message가 문자열이 아니면 JSON으로 직렬화
+    #     #     if not isinstance(message, str):
+    #     #         message = json.dumps(message)
+    #     # await self.websocket.send(message)
+    #     # while True:
+    #     #     response = json.loads(await self.websocket.recv())
+    #     #     print(f'조건검색 식 서버 응답 수신: {response}')
+    #     #     if response['trnm'] == 'CNSRLST':
+    #     #         print(f"{response['data']= }")
+    #     #         print(len(response['data']))
+    #     #         for i,li in enumerate(response['data']):
+    #     #             if title in li:
+    #     #                 num_str = li[0]
+    #     #                 print(f"{num_str= }")
+    #     #                 break
+    #     #             print(i)
+    #     message ={
+    #         'trnm': 'CNSRREQ',  # 서비스명
+    #         'seq': "16",  # 조건검색식 일련번호
+    #         'search_type': '0',  # 조회타입
+    #         'stex_tp': 'K',  # 거래소구분
+    #         'cont_yn': 'N',  # 연속조회여부
+    #         'next_key': '',  # 연속조회키
+    #             }
+        # message가 문자열이 아니면 JSON으로 직렬화
+        # if not isinstance(message, str):
+        #     message = json.dumps(message)
+        # await self.websocket.send(message)
+        # while True:
+        #     response = json.loads(await self.websocket.recv())
+        #     print(f'조건검색 리스트 서버 응답 수신: {response}')
+        #     if response['trnm'] == 'CNSRREQ ':
+        #         print(f"{response= }")
+        #         break
+        # return response
+
+
 if __name__ == "__main__":
     mock = False
     if mock:
@@ -252,36 +283,29 @@ if __name__ == "__main__":
     websocket_client = WebSocketClient(ex.access_token)
     async def main():
         await websocket_client.connect()
-        print(f"{websocket_client.connected= }")
-        while True:
-            if websocket_client.connected:
-                num = await websocket_client.fetch_tickers(title)
-                print(f"{num= } {title= }")
-                break
-        while True:
-            if websocket_client.connected:
-                num = await websocket_client.fetch_tickers(title)
-                print(f"{num= } {title= }")
-                break
-        print(f"{websocket_client.connected= }")
-
-        # await asyncio.create_task(websocket_client.fetch_tickers({
-        #     'trnm': 'CNSRLST', # TR명
-        # }))
-        # WebSocketClient 전역 변수 선언
-
-        # WebSocket 클라이언트를 백그라운드에서 실행합니다.
-        # receive_task = asyncio.create_task(websocket_client.run())
-        #
-        # # 실시간 항목 등록
-        # await asyncio.sleep(1)
-        # await websocket_client.send_message({
-        #     'trnm': 'CNSRLST', # TR명
-        # })
-        # await receive_task
-
-        # 수신 작업이 종료될 때까지 대기
         # await trade_stocks(access_token)
+
+
+        receive_task = asyncio.create_task(websocket_client.run())
+
+
+        await asyncio.sleep(1)
+        if not websocket_client.search_chennel == None: #search_chennel 이 None이 아니면 메세지 전송
+            await websocket_client.send_message({
+                'trnm': 'CNSRREQ',  # 서비스명
+                'seq': websocket_client.search_chennel,  # 조건검색식 일련번호
+                'search_type': '0',  # 조회타입
+                'stex_tp': 'K',  # 거래소구분
+                'cont_yn': 'N',  # 연속조회여부
+                'next_key': '',  # 연속조회키
+            })
+        print('=====')
+        print(websocket_client.df)
+        if not websocket_client.df.empty :
+            print('*****')
+
+            print(websocket_client.df)
+        await receive_task
 
     # asyncio로 프로그램을 실행합니다.
     asyncio.run(main())
