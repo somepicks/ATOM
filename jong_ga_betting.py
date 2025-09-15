@@ -5,6 +5,7 @@ import datetime
 import requests
 import pandas as pd
 import websockets
+from pprint import pprint
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -117,6 +118,58 @@ class kiwoom_finance:
             dict_data['총 평가손익'] = int(data['tot_evltv_prft'])
             dict_data['수익률'] = float(data['tot_prft_rt'])
         return dict_data
+    def order_open(self,ticker,qty,price,ord_type):
+        endpoint = '/api/dostk/ordr'
+        url = f"{self.base_url}{endpoint}"
+        headers = {
+            'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
+            'authorization': f'Bearer {self.access_token}',  # 접근토큰
+            'cont-yn': "N",  # 연속조회여부
+            'next-key': "",  # 연속조회키
+            'api-id': 'kt10000',  # TR명
+        }
+        if ord_type == '지정가':
+            ord_type = '1'
+        elif ord_type == '시장가':
+            ord_type = '3'
+        params = {
+            'dmst_stex_tp': 'KRX',  # 국내거래소구분 KRX,NXT,SOR
+            'stk_cd': ticker[1:],  # 종목코드
+            'ord_qty': str(qty),  # 주문수량
+            'ord_uv': str(price),  # 주문단가
+            'trde_tp': ord_type,
+            # 매매구분 0:보통 , 3:시장가 , 5:조건부지정가 , 81:장마감후시간외 , 61:장시작전시간외, 62:시간외단일가 , 6:최유리지정가 , 7:최우선지정가 , 10:보통(IOC) , 13:시장가(IOC) , 16:최유리(IOC) , 20:보통(FOK) , 23:시장가(FOK) , 26:최유리(FOK) , 28:스톱지정가,29:중간가,30:중간가(IOC),31:중간가(FOK)
+            'cond_uv': '',  # 조건단가
+        }
+        res = requests.post(url, headers=headers, json=params)
+        data = res.json()
+        return data
+    def order_close(self,ticker,qty,price,ord_type):
+        endpoint = '/api/dostk/ordr'
+        url = f"{self.base_url}{endpoint}"
+        headers = {
+            'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
+            'authorization': f'Bearer {self.access_token}',  # 접근토큰
+            'cont-yn': "N",  # 연속조회여부
+            'next-key': "",  # 연속조회키
+            'api-id': 'kt10001',  # TR명
+        }
+        if ord_type == '지정가':
+            ord_type = '1'
+        elif ord_type == '시장가':
+            ord_type = '3'
+        params = {
+            'dmst_stex_tp': 'KRX',  # 국내거래소구분 KRX,NXT,SOR
+            'stk_cd': ticker[1:],  # 종목코드
+            'ord_qty': str(qty),  # 주문수량
+            'ord_uv': str(price),  # 주문단가
+            'trde_tp': ord_type,
+            # 매매구분 0:보통 , 3:시장가 , 5:조건부지정가 , 81:장마감후시간외 , 61:장시작전시간외, 62:시간외단일가 , 6:최유리지정가 , 7:최우선지정가 , 10:보통(IOC) , 13:시장가(IOC) , 16:최유리(IOC) , 20:보통(FOK) , 23:시장가(FOK) , 26:최유리(FOK) , 28:스톱지정가,29:중간가,30:중간가(IOC),31:중간가(FOK)
+            'cond_uv': '',  # 조건단가
+        }
+        res = requests.post(url, headers=headers, json=params)
+        data = res.json()
+        return data
 
 class WebSocketClient:
     def __init__(self, ACCESS_TOKEN):
@@ -125,6 +178,7 @@ class WebSocketClient:
         self.connected = False
         self.keep_running = True
         self.search_chennel = None
+        self.signal_buy = False
         self.df = pd.DataFrame()
     # WebSocket 서버에 연결합니다.
     async def connect(self):
@@ -181,13 +235,13 @@ class WebSocketClient:
                 # 메시지 유형이 PING일 경우 수신값 그대로 송신
                 elif response.get('trnm') == 'PING':
                     await self.send_message(response)
-                elif response.get('trnm') == 'CNSRLST': #전체 조건 검색 시 불러오기
+                elif response.get('trnm') == 'CNSRLST': #전체 조건 검색 식 불러오기
                     for i, li in enumerate(response['data']):
                             if title in li:
                                 num_str = li[0]
                                 print(f"{num_str= }")
                                 self.search_chennel = num_str
-                elif response.get('trnm') == 'CNSRREQ':
+                elif response.get('trnm') == 'CNSRREQ': # 종목들 불러오기
                     self.df = pd.DataFrame(response['data'])
                     self.df.rename(
                         columns={'9001': '종목코드', '302': '종목명', '10': '현재가', '25': '전일대비기호',
@@ -195,9 +249,12 @@ class WebSocketClient:
                     for col in self.df.columns:
                         try:
                             self.df[col] = pd.to_numeric(self.df[col], errors='raise')
+
+                            break
+
                         except ValueError:
                             pass
-                    print(self.df)
+                    break
                 if response.get('trnm') != 'PING':
                     print(f'실시간 시세 서버 응답 수신: {response}')
 
@@ -263,6 +320,34 @@ class WebSocketClient:
         #         break
         # return response
 
+async def main(ex):
+    await websocket_client.connect()
+    # await trade_stocks(access_token)
+
+    receive_task = asyncio.create_task(websocket_client.run())
+
+    await asyncio.sleep(1)
+    if not websocket_client.search_chennel == None: #search_chennel 이 None이 아니면 메세지 전송
+        await websocket_client.send_message({
+            'trnm': 'CNSRREQ',  # 서비스명
+            'seq': websocket_client.search_chennel,  # 조건검색식 일련번호
+            'search_type': '0',  # 조회타입
+            'stex_tp': 'K',  # 거래소구분
+            'cont_yn': 'N',  # 연속조회여부
+            'next_key': '',  # 연속조회키
+        })
+
+    await receive_task
+
+    print('asdf')
+    print(websocket_client.df)
+    df = websocket_client.df.copy()
+    print(f"필요금액: {df['현재가'].sum()}")
+    for i,ticker in enumerate(df['종목코드'].tolist()):
+        res = ex.order_open(ticker,1,df.loc[df.index[i],'현재가'],'시장가')
+        pprint(res)
+    quit()
+
 
 if __name__ == "__main__":
     mock = False
@@ -281,31 +366,29 @@ if __name__ == "__main__":
     dict_res = ex.fetch_asset()
 
     websocket_client = WebSocketClient(ex.access_token)
-    async def main():
-        await websocket_client.connect()
-        # await trade_stocks(access_token)
+    import os
+    import sqlite3
 
+    db_file = 'jong_ga.db'
+    if not os.path.isfile(db_file):  # stg_file.db 파일이 없으면
+        conn = sqlite3.connect(db_file)
+        df_jong_ga = pd.DataFrame()
+        df_jong_ga.to_sql('in_stock', conn, if_exists='replace')
+    else:
+        conn = sqlite3.connect(db_file)
+        df_jong_ga = pd.read_sql(f"SELECT * FROM 'in_stock'", conn).set_index('index')
+    while True:
+        now = datetime.datetime.now()
 
-        receive_task = asyncio.create_task(websocket_client.run())
+        if now.hour == 9 and now.minute >= 0:
+            if not df_jong_ga.empty:
+                for i,ticker in enumerate(df_jong_ga['종목코드'].tolist()):
+                    res = ex.order_close(ticker,1,df_jong_ga.loc[df_jong_ga.index[i],'현재가'],'시장가')
+                    pprint(res)
+                    df_jong_ga = pd.DataFrame()
+        # 오후 3시 30분 체크 (15:29)
+        elif now.hour == 15 and now.minute >= 29:
+            # asyncio로 프로그램을 실행합니다.
+            asyncio.run(main(ex))
+            break
 
-
-        await asyncio.sleep(1)
-        if not websocket_client.search_chennel == None: #search_chennel 이 None이 아니면 메세지 전송
-            await websocket_client.send_message({
-                'trnm': 'CNSRREQ',  # 서비스명
-                'seq': websocket_client.search_chennel,  # 조건검색식 일련번호
-                'search_type': '0',  # 조회타입
-                'stex_tp': 'K',  # 거래소구분
-                'cont_yn': 'N',  # 연속조회여부
-                'next_key': '',  # 연속조회키
-            })
-        print('=====')
-        print(websocket_client.df)
-        if not websocket_client.df.empty :
-            print('*****')
-
-            print(websocket_client.df)
-        await receive_task
-
-    # asyncio로 프로그램을 실행합니다.
-    asyncio.run(main())
