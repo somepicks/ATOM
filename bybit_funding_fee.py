@@ -73,13 +73,14 @@ class do_trade(QThread):
         self.df_linear = self.df_linear.loc[list_cross] #리스트에있는 행만 추출
         self.df_linear = self.df_linear.sort_values('market')
         for idx,row in self.df_future.iterrows():
-            if row['진입수량'] < self.df_linear.loc[idx,'보유수량']:
-                self.df_linear.loc[idx, '보유수량'] = row['진입수량']
-                # self.df_linear.loc[idx, '매수금액'] = self.df_linear.loc[idx, '보유수량']+self.df_linear.loc[idx, '평단가']
-                self.df_linear.loc[idx, '매수금액'] = self.df_linear.loc[idx, '보유수량']+row['진입가']
-                self.df_linear.loc[idx, '평단가'] = row['진입가']
-                self.df_linear.loc[idx, '매수횟수'] = 1
-                # quit()
+            if idx in self.df_linear.index.tolist():
+                if row['진입수량'] < self.df_linear.loc[idx,'보유수량']:
+                    self.df_linear.loc[idx, '보유수량'] = row['진입수량']
+                    # self.df_linear.loc[idx, '매수금액'] = self.df_linear.loc[idx, '보유수량']+self.df_linear.loc[idx, '평단가']
+                    self.df_linear.loc[idx, '매수금액'] = self.df_linear.loc[idx, '보유수량']+row['진입가']
+                    self.df_linear.loc[idx, '평단가'] = row['진입가']
+                    self.df_linear.loc[idx, '매수횟수'] = 1
+                    # quit()
         self.save_df.emit(self.df_linear,'linear')
         start_time = self.df_set.loc['start_time', 'val']
         finish_time = self.df_set.loc['auto_finish', 'val']
@@ -230,6 +231,10 @@ class do_trade(QThread):
         if order : # 현재 잔고가 진입수량*펀딩비율*5배 보다 많아야 매수 조건 성립 (최소수량보다 잔고가 많을경우마다 주문하면 마이너스피 일 때는 갖고있는 잔고에서 매번 수수료가 나가기 때문)
             df = self.common.get_df(market, ticker, '일봉', 60)  # 일봉의 이평이 데드크로스일 때만 신규 진입
             if df.loc[df.index[-1],'이평9'] < df.loc[df.index[-1],'이평20']:
+                signal = True
+            else:
+                signal = False
+            if signal == True:
                 df_open = pd.DataFrame()
 
                 진입수량 = 진입수량//주문최소금액
@@ -801,7 +806,6 @@ class do_trade(QThread):
 class Window(QMainWindow):
     manual_buy_signal = pyqtSignal(str,str,int,float,pd.DataFrame)
     set_signal = pyqtSignal(pd.DataFrame)
-
     def __init__(self):
         super().__init__()
         self.init_file()

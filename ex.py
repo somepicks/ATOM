@@ -499,33 +499,34 @@ def fn_kt00018(token, data):
     return response.json()
 
 # 실행 구간
-if __name__ == '__main__':
-    api_key = "yldEAW1zfmbEnyK0X0M_v91AqSk-b3LO5dvALqSLfRo"
-    secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
-    # 1. 접근토큰 발급 데이터
-    token_params = {
-        'grant_type': 'client_credentials',
-        'appkey': api_key,
-        'secretkey': secret_key,
-    }
+# if __name__ == '__main__':
+    #키움
+    # api_key = "yldEAW1zfmbEnyK0X0M_v91AqSk-b3LO5dvALqSLfRo"
+    # secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
+    # # 1. 접근토큰 발급 데이터
+    # token_params = {
+    #     'grant_type': 'client_credentials',
+    #     'appkey': api_key,
+    #     'secretkey': secret_key,
+    # }
+    #
+    # # 2. 접근토큰 발급
+    # # token_response = fn_au10001(data=token_params)
+    # # access_token = token_response['token']  # 발급받은 접근토큰
+    # access_token = 'l314k2EMJGYaMdwAeqcvPHDyA7bWriht_18KqaKRORh6gVPfwb4idWXlcqlbBz63EL5e5cBWShjgKKbq_qVwnw'
+    # print(f"{access_token= }")
+    # # 3. 계좌 잔고 조회 데이터
+    # balance_params = {
+    #     'qry_tp': '1',
+    #     'dmst_stex_tp': 'KRX',
+    # }
+    #
+    # # 4. 계좌 잔고 조회
+    # balance_response = fn_kt00018(token=access_token, data=balance_params)
+    # pprint(balance_response)
 
-    # 2. 접근토큰 발급
-    # token_response = fn_au10001(data=token_params)
-    # access_token = token_response['token']  # 발급받은 접근토큰
-    access_token = 'l314k2EMJGYaMdwAeqcvPHDyA7bWriht_18KqaKRORh6gVPfwb4idWXlcqlbBz63EL5e5cBWShjgKKbq_qVwnw'
-    print(f"{access_token= }")
-    # 3. 계좌 잔고 조회 데이터
-    balance_params = {
-        'qry_tp': '1',
-        'dmst_stex_tp': 'KRX',
-    }
-
-    # 4. 계좌 잔고 조회
-    balance_response = fn_kt00018(token=access_token, data=balance_params)
-    pprint(balance_response)
-
-quit()
-market = 'binance'
+# quit()
+market = 'bybit'
 ticker = 'BTC'
 if market == 'binance':
     binance_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
@@ -584,6 +585,10 @@ elif market == 'bybit':
         'enableRateLimit': True,
         'options': {'position_mode': True, },
     })
+    res= bybit.fetch_balance()
+    pprint(res)
+    quit()
+
     dict_duration = {'1주일': 7, '1개월': 30, '2개월': 60, '3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
     since = datetime.datetime.now() - datetime.timedelta(days=dict_duration['1년'])
     since = datetime_to_stamp(since) * 1000  # 밀리초 곱하기
