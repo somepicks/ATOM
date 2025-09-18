@@ -40,30 +40,16 @@ class do_trade(QThread):
     val_wallet = pyqtSignal(int,int)
     val_time = pyqtSignal(str)
     shutdown_signal = pyqtSignal()
-    def __init__(self, parent, dict_bybit, dict_binance,df_open,df_closed,df_set,df_linear,dict_option):
+    def __init__(self, parent, df_open, df_closed, df_set, dict_option):
         super().__init__(parent)
         self.cond = QWaitCondition()
         self.bool_light = False
         self._status = True
-        self.dict_bybit = dict_bybit
-
-        self.dict_binance = dict_binance
-
         self.df_open = df_open
         self.df_closed = df_closed
-
         self.df_set = df_set
-        self.df_linear = df_linear
         self.dict_option = dict_option
 
-        self.funding_time_old = dict_option['start_time']
-
-        self.common = common_define(dict_bybit,dict_binance)
-
-        if self.dict_bybit['active'] == True:
-            self.list_inverse_bybit = self.common.fetch_inverse_list('bybit')
-        if self.dict_binance['active'] == True:
-            self.list_inverse_binance = self.common.fetch_inverse_list('binance')
     def run(self):
         # 현재 시간의 분, 초, 마이크로초를 0으로 만들고 1시간 추가 (다음으로 올 정시 구하기)
         next_hour = self.dict_option['start_time'].replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
@@ -83,7 +69,7 @@ class do_trade(QThread):
                 # quit()
         self.save_df.emit(self.df_linear,'linear')
         start_time = self.df_set.loc['start_time', 'val']
-        finish_time = self.df_set.loc['auto_finish', 'val']
+        finish_time = self.df_set.loc['자동종료', 'val']
         if str == type(start_time):
             start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
 
@@ -92,10 +78,10 @@ class do_trade(QThread):
 
         while self._status:
             now_time = datetime.datetime.now()
-            if self.dict_bybit['active'] == True:
-                self.tickers_bybit = self.common.fetch_tickers('bybit') #현재가 조회용
-            if self.dict_binance['active'] == True:
-                self.tickers_binance = self.common.fetch_tickers('binance')#현재가 조회용
+            # if self.dict_bybit['active'] == True:
+            #     self.tickers_bybit = self.common.fetch_tickers('bybit') #현재가 조회용
+            # if self.dict_binance['active'] == True:
+            #     self.tickers_binance = self.common.fetch_tickers('binance')#현재가 조회용
             funding_time = pd.to_datetime(self.df_set.loc['funding_time','val'])
             current_t = now_time.replace(microsecond=0)
             self.text_time = funding_time - current_t
@@ -267,57 +253,7 @@ class do_trade(QThread):
             pass
         return dict_txt
 
-    def buy_manual(self,market,ticker,배팅금액,rate_spot,df_inverse):
-        print("현물 매수 요청 수신!")
-        df_open = pd.DataFrame()
-        category = 'spot'
-        현재가 = self.common.fetch_ticker(market=market,ticker=ticker + '/USDT')['close']
-        주문가 = 현재가 + (현재가 * rate_spot / 100)
-        주문가 = self.common.price_to_precision(market=market,category=category, ticker=ticker, price=주문가)
-        fee = 0.1
-        레버리지 = 1
-        진입수량 = (100 - (fee * 레버리지)) / 100 * 배팅금액 / 주문가
-        진입수량 = self.common.amount_to_precision(market=market, category=category,ticker=ticker, amount=진입수량)
-        df = df_inverse.loc[df_inverse['market']==market]
-        보유현금 = df[df['ticker']=='USDT']['free(qty)'].values[0] # ticker가 USDT인 행의 free(qty)컬럼 첫번째 값
-        매수금액 = (진입수량*주문가)+(진입수량*주문가)*0.001 #수수료 포함
-        if 보유현금 < 매수금액:
-            print(f"USDT 부족 - 보유한 USDT: {보유현금}, 필요한 USDT: {매수금액}  |  {market= }  {ticker= }   {배팅금액= }  {rate_spot= }")
-            return 0
-        else:
-            res = self.common.fetch_load_market(market)
-            if market == 'binance':
-                min_usd = res[ticker + '/USDT']['limits']['cost']['min']
-                if 매수금액 < min_usd:
-                    print(f'{market= } {ticker= } {매수금액= } 매수금액이 더 필요합니다.')
-                    return 0
-            elif market == 'bybit':
-                min_usd = res[ticker + '/USDT']['limits']['cost']['min']
-                if 매수금액 < min_usd:
-                    print(f'{market= } {ticker= } {매수금액= } 매수금액이 더 필요합니다.')
-                    return 0
-        res = self.common.order_open(market= market,category=category, ticker=ticker, side='buy', orderType="limit",
-                              price=주문가, qty=진입수량)
-        id = res['id']
-        df_open.loc[id, 'market'] = market
-        df_open.loc[id, 'ticker'] = ticker
-        df_open.loc[id, '주문시간'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-        df_open.loc[id, '주문수량'] = 진입수량
-        # df_open.loc[id, 'spot비율'] = rate_spot
-        # df_open.loc[id, 'short비율'] = np.nan
-        df_open.loc[id, 'id'] = id
-        df_open.loc[id, '매수금액'] = 배팅금액
-        df_open.loc[id, '상태'] = '매수주문'
-        df_open.loc[id, 'category'] = 'spot'
-        df_open.loc[id, '주문가'] = 주문가
-        print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} | 수동매수 {ticker}: {진입수량=}, {주문가=}, 매수금액: {진입수량 * 주문가}')
 
-        if not self.df_open.empty:
-            self.df_open = pd.concat([self.df_open, df_open], axis=0).astype(self.df_open.dtypes)
-        else:
-            self.df_open = df_open.copy()
-        self.qt_open.emit(self.df_open)
-        self.fetch_balance()
     def change_set(self,df_set):
         self.df_set = df_set
     def chegyeol_buy(self, id, dict_txt):
@@ -612,12 +548,6 @@ class do_trade(QThread):
         ror = (현재가-평단가)/평단가*레버리지*100
 
         sell_signal_future, qty, 매수횟수 = self.get_sell_signal(df,idx,ror)
-        # sell_signal_future = True
-        # market = 'binance'
-        # ticker = 'XRP'
-        # idx = f"{market}_{ticker}"
-        # qty = 5
-        # 매수횟수 = 0
         if sell_signal_future == True and qty != 0:
             print('***************************************************************************************************')
             category = 'linear'
@@ -969,17 +899,19 @@ class Window(QMainWindow):
         self.funding_time_old = int(time.time())
         self.QPB_start.clicked.connect(self.onStartButtonClicked)
         self.QPB_stop.clicked.connect(self.onStopButtonClicked)
-        self.QCB_auto.clicked.connect(self.setting)
-        self.QPB_api_save.clicked.connect(lambda :self.save_api('bybit'))
-        self.QCB_off.currentIndexChanged.connect(self.setting)
-        if self.QCB_auto.isChecked() == True:
+        # self.QCB_auto_start.clicked.connect(self.setting)
+        # self.QCB_auto_finish.clicked.connect(self.setting)
+        self.QPB_save.clicked.connect(self.setting)
+        # self.QCB_off.currentIndexChanged.connect(self.setting)
+        if self.QCB_auto_start.isChecked() == True:
             self.onStartButtonClicked()
             # 메인 윈도우의 시그널을 스레드의 슬롯에 연결
 
     def set_UI(self):
         QW_main = QWidget()
         self.setWindowTitle(f'jong_be')
-        self.QT_trade_inverse = QTableWidget()
+        self.QT_open = QTableWidget()
+        self.QT_closed = QTableWidget()
 
         self.QGL_menu = QGridLayout()
         self.QPB_start = QPushButton('START')
@@ -987,160 +919,164 @@ class Window(QMainWindow):
 
         self.QL_wallet = QLabel()
 
-        self.QCB_auto = QCheckBox('오토스타트')
-        if self.df_set.loc['auto_start', 'val'] == 'auto':
-            self.QCB_auto.setChecked(True)
+        self.QCB_auto_start = QCheckBox('자동시작')
+        self.QCB_auto_finish = QCheckBox('자동종료')
+        self.QCB_mock = QCheckBox('모의매매')
+        if self.df_set.loc['자동시작', 'val'] == 'auto':
+            self.QCB_auto_start.setChecked(True)
         else:
-            self.QCB_auto.setChecked(False)
-        self.QCB_off = QComboBox()
-        self.QCB_off.addItems(['자동꺼짐','loop','1분후','5분후','10분후','30분후','1시간후','설정안함'])
+            self.QCB_auto_start.setChecked(False)
+        if self.df_set.loc['자동종료', 'val'] == 'auto':
+            self.QCB_auto_start.setChecked(True)
+        else:
+            self.QCB_auto_start.setChecked(False)
+        if self.df_set.loc['모의', 'val'] == '모의':
+            self.QCB_mock.setChecked(True)
+        else:
+            self.QCB_mock.setChecked(False)
+
         self.QLE_api = QLineEdit()
         self.QLE_secret = QLineEdit()
-        self.QPB_api_save = QPushButton('API 저장')
-
-
-        self.QCB_off.setCurrentText(self.df_set.loc['auto_finish','val'])
+        self.QPB_save = QPushButton('설정 저장')
+        # self.QCB_off.setCurrentText(self.df_set.loc['자동종료','val'])
         QW_grid = QWidget()
         StyleSheet_Qtextedit = "font: 10pt 나눔고딕; "
         QW_grid.setStyleSheet(StyleSheet_Qtextedit)
         QW_grid.setLayout(self.QGL_menu)
         # QW_grid.setMaximumSize(1980,100)
 
-
         QHB_api = QHBoxLayout()
         QHB_api.addWidget(self.QPB_start)
         QHB_api.addWidget(self.QPB_stop)
-        QHB_api.addWidget(self.QCB_auto)
+        QHB_api.addWidget(self.QCB_auto_start)
+        QHB_api.addWidget(self.QCB_auto_finish)
+        QHB_api.addWidget(self.QCB_mock)
         QHB_api.addWidget(self.QL_wallet)
-
 
         QHB_api.addWidget(QLabel('API: '))
         QHB_api.addWidget(self.QLE_api)
         QHB_api.addWidget(QLabel('SECRET: '))
         QHB_api.addWidget(self.QLE_secret)
-        QHB_api.addWidget(self.QPB_api_save)
+        QHB_api.addWidget(self.QPB_save)
 
         QVB_main = QVBoxLayout()
 
         StyleSheet_Qtable = "color: #B4B4B4; background-color: NightRider; selection-background-color: #B4B4B4;" \
                                "border-color: black; font: 12pt 나눔고딕; "
-        self.QT_trade_inverse.setStyleSheet(StyleSheet_Qtable)
+        self.QT_open.setStyleSheet(StyleSheet_Qtable)
+        self.QT_closed.setStyleSheet(StyleSheet_Qtable)
         self.QPB_start.setStyleSheet(" background-color: #cccccc;")
         self.QPB_stop.setStyleSheet("background-color: #cccccc;")
 
         self.setCentralWidget(QW_main)
 
         QSV_main = QSplitter(Qt.Vertical)
-        QSH_table_up = QSplitter(Qt.Horizontal)
-        QSH_table = QSplitter(Qt.Horizontal)
-        QSH_history_table = QSplitter(Qt.Horizontal)
+        # QSH_table_up = QSplitter(Qt.Horizontal)
+        QSH_table = QSplitter(Qt.Vertical)
+        # QSH_history_table = QSplitter(Qt.Horizontal)
 
-        QSH_table_up.addWidget(self.QT_trade_inverse)
-        QSV_main.addWidget(QSH_table_up)
-        QSV_main.addWidget(QSH_history_table)
+        QSH_table.addWidget(self.QT_open)
+        QSH_table.addWidget(self.QT_closed)
         QSV_main.addWidget(QSH_table)
-        QSV_main.addWidget(QW_grid)
+        # QSV_main.addWidget(QSH_history_table)
+        # QSV_main.addWidget(QSH_table)
+        # QSV_main.addWidget(QW_grid)
         QVB_main.addWidget(QSV_main)
         QVB_main.addLayout(QHB_api)
         QW_main.setLayout(QVB_main)
 
-    def save_api(self,market):
-        if not self.QLE_api_binance.text() == '':
-            self.df_set.loc[f'api_{market}','val']=self.QLE_api_binance.text()
-        if not self.QLE_secret_binance.text() == '':
-            self.df_set.loc[f'secret_{market}','val']=self.QLE_secret_binance.text()
-        self.QLE_api_binance.clear()
-        self.QLE_secret_binance.clear()
-        self.dict_binance = self.make_exchange_binance()
-        self.df_set.to_sql('set', self.conn, if_exists='replace')
+    # def save_api(self,market):
+    #     if not self.QLE_api_binance.text() == '':
+    #         self.df_set.loc[f'api_{market}','val']=self.QLE_api_binance.text()
+    #     if not self.QLE_secret_binance.text() == '':
+    #         self.df_set.loc[f'secret_{market}','val']=self.QLE_secret_binance.text()
+    #     self.QLE_api_binance.clear()
+    #     self.QLE_secret_binance.clear()
+    #     self.dict_binance = self.make_exchange_binance()
+    #     self.df_set.to_sql('set', self.conn, if_exists='replace')
 
     def init_file(self):
         db_file = 'DB/jong_be.db'
-        if not os.path.isfile(db_file): #파일이 없으면
+        if not os.path.isfile(db_file): # 신규 설정
             self.conn = sqlite3.connect(db_file)
             self.df_closed = pd.DataFrame(columns=['market','ticker', 'category', '주문가','체결가', '주문수량',
                                                    '체결수량', '매수금액','수수료', '주문시간', '체결시간',
                                                    'id', '상태'])
             self.df_closed.to_sql('closed', self.conn, if_exists='replace')
-            self.df_linear = pd.DataFrame(columns=['market','ticker', 'category', '주문가','체결가','평단가', '주문수량',
-                                                   '보유수량', '매수금액', '수수료', '체결시간', '매수횟수','레버리지','방향'],
-                                            )
-            self.df_linear.to_sql('linear', self.conn, if_exists='replace')
             self.df_open = pd.DataFrame(columns=['market','ticker', 'category', '주문가', '주문수량', '매수금액',
                                                  '주문시간','id','상태'])
             self.df_open.to_sql('open', self.conn, if_exists='replace')
-
-            self.df_wallet = pd.DataFrame(columns=['binance_USDT','bybit_USDT','total'])
-            self.df_wallet.to_sql('wallet', self.conn, if_exists='replace')
-
-            self.df_set = pd.DataFrame(index=['auto_start','auto_finish','start_time','rate_short','rate_spot','funding_time',
-                                              'api_bybit','secret_bybit','api_binance','secret_binance'],
-                                       columns=['val'])
-            self.df_set.loc['auto_start','val'] = 'manual'
-            self.df_set.loc['auto_finish','val'] = '설정안함'
-            self.df_set.loc['start_time','val'] = ''
-            self.df_set.loc['api_bybit','val'] = None
-            self.df_set.loc['secret_bybit','val'] = None
-            self.df_set.loc['api_binance','val'] = None
-            self.df_set.loc['secret_binance','val'] = None
+            self.df_set = pd.DataFrame(index=['자동시작','자동종료','모의','api','secret','api_모의','secret_모의'], columns=['val'])
+            self.df_set.loc['자동시작','val'] = 'manual'
+            self.df_set.loc['자동종료','val'] = 'manual'
+            self.df_set.loc['모의','val'] = '모의'
+            self.df_set.loc['api','val'] = None
+            self.df_set.loc['secret','val'] = None
+            self.df_set.loc['api_모의','val'] = None
+            self.df_set.loc['secret_모의','val'] = None
             self.df_set.to_sql('set', self.conn, if_exists='replace')
-
-        else:
+        else: # 기존에 있는걸 불러오기
             self.conn = sqlite3.connect(db_file)
             self.df_open = pd.read_sql(f"SELECT * FROM 'open'", self.conn).set_index('index')
             self.df_closed = pd.read_sql(f"SELECT * FROM 'closed'", self.conn).set_index('index')
-            self.df_linear = pd.read_sql(f"SELECT * FROM 'linear'", self.conn).set_index('index')
-            self.df_wallet = pd.DataFrame(columns=['binance_USDT','bybit_USDT','total'])
-            self.df_wallet.to_sql('wallet', self.conn, if_exists='replace')
-            self.df_wallet = pd.read_sql(f"SELECT * FROM 'wallet'", self.conn).set_index('index')
             self.df_set = pd.read_sql(f"SELECT * FROM 'set'", self.conn).set_index('index')
         self.df_open_old = self.df_open.copy()
-        self.df_linear_old = self.df_linear.copy()
-
-
-    def on_text_changed_rate_short(self, text):
-        if not text == '-':
-            if text == '':
-                self.df_set.loc['rate_short', 'val'] = text
-            else:
-                self.df_set.loc['rate_short','val'] = float(text)
-            self.df_set.to_sql('set',self.conn,if_exists='replace')
-            self.set_signal.emit(self.df_set)
-
-    def on_text_changed_rate_spot(self, text):
-        if not text == '-':
-            if text == '':
-                self.df_set.loc['rate_spot', 'val'] = text
-            else:
-                self.df_set.loc['rate_spot','val'] = float(text)
-            self.df_set.to_sql('set',self.conn,if_exists='replace')
-            self.set_signal.emit(self.df_set)
+        # self.df_linear_old = self.df_linear.copy()
 
     def setting(self):
-        if self.QCB_auto.isChecked() == True:
-            self.df_set.loc['auto_start','val'] = "auto"
+        if self.QCB_auto_start.isChecked() == True:
+            self.df_set.loc['자동시작','val'] = "auto"
+            self.QCB_auto_start.setChecked(True)
         else:
-            self.df_set.loc['auto_start','val'] = "manual"
-        if not self.QCB_off.currentText() == '자동꺼짐':
-            self.df_set.loc['auto_finish','val'] = self.QCB_off.currentText()
+            self.df_set.loc['자동시작','val'] = "manual"
+            self.QCB_auto_start.setChecked(False)
+        if self.QCB_auto_finish.isChecked() == True:
+            self.df_set.loc['자동종료','val'] = "auto"
+            self.QCB_auto_finish.setChecked(True)
+        else:
+            self.df_set.loc['자동종료','val'] = "manual"
+            self.QCB_auto_finish.setChecked(False)
+        if self.QCB_mock.isChecked() == True:
+            self.df_set.loc['모의','val'] = "모의"
+            self.QCB_mock.setChecked(True)
+        else:
+            self.df_set.loc['모의','val'] = "실전"
+            self.QCB_mock.setChecked(False)
+        if not self.QLE_api.text() == "":
+            if self.QCB_mock.isChecked() == True:
+                self.df_set.loc[f'api_모의', 'val'] = self.QLE_api.text()
+            else:
+                self.df_set.loc[f'api', 'val'] = self.QLE_api.text()
+        if not self.QLE_secret.text() == "":
+            if self.QCB_mock.isChecked() == True:
+                self.df_set.loc[f'secret_모의', 'val'] = self.QLE_secret.text()
+            else:
+                self.df_set.loc[f'secret', 'val'] = self.QLE_secret.text()
+        self.QLE_api.clear()
+        self.QLE_secret.clear()
         self.df_set.to_sql('set', self.conn, if_exists='replace')
 
     def onStartButtonClicked(self):
-        if self.dict_bybit['active'] == False and self.dict_binance['active'] == False:
-            self.text_message('에러','가능한 API가 없습니다.')
-            return
-        if self.QL_rate_spot.text() == '' or self.QL_rate_spot.text() == 'None':
-            rate_spot = 0
+
+        if self.df_set.loc['모의','val'] == '모의':
+            api = self.df_set.loc['api_모의','val']
+            secret = self.df_set.loc['secret_모의','val']
+            mock = True
         else:
-            rate_spot = float(self.QL_rate_spot.text())
-        if self.QL_rate_short.text() == '' or self.QL_rate_short.text() == 'None':
-            rate_short = 0
-        else:
-            rate_short = float(self.QL_rate_short.text())
-        start_time = datetime.datetime.now().replace(microsecond=0)
-        self.df_set.loc['start_time', 'val'] = start_time
-        dict_option = {'현물호가':rate_spot,'인버스호가':rate_short,'start_time':start_time}
-        self.thread = do_trade(self,self.dict_bybit,self.dict_binance,self.df_open,self.df_closed,self.df_set,self.df_linear,dict_option)
+            api = self.df_set.loc['api','val']
+            secret = self.df_set.loc['secret','val']
+            mock = False
+        ex = kiwoom_finance(api_key=api,api_secret=secret,market='주식',mock=mock)
+        print(ex)
+
+        dict_res = ex.fetch_asset()
+        print(dict_res)
+
+        # if self.dict_bybit['active'] == False and self.dict_binance['active'] == False:
+        #     self.text_message('에러','가능한 API가 없습니다.')
+        #     return
+        dict_option = {}
+        self.thread = do_trade(self,self.df_open,self.df_closed,self.df_set, dict_option)
         self.thread.start()
 
         self.thread.qt_open.connect(self.qtable_open)
@@ -1189,7 +1125,7 @@ class Window(QMainWindow):
             # df['합계(USD)'] = df['합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
             # df['배팅가능합계(USD)'] = df['배팅가능합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
             df = df[['market', 'ticker','합계(USD)', 'free(qty)', 'used(qty)', 'total(qty)', '현재가', '배팅가능합계(USD)', '주문최소금액(USD)']]
-            self.set_table_make(self.QT_trade_inverse, df)
+            self.set_table_make(self.QT_open, df)
             self.df_qtable_have = df.copy()
 
     def save_to_sql(self, df, table):
@@ -1394,7 +1330,7 @@ if __name__ == "__main__":
     # mock = False
     # if mock:
     #     api_key = "zSQr2jdgor8SPPF5DigW5Vq64xKRQcbNQY_2O4muS2o"
-    #     secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
+    #     secret_key = "HMelbm85t221wIMlrRqfQOOLO6JLoW7S-wAN7jRZELM"
     #     SOCKET_domain = 'wss://mockapi.kiwoom.com:10000'  # 모의투자 접속 URL
     #     SOCKET_URL = "/api/dostk/websocket"
     # else:
