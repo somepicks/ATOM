@@ -10,12 +10,22 @@ import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
-class ScreenCaptureBot:
-    def __init__(self, bot_token, chat_id, save_folder="images"):
+import KIS
+import requests
+from bs4 import BeautifulSoup
+import urllib.request as req
+from pprint import pprint
+
+class ScreenCaptureBot():
+    def __init__(self, bot_token, chat_id,ex,cond, save_folder="images"):
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.telegram_url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
         self.save_folder = save_folder
+        self.ex = ex
+        self.cond = cond
+        self.df_trend = pd.DataFrame()
+        self.df_world = pd.DataFrame()
 
         # images 폴더가 없으면 생성
         if not os.path.exists(self.save_folder):
@@ -162,6 +172,26 @@ class ScreenCaptureBot:
             print(f"✅ 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         else:
             print(f"❌ 텔레그램 전송 실패: {response.status_code} - {response.text}")
+    def send_to_df_etf(self):
+        pass
+    def ect_time(self):
+        pass
+    def trend_time(self):
+        self.df_trend=self.ex.add_trend(datetime.datetime.now(),df_trend=self.df_trend,COND_MRKT=self.cond)
+        try:
+            url = "https://finance.naver.com/marketindex"
+            res = req.urlopen(url)
+
+            soup = BeautifulSoup(res, "html.parser")
+            usd = soup.select_one("a.head.usd > div.head_info > span.value").string
+            print("usd/krw =", usd)
+            usd_idx = soup.select_one("a.head.usd_idx > div.head_info > span.value").string
+            print("달러인덱스 =", usd_idx)
+            self.df_world.loc[datetime.datetime.now().strftime("%H:%M:"),'달러_원',] = usd
+            self.df_world.loc[datetime.datetime.now().strftime("%H:%M:"),'달러_인덱스',] = usd_idx
+        except:
+            pass
+
     def capture_and_send(self):
         """스크린샷을 캡처하고 저장한 후 텔레그램으로 전송하는 메인 함수"""
         print(f"📸 스크린샷 캡처 시작: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -175,6 +205,101 @@ class ScreenCaptureBot:
             image_buffer.close()
         else:
             print("스크린샷 캡처에 실패했습니다.")
+
+        ######################## 이하 투자자별 거래대금
+        if not self.df_trend.empty:
+            print(self.df_trend)
+            titles = [
+                "코스피",
+                "선물",
+                "콜옵션",
+                "풋옵션",
+                "콜_위클리",
+                "풋_위클리"
+            ]
+            df_kospi = self.df_trend[['코스피_외인','코스피_개인','코스피_기관']]
+            df_future = self.df_trend[['선물_외인','선물_개인','선물_기관']]
+            df_call = self.df_trend[['콜옵션_외인','콜옵션_개인','콜옵션_기관']]
+            df_put = self.df_trend[['풋옵션_외인','풋옵션_개인','풋옵션_기관']]
+            df_call_w = self.df_trend[['콜_위클리_외인','콜_위클리_개인','콜_위클리_기관']]
+            df_put_w = self.df_trend[['풋_위클리_외인','풋_위클리_개인','풋_위클리_기관']]
+
+            fig, axes = plt.subplots(3, 2, figsize=(14, 10))
+            axes = axes.flatten()
+            dfs = [df_kospi,df_future,df_call,df_put,df_call_w,df_put_w]
+            colors = ["blue", "orange", "green"]
+            for i, df in enumerate(dfs):
+                # 각 데이터프레임의 컬럼마다 색상 적용
+                for j, col in enumerate(df.columns):
+                    df[col].plot(ax=axes[i], color=colors[j % len(colors)], label=col)
+
+                axes[i].set_title(titles[i], fontsize=12, fontweight="bold")  # 각 차트별 제목
+                axes[i].legend()  # 범례 표시
+                axes[i].set_xlabel("Date")  # X축 라벨
+                axes[i].set_ylabel("Value")  # Y축 라벨
+            plt.tight_layout()
+
+            # 8. 이미지 저장
+            filename = "DB/df_plot_sum.png"
+            # plt.savefig(bbox_inches="tight", pad_inches=0.1, dpi=150)
+            plt.savefig(filename)
+            plt.close()
+            caption = f"거래대금-코스피 (ETF, ETN, ELW 미포함)\n🕐 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            # 5. 텔레그램 전송
+            files = {'photo': open(filename, 'rb')}
+            data = {
+                'chat_id': self.chat_id,
+                'caption': caption
+            }
+            response = requests.post(self.telegram_url, data=data, files=files)
+
+            if response.status_code == 200:
+                print(f"✅ 거래대금 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            else:
+                print(f"❌ 텔레그램 전송 실패: {response.status_code} - {response.text}")
+        ######################## 이하 세계는 지금
+        # if not self.df_world.empty:
+        #     titles = [
+        #         "달러_원",
+        #         "달러_인덱스",
+        #     ]
+        #     print(self.df_world)
+        #     df_usd = self.df_world[['달러_원']]
+        #     df_usd_idx = self.df_world[['달러_인덱스']]
+        #     dfs = [df_usd, df_usd_idx]
+        #     fig, axes = plt.subplots(1, 2, figsize=(12, 12))  # 3행 2열
+        #     axes = axes.flatten()  # 2D 배열을 1D로 바꿔서 반복문 돌리기 편하게
+        #     colors = ["blue"]
+        #
+        #     for i, df in enumerate(dfs):
+        #         # 각 데이터프레임의 컬럼마다 색상 적용
+        #         for j, col in enumerate(df.columns):
+        #             df[col].plot(ax=axes[i], color=colors[0], label=col)
+        #
+        #         axes[i].set_title(titles[i], fontsize=12, fontweight="bold")  # 각 차트별 제목
+        #         axes[i].legend()  # 범례 표시
+        #         axes[i].set_xlabel("Date")  # X축 라벨
+        #         axes[i].set_ylabel("Value")  # Y축 라벨
+        #     plt.tight_layout()
+        #
+        #     # 8. 이미지 저장
+        #     filename = "DB/df_plot_world.png"
+        #     # plt.savefig(bbox_inches="tight", pad_inches=0.1, dpi=150)
+        #     plt.savefig(filename)
+        #     plt.close()
+        #     caption = f"world\n🕐 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        #     # 5. 텔레그램 전송
+        #     files = {'photo': open(filename, 'rb')}
+        #     data = {
+        #         'chat_id': self.chat_id,
+        #         'caption': caption
+        #     }
+        #     response = requests.post(self.telegram_url, data=data, files=files)
+        #
+        #     if response.status_code == 200:
+        #         print(f"✅ world 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        #     else:
+        #         print(f"❌ 텔레그램 전송 실패: {response.status_code} - {response.text}")
 
     def set_capture_region(self, x1, y1, x2, y2):
         """캡처할 영역을 설정합니다."""
@@ -223,9 +348,14 @@ def main():
     BOT_TOKEN = "1883109215:AAHM6-d42-oNmdDO6vmT3SWxB0ICH_od86M"  # 여기에 봇 토큰을 입력하세요
     CHAT_ID = "1644533124"  # 여기에 채팅 ID를 입력하세요 (bot 채팅)
     # CHAT_ID = "-1002919914781"  # 여기에 채팅 ID를 입력하세요 (텔레그램 채널)
+    api = 'PS03yEfsiLWpVOZFyv1IoLiprgXvpHcQQMCb'
+    secrets = 'MBLgiwO7TG3JKPTYpqLylhiWen8KGtHN2jmxr+VjkM4c9tTb9Dxt0KlRkMoVBDhu4D2QeGsnMa4kPU0t2V1q9c5YjAaEOLTMp9T15cHsaqg8Y4jdN2uDm5+JMFGFzhOplG8Ftm/DAtPkz/xu6rT49/YGzrXcxNyB/gA0DPw9zJ5pt8ZqYFk='
+    acc = '63761517-01'
+    ex = KIS.KoreaInvestment(api_key=api,api_secret=secrets,acc_no=acc,market='주식',mock=False)
+    df_call,df_put,cond,past_day,ex_day = ex.display_opt_weekly(datetime.datetime.now())
 
     # 봇 인스턴스 생성 (images 폴더에 저장)
-    bot = ScreenCaptureBot(BOT_TOKEN, CHAT_ID, save_folder="images")
+    bot = ScreenCaptureBot(BOT_TOKEN, CHAT_ID,ex,cond, save_folder="images")
 
     # 현재 화면 크기 확인
     screen_width, screen_height = bot.get_screen_size()
@@ -244,7 +374,10 @@ def main():
     bot.set_capture_region(x1, y1, x2, y2)
 
     # 스케줄 설정 - 1시간마다 실행
-    schedule.every(15).minutes.do(bot.capture_and_send)
+    schedule.every(2).minutes.do(bot.capture_and_send)
+
+    schedule.every(1).minutes.do(bot.trend_time)
+
 
     # 매일 자정에 7일 이상 된 파일 정리 (선택사항)
     schedule.every().day.at("00:00").do(lambda: bot.clean_old_images(keep_days=7))

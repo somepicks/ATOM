@@ -1464,7 +1464,7 @@ class KoreaInvestment:
         df.drop(df.index[1:],axis=0,inplace=True) #코스피200 선물만 남기고 삭제
         return df
 
-    def investor_trend(self):
+    def investor_trend(self): #국내기관_외국인 매매종목가집계[국내주식-037]
         """국내주식 시세분석/국내기관_외국인 매매종목가집계[국내주식-037]"""
         path = "uapi/domestic-stock/v1/quotations/foreign-institution-total"
         params = {
@@ -1476,7 +1476,6 @@ class KoreaInvestment:
             "FID_ETC_CLS_CODE": "0" # 0:전체 1:외국인 2:기관계 3:기타
         }
         resp = self.inquiry_TR(path=path, tr_id="FHPTJ04400000", params=params)
-
         return resp
     def investor_trend_time(self,market) -> dict:
         """국내주식 시세분석/시장별 투자자매매동향(시세)"""
@@ -3708,26 +3707,26 @@ class KoreaInvestment:
         elif mydate > thismonth_duedate :
             nextmonth_duedate = self.nth_weekday(mydate+relativedelta(months=1),2, 3)
             return nextmonth_duedate
-    # def add_trend(self,현재시간,df_trend,COND_MRKT):
-    #     dict_trend = {}
-    #     dict_trend.update(ex_kis.investor_trend_time('코스피'))
-    #     dict_trend.update(ex_kis.investor_trend_time('선물'))
-    #     dict_trend.update(ex_kis.investor_trend_time('주식선물'))
-    #     dict_trend.update(ex_kis.investor_trend_time('콜옵션'))
-    #     dict_trend.update(ex_kis.investor_trend_time('풋옵션'))
-    #     if COND_MRKT == "WKM":
-    #         dict_trend.update(ex_kis.investor_trend_time('콜_위클리_월'))
-    #         dict_trend.update(ex_kis.investor_trend_time('풋_위클리_월'))
-    #     elif COND_MRKT == "WKI":
-    #         dict_trend.update(ex_kis.investor_trend_time('콜_위클리_목'))
-    #         dict_trend.update(ex_kis.investor_trend_time('풋_위클리_목'))
-    #     # current_time = datetime.datetime.now().replace(second=0, microsecond=0)
-    #     df = pd.DataFrame([dict_trend], index=[현재시간])
-    #     if not df_trend.empty:
-    #         df_trend = pd.concat([df_trend, df],axis=0)
-    #     else:
-    #         df_trend = df
-    #     return df_trend
+    def add_trend(self,현재시간,df_trend,COND_MRKT):
+        dict_trend = {}
+        dict_trend.update(self.investor_trend_time('코스피'))
+        dict_trend.update(self.investor_trend_time('선물'))
+        dict_trend.update(self.investor_trend_time('주식선물'))
+        dict_trend.update(self.investor_trend_time('콜옵션'))
+        dict_trend.update(self.investor_trend_time('풋옵션'))
+        if COND_MRKT == "WKM":
+            dict_trend.update(self.investor_trend_time('콜_위클리_월'))
+            dict_trend.update(self.investor_trend_time('풋_위클리_월'))
+        elif COND_MRKT == "WKI":
+            dict_trend.update(self.investor_trend_time('콜_위클리_목'))
+            dict_trend.update(self.investor_trend_time('풋_위클리_목'))
+        # current_time = datetime.datetime.now().replace(second=0, microsecond=0)
+        df = pd.DataFrame([dict_trend], index=[현재시간])
+        if not df_trend.empty:
+            df_trend = pd.concat([df_trend, df],axis=0)
+        else:
+            df_trend = df
+        return df_trend
 
 if __name__ == "__main__":
 

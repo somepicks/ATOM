@@ -498,8 +498,93 @@ def fn_kt00018(token, data):
     response = requests.post(url, headers=headers, json=data)
     return response.json()
 
+
+def get_hangseng_from_naver():
+    """
+    네이버 증권에서 항셍지수 정보를 크롤링하는 함수
+    """
+    # 네이버 증권 항셍지수 페이지 URL
+    url = "https://finance.naver.com/world/sise.naver?symbol=HSI@HSI"
+
+    # User-Agent 헤더 추가 (차단 방지)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    # try:
+        # HTTP 요청
+    response = requests.get(url, headers=headers)
+    # response.raise_for_status()  # HTTP 에러 체크
+
+    # HTML 파싱
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    print('항셍')
+    # 현재가 정보 추출
+    price_element = soup.select_one('.rate_info .blind')
+    if price_element:
+        current_price = price_element.text.strip()
+        print(current_price)
+        print('123')
+    else:
+        current_price = "정보 없음"
+        print(current_price)
+        print('asdf')
+    quit()
+    # 전일대비 정보 추출
+    change_element = soup.select_one('.rate_info .change')
+    if change_element:
+        change_info = change_element.get_text(strip=True)
+    else:
+        change_info = "정보 없음"
+
+    # 등락률 정보 추출
+    rate_element = soup.select_one('.rate_info .rate')
+    if rate_element:
+        change_rate = rate_element.get_text(strip=True)
+    else:
+        change_rate = "정보 없음"
+
+    # 결과 반환
+    result = {
+        '지수명': '항셍지수 (HSI)',
+        '현재가': current_price,
+        '전일대비': change_info,
+        '등락률': change_rate,
+        '조회시간': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    return result
+
+    # except requests.RequestException as e:
+    #     print(f"HTTP 요청 오류: {e}")
+    #     return None
+    # except Exception as e:
+    #     print(f"크롤링 오류: {e}")
+    #     return None
 # 실행 구간
 if __name__ == '__main__':
+    import requests
+    from bs4 import BeautifulSoup
+    import urllib.request as req
+
+    url = "https://finance.naver.com/marketindex"
+    res = req.urlopen(url)
+
+    soup = BeautifulSoup(res, "html.parser")
+    price = soup.select_one("a.head.usd > div.head_info > span.value").string
+    print("usd/krw =", price)
+    price = soup.select_one("a.head.usd_idx > div.head_info > span.value").string
+    print("달러인덱스 =", price)
+
+
+
+
+    res= get_hangseng_from_naver
+    print(res)
+
+    quit()
+
     api_key = "yldEAW1zfmbEnyK0X0M_v91AqSk-b3LO5dvALqSLfRo"
     secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
     # 1. 접근토큰 발급 데이터
