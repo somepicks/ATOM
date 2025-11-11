@@ -2,7 +2,7 @@ import datetime
 import pandas as pd
 from PyQt5.QtWidgets import QMainWindow, QGridLayout, QLineEdit, QLabel, QPushButton, QWidget, QVBoxLayout, \
     QTableWidget, QSplitter, QApplication, QCheckBox, QTextEdit, QTableWidgetItem, QHeaderView, QComboBox, \
-    QAbstractItemView, QHBoxLayout, QTimeEdit,QDialog
+    QAbstractItemView, QHBoxLayout, QTimeEdit,QDialog, QMessageBox
 from PyQt5.QtCore import Qt, QThread, pyqtSlot, QTimer, QRegExp, QTime
 from PyQt5.QtTest import QTest
 from PyQt5.QtGui import QFontMetrics, QFont, QColor, QSyntaxHighlighter, QTextCharFormat
@@ -18,6 +18,7 @@ import json  # 리스트를 문자열로 변환하기 위해 필요
 import tab_chart_table
 import os
 from pykrx import stock
+
 # from ex import df_holiday
 
 pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
@@ -26,7 +27,7 @@ pd.set_option('display.width', 1500)
 pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment', None)  # SettingWithCopyWarning 경고를 끈다
 # import schedule
-# import KIS
+import KIS
 
 class Window(QMainWindow):
     def __init__(self):
@@ -49,7 +50,7 @@ class Window(QMainWindow):
         self.QPB_chart_start.clicked.connect(self.view_chart)
         self.QPB_chart_stop.clicked.connect(self.view_chart_stop)
         self.QPB_fetch_balance.clicked.connect(self.fetch_balance)
-        self.QCB_sell_only.clicked.connect(self.sell_only)
+        # self.QCB_sell_only.clicked.connect(self.sell_only)
         subprocess.Popen('python timesync.py')
 
 
@@ -64,6 +65,7 @@ class Window(QMainWindow):
         # self.QCB_stg_current.activated[str].connect(lambda: self.selectedCombo_stg(self.QCB_stg_current))
         # self.QCB_stg_current.activated[str].connect(lambda: self.QLE_stg.setText(self.QCB_stg_current.currentText()))
         self.QCB_market.activated[str].connect(lambda: self.select_market())
+        # self.QCB_mock.clicked.connect(lambda: self.select_market())
         self.QT_trade_open.cellClicked.connect(lambda: self.cellclick_table("open"))
         self.QT_trade_open.cellDoubleClicked.connect(lambda:self.cell_doubleclick_trading_table(self.QT_trade_open,self.df_stg))
         self.QT_trade_closed.cellClicked.connect(lambda: self.cellclick_table("closed"))
@@ -95,10 +97,10 @@ class Window(QMainWindow):
         self.QT_tickers = QTableWidget()
 
         self.QGL_menu = QGridLayout()
-        self.QCB_simul = QCheckBox('모의매매')
-        self.QCB_simul.setChecked(True)
+        self.QCB_mock = QCheckBox('모의매매')
+        self.QCB_mock.setChecked(True)
         self.QCB_market = QComboBox()
-        self.list_market = ['', 'bybit', '국내주식','국내선옵','국내선옵(야간)','텔레그램']
+        self.list_market = ['', 'bybit', '국내주식','국내선옵','텔레그램']
         self.QCB_market.addItems(self.list_market)
         self.QLE_chart_ticker = QLineEdit()
         self.QLE_bet = QLineEdit()
@@ -135,7 +137,7 @@ class Window(QMainWindow):
         self.QPB_chart_stop = QPushButton('중지')
 
         dict_grid = {
-            self.QCB_market: self.QCB_simul,
+            self.QCB_market: self.QCB_mock,
             self.QCB_stg1: self.QCB_stg5,
             self.QCB_stg2: self.QCB_stg6,
             self.QCB_stg3: self.QCB_stg7,
@@ -240,8 +242,8 @@ class Window(QMainWindow):
         self.QLE_secret = QLineEdit()
         self.QL_account = QLabel('계좌:')
         self.QLE_account = QLineEdit()
-        self.QL_ID = QLabel('ID:')
-        self.QLE_ID = QLineEdit()
+        # self.QL_ID = QLabel('ID:')
+        # self.QLE_ID = QLineEdit()
         self.QPB_API_save = QPushButton('설정 저장')
 
         QHB_set = QHBoxLayout()
@@ -255,8 +257,8 @@ class Window(QMainWindow):
         QHB_set.addWidget(self.QLE_secret)
         QHB_set.addWidget(self.QL_account)
         QHB_set.addWidget(self.QLE_account)
-        QHB_set.addWidget(self.QL_ID)
-        QHB_set.addWidget(self.QLE_ID)
+        # QHB_set.addWidget(self.QL_ID)
+        # QHB_set.addWidget(self.QLE_ID)
         QHB_set.addWidget(self.QPB_API_save)
 
 
@@ -326,28 +328,6 @@ class Window(QMainWindow):
             self.df_set.loc['차트기간','value'] = self.QCB_chart_duration.currentText()
             self.df_set.loc['차트봉','value'] = self.QCB_chart_bong.currentText()
             self.df_set.loc['차트상세봉','value'] = self.QCB_chart_bong_detail.currentText()
-            self.df_set.loc['bybit_API', 'value'] = ''
-            self.df_set.loc['bybit_SECRET', 'value'] = ''
-            self.df_set.loc['binance_API', 'value'] = ''
-            self.df_set.loc['binance_SECRET', 'value'] = ''
-            self.df_set.loc['국내주식_API', 'value'] = ''
-            self.df_set.loc['국내주식_SECRET', 'value'] = ''
-            self.df_set.loc['국내주식_ACCOUNT', 'value'] = ''
-            self.df_set.loc['국내주식_모의_API', 'value'] = ''
-            self.df_set.loc['국내주식_모의_SECRET', 'value'] = ''
-            self.df_set.loc['국내주식_모의_ACCOUNT', 'value'] = ''
-            self.df_set.loc['국내선옵_API', 'value'] = ''
-            self.df_set.loc['국내선옵_SECRET', 'value'] = ''
-            self.df_set.loc['국내선옵_ACCOUNT', 'value'] = ''
-            self.df_set.loc['국내선옵_모의_API', 'value'] = ''
-            self.df_set.loc['국내선옵_모의_SECRET', 'value'] = ''
-            self.df_set.loc['국내선옵_모의_ACCOUNT', 'value'] = ''
-            self.df_set.loc['해외선옵_API', 'value'] = ''
-            self.df_set.loc['해외선옵_SECRET', 'value'] = ''
-            self.df_set.loc['해외선옵_ACCOUNT', 'value'] = ''
-            self.df_set.loc['국내주식_모의_API', 'value'] = ''
-            self.df_set.loc['국내주식_모의_SECRET', 'value'] = ''
-            self.df_set.loc['국내주식_모의_ACCOUNT', 'value'] = ''
             self.df_set.loc['텔레그램_API', 'value'] = ''
             self.df_set.loc['텔레그램_SECRET', 'value'] = ''
             self.df_set.to_sql('set', self.conn_set, if_exists='replace')
@@ -365,7 +345,7 @@ class Window(QMainWindow):
             self.QCB_chart_duration.setCurrentText(self.df_set.loc['차트기간','value'])
             self.QCB_chart_bong.setCurrentText(self.df_set.loc['차트봉','value'])
             self.QCB_chart_bong_detail.setCurrentText(self.df_set.loc['차트상세봉','value'])
-            self.QCB_simul.setChecked(bool(self.df_set.loc['모의매매','check']))
+            self.QCB_mock.setChecked(bool(self.df_set.loc['모의매매','check']))
             self.QCB_tele.setChecked(bool(self.df_set.loc['텔레그램','check']))
             self.QCB_auto_start.setChecked(bool(self.df_set.loc['자동시작','check']))
             self.QCB_auto_finish.setChecked(bool(self.df_set.loc['자동종료','check']))
@@ -381,32 +361,35 @@ class Window(QMainWindow):
     # def update_label(self, index):
     #     self.label.setText(f"Selected Item: {self.QCB_market.itemText(index)}")
     def display_futopt(self):
-
-        # print(self.ex_kis.display_fut())
         df_f = self.ex_kis.display_fut()
+        df_f_mini = self.ex_kis.display_fut(True)
         today = datetime.datetime.today()
         expiry_date_fut, expiry_str, days_left,past_expiry_date,past_expiry_date_str = self.ex_kis.get_nearest_futures_expiry(today)
 
-        expiry_date_fut = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,self.df_holiday,expiry_date_fut)
+        expiry_date_fut = common_def.check_holiday(self.QCB_mock.isChecked(),self.ex_kis,self.df_holiday,expiry_date_fut)
         df_f['만기일'] = expiry_date_fut.strftime('%m-%d')
+        df_f_mini['만기일'] = expiry_date_fut.strftime('%m-%d') #일단은 귀찮으니까 선물 만기를 갖고옴
         QTest.qWait(500)
         df_c, df_p, past_date, expiry_date_opt = self.ex_kis.display_opt(today)
-        expiry_date_opt = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,self.df_holiday,expiry_date_opt)
+        expiry_date_opt = common_def.check_holiday(self.QCB_mock.isChecked(),self.ex_kis,self.df_holiday,expiry_date_opt)
         df_c['만기일']=expiry_date_opt.strftime('%m-%d')
         df_p['만기일']=expiry_date_opt.strftime('%m-%d')
         QTest.qWait(500)
         df_c_weekly, df_p_weekly,self.COND_MRKT, past_date, expiry_date_weekly = self.ex_kis.display_opt_weekly(today)
-        expiry_date_weekly = common_def.check_holiday(self.QCB_simul.isChecked(),self.ex_kis,self.df_holiday,expiry_date_weekly)
+        expiry_date_weekly = common_def.check_holiday(self.QCB_mock.isChecked(),self.ex_kis,self.df_holiday,expiry_date_weekly)
         df_c_weekly['만기일']=expiry_date_weekly.strftime('%m-%d')
         df_p_weekly['만기일']=expiry_date_weekly.strftime('%m-%d')
         df_f = common_def.convert_column_types(df_f)
+        df_f_mini = common_def.convert_column_types(df_f_mini)
         df_c = common_def.convert_column_types(df_c)
         df_p = common_def.convert_column_types(df_p)
         df_c_weekly = common_def.convert_column_types(df_c_weekly)
         df_p_weekly = common_def.convert_column_types(df_p_weekly)
         df_f['시가'] = 0
         df_f['거래대금'] = 0
-        df_combined = common_def.futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,self.COND_MRKT)
+        df_f_mini['시가'] = 0
+        df_f_mini['거래대금'] = 0
+        df_combined = common_def.futopt_set_tickers(df_f,df_f_mini,df_c,df_p,df_c_weekly,df_p_weekly,self.COND_MRKT)
         # self.set_table_make(self.QT_tickers, df_combined)
         self.dict_market_option['COND_MRKT'] = self.COND_MRKT
 
@@ -431,18 +414,11 @@ class Window(QMainWindow):
         self.QLE_stg.clear()
         self.QT_tickers.clear()
         self.dict_market_option = {}
-        # token_file = 'token.dat' # 한국투자증권 토큰 삭제
-        # if os.path.isfile(token_file):  # token.dat 파일이 있으면
-        #     os.remove(token_file)  # 파일 삭제 나중에는 장 시작시 토큰유효기간 확인 후 중간에 만료되는토큰은 삭제하는걸로 변경 할 필요가 있음
-        #     print("token_file 파일이 삭제되었습니다.")
         self.QTE_stg_buy.clear()
         self.QTE_stg_sell.clear()
         if self.QCB_market.currentText() == 'bybit':
             stg_file = 'DB/stg_bybit.db'
-            # print(self.df_set.loc['bybit_API', 'value'] == '')
-            # print(self.df_set.loc['bybit_SECRET', 'value'] == '')
             if self.df_set.loc['bybit_API', 'value'] == '' or self.df_set.loc['bybit_SECRET', 'value'] == '' :
-                print('bybit API 없음')
                 self.df_tickers = pd.DataFrame(columns=['종목코드','quoteVolume','volume24h','percentage','change'])
                 self.ex_bybit = None
                 self.ex_pybit = None
@@ -462,23 +438,32 @@ class Window(QMainWindow):
             conn_holiday = sqlite3.connect('DB/DB_futopt.db')
             self.df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
             conn_holiday.close()
-            now_day = datetime.datetime.now().date().strftime("%Y%m%d")
-            self.dict_market_option['개장일'] = self.df_holiday.loc[now_day, '개장일']
+            # now_day = datetime.datetime.now().date().strftime("%Y%m%d")
+            # if not now_day in self.df_holiday.index.tolist():
+            # self.dict_market_option['개장일'] = self.df_holiday.loc[now_day, '개장일']
             stg_file = 'DB/stg_stock.db'
-            if self.QCB_simul.isChecked() == True:
-                if self.df_set.loc['국내주식_모의_API', 'value'] == '' or self.df_set.loc['국내주식_모의_SECRET', 'value'] == '' or self.df_set.loc['국내주식_모의_ACCOUNT', 'value'] == '':
-                    self.ex_kis = None
-                    self.df_tickers = pd.DataFrame()
-                    print('국내모의주식 API 없음')
-                else:
-                    self.ex_kis = common_def.make_exchange_kis( '모의주식',self.df_set)
+            if self.QCB_mock.isChecked() == True:
+                # if self.df_set.loc['국내주식_모의_API', 'value'] == '' or self.df_set.loc['국내주식_모의_SECRET', 'value'] == '' or self.df_set.loc['국내주식_모의_ACCOUNT', 'value'] == '':
+                #     self.ex_kis = None
+                #     self.df_tickers = pd.DataFrame()
+                #     print('국내모의주식 API 없음')
+                # else:
+                try:
+                    self.ex_kis = KIS.KoreaInvestment(market='국내주식',api_key=self.QLE_API.text(),secret_key=self.QLE_secret.text(),mock=True)
+                except:
+                    self.pop_message('에러','국내주식 모의 API 확인')
+                    return
             else:
-                if self.df_set.loc['국내주식_API', 'value'] == '' or self.df_set.loc['국내주식_SECRET', 'value'] == '' or self.df_set.loc['국내주식_ACCOUNT', 'value'] == '':
-                    self.ex_kis = None
-                    self.df_tickers = pd.DataFrame()
-                    print('국내주식 API 없음')
-                else:
-                    self.ex_kis = common_def.make_exchange_kis( '실전주식',self.df_set)
+                # if self.df_set.loc['국내주식_API', 'value'] == '' or self.df_set.loc['국내주식_SECRET', 'value'] == '' or self.df_set.loc['국내주식_ACCOUNT', 'value'] == '':
+                #     self.ex_kis = None
+                #     self.df_tickers = pd.DataFrame()
+                #     print('국내주식 API 없음')
+                # else:
+                try:
+                    self.ex_kis = KIS.KoreaInvestment(market='국내주식',api_key=self.QLE_API.text(),secret_key=self.QLE_secret.text(),mock=False)
+                except:
+                    self.pop_message('에러','국내주식 실전 API 확인')
+                    return
             con_db = sqlite3.connect('DB/DB_stock.db')
             cursor = con_db.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -515,25 +500,33 @@ class Window(QMainWindow):
             self.ex_bybit = None
             self.ex_pybit = None
             self.display_futopt()
-        elif self.QCB_market.currentText() == '국내선옵' or self.QCB_market.currentText() == '국내선옵(야간)':
+        elif self.QCB_market.currentText() == '국내선옵':
             conn_holiday = sqlite3.connect('DB/DB_futopt.db')
             self.df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_holiday).set_index('날짜')
             conn_holiday.close()
             now_day = datetime.datetime.now().date().strftime("%Y%m%d")
 
             stg_file = 'DB/stg_futopt.db'
-            if self.QCB_simul.isChecked() == True:
-                if self.df_set.loc['국내선옵_모의_API', 'value'] == '' or self.df_set.loc['국내선옵_모의_SECRET', 'value'] == '' or self.df_set.loc['국내선옵_모의_ACCOUNT', 'value'] == '':
-                    print('국내모의선옵 API 없음')
-                    self.ex_kis = None
-                else:
-                    self.ex_kis = common_def.make_exchange_kis('모의선옵',self.df_set)
+            if self.QCB_mock.isChecked() == True:
+                # if self.df_set.loc['국내선옵_모의_API', 'value'] == '' or self.df_set.loc['국내선옵_모의_SECRET', 'value'] == '' or self.df_set.loc['국내선옵_모의_ACCOUNT', 'value'] == '':
+                #     print('국내모의선옵 API 없음')
+                #     self.ex_kis = None
+                # else:
+                try:
+                    self.ex_kis = KIS.KoreaInvestment(market='국내선옵',api_key=self.QLE_API.text(),secret_key=self.QLE_secret.text(),mock=True)
+                except:
+                    self.pop_message('에러','국내선옵 모의 API 확인')
+                    return
             else:
-                if self.df_set.loc['국내선옵_API', 'value'] == '' or self.df_set.loc['국내선옵_SECRET', 'value'] == '' or self.df_set.loc['국내선옵_ACCOUNT', 'value'] == '':
-                    print('국내선옵 API 없음')
-                    self.ex_kis = None
-                else:
-                    self.ex_kis = common_def.make_exchange_kis( '실전선옵',self.df_set)
+                # if self.df_set.loc['국내선옵_API', 'value'] == '' or self.df_set.loc['국내선옵_SECRET', 'value'] == '' or self.df_set.loc['국내선옵_ACCOUNT', 'value'] == '':
+                #     print('국내선옵 API 없음')
+                #     self.ex_kis = None
+                # else:
+                try:
+                    self.ex_kis = KIS.KoreaInvestment(market='국내선옵',api_key=self.QLE_API.text(),secret_key=self.QLE_secret.text(),mock=False)
+                except:
+                    self.pop_message('에러','국내선옵 실전 API 확인')
+                    return
             self.ex_bybit = None
             self.ex_pybit = None
             # ex = common_def.make_exchange_kis('실전주식') #모의투자는 휴장일정보를 지원하지 않음
@@ -639,10 +632,10 @@ class Window(QMainWindow):
             # if list_ticker:
                 # self.QCB_chart_ticker.setCurrentText(list_ticker[0])
         print(f"{self.QCB_market.currentText()} 선택")
-    def sell_only(self):
-        self.select_market()
+    # def sell_only(self):
+    #     self.select_market()
     def fetch_balance(self):
-        if self.QCB_market.currentText() == '국내선옵' or self.QCB_market.currentText() == '국내선옵(야간)':
+        if self.QCB_market.currentText() == '국내선옵':
             if self.QCB_sell_only.isChecked() == True:
                 self.select_market()
                 asset,df_instock = self.ex_kis.fetch_balance()
@@ -680,7 +673,7 @@ class Window(QMainWindow):
 
 
 
-                df_instock.to_sql('stg_sell_only',self.conn_stg,if_exists='replace')
+                # df_instock.to_sql('stg_sell_only',self.conn_stg,if_exists='replace')
             else:
                 print('매도만을 체크하세요.')
     def save_stg(self):
@@ -984,24 +977,24 @@ class Window(QMainWindow):
     def save_setting(self):
         self.df_set.loc['자동시작','check'] = self.QCB_auto_start.isChecked()
         self.df_set.loc['자동시작마켓','value'] = self.QCB_market.currentText()
-        self.df_set.loc['모의매매','check'] = self.QCB_simul.isChecked()
+        self.df_set.loc['모의매매','check'] = self.QCB_mock.isChecked()
         self.df_set.loc['자동종료','check'] = self.QCB_auto_finish.isChecked()
         self.df_set.loc['자동종료시간','value'] = self.QTE_finish.text()
         self.df_set.loc['텔레그램','check'] = self.QCB_tele.isChecked()
         if not self.QLE_API.text() == '':
-            if (self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵') and self.QCB_simul.isChecked() == True:
+            if (self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵') and self.QCB_mock.isChecked() == True:
                 self.df_set.loc[f'{self.QCB_market.currentText()}_모의_API','value'] = self.QLE_API.text()
             else:
                 self.df_set.loc[f'{self.QCB_market.currentText()}_API','value'] = self.QLE_API.text()
             self.QLE_API.clear()
         if not self.QLE_secret.text() == '':
-            if (self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵') and self.QCB_simul.isChecked() == True:
+            if (self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵') and self.QCB_mock.isChecked() == True:
                 self.df_set.loc[f'{self.QCB_market.currentText()}_모의_SECRET','value'] = self.QLE_secret.text()
             else:
                 self.df_set.loc[f'{self.QCB_market.currentText()}_SECRET','value'] = self.QLE_secret.text()
             self.QLE_secret.clear()
         if not self.QLE_account.text() == '':
-            if (self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵') and self.QCB_simul.isChecked() == True:
+            if (self.QCB_market.currentText() == '국내주식' or self.QCB_market.currentText() == '국내선옵') and self.QCB_mock.isChecked() == True:
                 self.df_set.loc[f'{self.QCB_market.currentText()}_모의_ACCOUNT', 'value'] = self.QLE_account.text()
             else:
                 self.df_set.loc[f'{self.QCB_market.currentText()}_ACCOUNT', 'value'] = self.QLE_account.text()
@@ -1188,7 +1181,7 @@ class Window(QMainWindow):
 
         self.dict_market_option['list_tickers'] = self.df_tickers['종목코드'].tolist()
         self.thread = ATOM_trade_numpy.Trade_np(self, self.QCB_market.currentText(),self.ex_kis,self.ex_bybit,self.ex_pybit,
-                                                self.QCB_simul, self.df_stg,
+                                                self.QCB_mock, self.df_stg,
                                                 self.QCB_chart_duration.currentText(),self.QCB_tele.isChecked(),
                                                 self.dict_market_option,self.QCB_auto_finish.isChecked(),finish_time)
         self.thread.start()
@@ -1429,7 +1422,7 @@ class Window(QMainWindow):
             df.index = df.index - pd.Timedelta(hours=9)
             df_standard, df = common_def.detail_to_spread(df, bong, bong_detail,False)
             # df.index = df.index + pd.Timedelta(hours=9)
-        if market == '국내선옵' :
+        if market == '국내선옵' or market == '국내주식' :
             ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker, limit=int(bong_since),ohlcv=[],
                                                now_day=datetime.datetime.strftime(present,"%Y%m%d"),
                                                now_time=datetime.datetime.strftime(present,"%H%M%S"))
@@ -1439,20 +1432,18 @@ class Window(QMainWindow):
         df['매도가'] = np.nan
         df['진입신호'] = np.nan
         df['청산신호'] = np.nan
-
         self.chart_table = tab_chart_table.Window()
         df_chart_table = self.chart_table.df_to_show(df, market)
         self.chart_table.chart_show(market, ticker)
+
     def cell_doubleclick_trading_table(self,Qtable,df_stg):
         row = Qtable.currentRow()
         ticker = Qtable.item(int(row), 2).text()
-
         bong = self.QCB_chart_bong.currentText()
         bong_detail = self.QCB_chart_bong_detail.currentText()
         bong_since = self.QCB_chart_duration.currentText()
         market = self.QCB_market.currentText()
         present = datetime.datetime.now()
-
         ticker_full_name = ticker+'_chart'
         if bong_since == '기간(일)':
             bong_since = 1
@@ -1630,7 +1621,8 @@ class Window(QMainWindow):
         QPB.setEnabled(False)
         QTest.qWait(250)
         QPB.setEnabled(True)
-
+    def pop_message(self,title,message):
+        QMessageBox.about(self,title,message)
 
 
 class ShutdownDialog(QDialog):

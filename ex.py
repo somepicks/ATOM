@@ -467,151 +467,54 @@ def bybit_set_tickers(fetch_tickers):
 
 ################################################################
 
-import requests
-import json
+import pandas as pd
+# 종목코드 불러오기
+stock_code = pd.read_html('http://kind.krx.co.kr/corpgeneral/corpList.do?method=download', header=0)[0]
+print(stock_code)
+quit()
+stock_code = stock_code[['회사명','종목코드']]
+# rename(columns = {'원래 이름' : '바꿀 이름'}) 칼럼 이름 바꾸기
+stock_code = stock_code.rename(columns = {'회사명':'company','종목코드':'code'})
+# 종목코드가 6자리이기 때문에 6자리를 맞춰주기 위해 설정해줌
+stock_code.code = stock_code.code.map('{:06}'.format) #6자리가 아닌 수를 앞에 0으로 채우기 위함
+stock_code.tail(3)
+import bs4
+from urllib.request import urlopen # url의 소스코드를 긁어오는 기능
+company_name = []
+for i in range(1,21):
+  page = i
+  url = 'https://finance.naver.com/sise/entryJongmok.nhn?&page={page}'.format(page = page)
+  source = urlopen(url).read()
+  source = bs4.BeautifulSoup(source,'lxml')
+  source = source.find_all('a',target = '_parent')
+  for j in range(len(source)):
+    name = source[j].text
+    company_name.append(name)
+code = []
+for i in company_name:
+  for j in range(len(stock_code)):
+    if stock_code['company'][j] == i:
+      code.append(stock_code['code'][j])
+      break
+pprint(code)
+pprint(len(code))
+quit()
 
-# 접근토큰 발급
-def fn_au10001(data):
-    host = 'https://api.kiwoom.com'
-    endpoint = '/oauth2/token'
-    url = host + endpoint
-
-    headers = {
-        'Content-Type': 'application/json;charset=UTF-8',
-    }
-
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
-
-# 계좌 잔고 조회
-def fn_kt00018(token, data):
-    host = 'https://api.kiwoom.com'
-    endpoint = '/api/dostk/acnt'
-    url = host + endpoint
-    print(url)
-    headers = {
-        'Content-Type': 'application/json;charset=UTF-8',
-        'authorization': f'Bearer {token}',
-        'api-id': 'kt00018',
-    }
-
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
-
-
-def get_hangseng_from_naver():
-    """
-    네이버 증권에서 항셍지수 정보를 크롤링하는 함수
-    """
-    # 네이버 증권 항셍지수 페이지 URL
-    url = "https://finance.naver.com/world/sise.naver?symbol=HSI@HSI"
-
-    # User-Agent 헤더 추가 (차단 방지)
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-
-    # try:
-        # HTTP 요청
-    response = requests.get(url, headers=headers)
-    # response.raise_for_status()  # HTTP 에러 체크
-
-    # HTML 파싱
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    print('항셍')
-    # 현재가 정보 추출
-    price_element = soup.select_one('.rate_info .blind')
-    if price_element:
-        current_price = price_element.text.strip()
-        print(current_price)
-        print('123')
-    else:
-        current_price = "정보 없음"
-        print(current_price)
-        print('asdf')
-    quit()
-    # 전일대비 정보 추출
-    change_element = soup.select_one('.rate_info .change')
-    if change_element:
-        change_info = change_element.get_text(strip=True)
-    else:
-        change_info = "정보 없음"
-
-    # 등락률 정보 추출
-    rate_element = soup.select_one('.rate_info .rate')
-    if rate_element:
-        change_rate = rate_element.get_text(strip=True)
-    else:
-        change_rate = "정보 없음"
-
-    # 결과 반환
-    result = {
-        '지수명': '항셍지수 (HSI)',
-        '현재가': current_price,
-        '전일대비': change_info,
-        '등락률': change_rate,
-        '조회시간': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
-
-    return result
-
-    # except requests.RequestException as e:
-    #     print(f"HTTP 요청 오류: {e}")
-    #     return None
-    # except Exception as e:
-    #     print(f"크롤링 오류: {e}")
-    #     return None
-# 실행 구간
-if __name__ == '__main__':
-    import requests
-    from bs4 import BeautifulSoup
-    import urllib.request as req
-
-    url = "https://finance.naver.com/marketindex"
-    res = req.urlopen(url)
-
-    soup = BeautifulSoup(res, "html.parser")
-    price = soup.select_one("a.head.usd > div.head_info > span.value").string
-    print("usd/krw =", price)
-    price = soup.select_one("a.head.usd_idx > div.head_info > span.value").string
-    print("달러인덱스 =", price)
+from pykrx import stock
+df = stock.get_etf_trading_volume_and_value("20251001", "20251028", "122630", "거래대금", "순매수")
+print(df)
+quit()
 
 
-
-
-    res= get_hangseng_from_naver
-    print(res)
-
-    quit()
-
-    api_key = "yldEAW1zfmbEnyK0X0M_v91AqSk-b3LO5dvALqSLfRo"
-    secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
-    # 1. 접근토큰 발급 데이터
-    token_params = {
-        'grant_type': 'client_credentials',
-        'appkey': api_key,
-        'secretkey': secret_key,
-    }
-
-    # 2. 접근토큰 발급
-    # token_response = fn_au10001(data=token_params)
-    # access_token = token_response['token']  # 발급받은 접근토큰
-    access_token = 'l314k2EMJGYaMdwAeqcvPHDyA7bWriht_18KqaKRORh6gVPfwb4idWXlcqlbBz63EL5e5cBWShjgKKbq_qVwnw'
-    print(f"{access_token= }")
-    # 3. 계좌 잔고 조회 데이터
-    balance_params = {
-        'qry_tp': '1',
-        'dmst_stex_tp': 'KRX',
-    }
-
-    # 4. 계좌 잔고 조회
-    balance_response = fn_kt00018(token=access_token, data=balance_params)
-    pprint(balance_response)
-
+di = {'1':'모의투자 조회할 내역(자료)이 없습니다'}
+print(di['1'].startswith('모의투자 조회할 내역(자료)'))
+# di['2'] = di['1']
+print(di)
+di['2'] = di.pop('1')
+print(di)
 quit()
 market = 'binance'
-ticker = 'BTC'
+ticker = 'UNI'
 if market == 'binance':
     binance_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
     binance_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
@@ -639,6 +542,9 @@ if market == 'binance':
                 'options': {
                     'defaultType': 'delivery'  # COIN-M Futures
                 }})
+    res = binance.fetch_open_orders(symbol='UNI/USD')
+    pprint(res)
+    quit()
     import asyncio
     import ccxt.pro as ccxtpro
 

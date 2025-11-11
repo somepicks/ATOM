@@ -2739,11 +2739,9 @@ class Trade_np(QThread):
         total_ratio = sum(ratio_list)
         # 각 비율에 따라 값을 소수점 자리수로 나눠서 계산
         raw_values = [(number * ratio / total_ratio) for ratio in ratio_list]
-
         # 소수점 자리수에 맞게 반올림
         rounded_values = [round(value, decimal_places) for value in raw_values]
         diff = round(number - sum(rounded_values), decimal_places)  # 남은 차이를 계산합니다.
-
         # 남은 차이를 마지막 요소에 반영해 합을 맞춥니다.
         for i in range(len(rounded_values)):
             if diff != 0:
@@ -2756,21 +2754,16 @@ class Trade_np(QThread):
         # 비율 합계를 100으로 보정하여 계산할 비율을 구함
         total_ratio = sum(ratios)
         effective_number = number * (total_ratio / 100)
-
         # 각 비율에 따른 분배값 계산
         results = [(effective_number * (ratio / total_ratio)) for ratio in ratios]
-
         # 소숫점 자릿수에 맞게 반올림
         results = [round(result, decimal_places) for result in results]
-
         # 반올림 후 합이 달라졌을 수 있으므로 보정
         rounded_total = sum(results)
         difference = round(effective_number - rounded_total, decimal_places)
-
         # 보정이 필요한 경우 첫 번째 원소에 차이 추가
         if difference != 0:
             results[0] = round(results[0] + difference, decimal_places)
-
         return results
 
     def decimal_places(self, number):

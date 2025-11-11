@@ -19,14 +19,15 @@ import datetime
 from pprint import pprint
 
 def convert_df(df):
-    # print(convert_df)
     df['등락율'] = round((df['종가'] - df['종가'].shift(1)) / df['종가'].shift(1) * 100, 2)
     df['변화율'] = round((df['종가'] - df['시가']) / df['시가'] * 100, 2)
     df['이평5'] = talib.MA(df['종가'], 5)
     df['이평20'] = talib.MA(df['종가'], 20)
     df['이평60'] = talib.MA(df['종가'], 60)
     df['이평120'] = talib.MA(df['종가'], 120)
-    df['이평240'] = talib.MA(df['종가'], 200)
+    df['이평100'] = talib.MA(df['종가'], 100)
+    df['이평240'] = talib.MA(df['종가'], 240)
+    df['이평200'] = talib.MA(df['종가'], 200)
     df['거래량이평3'] = talib.MA(df['거래량'], 3)
     df['거래량이평20'] = talib.MA(df['거래량'], 20)
     df['거래량이평60'] = talib.MA(df['거래량'], 60)
@@ -41,6 +42,11 @@ def convert_df(df):
     df['밴드상'], df['밴드중'], df['밴드하'] = talib.BBANDS(df['종가'].shift(1), 20, 2)
     df['고저평균대비등락율'] = ((df['종가'] / ((df['고가'] + df['저가']) / 2) - 1) * 100).round(2)
     df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
+    df['당일저가'] = df.groupby(df.index.date)['저가'].transform('min')
+    df['전일저가'] = df.groupby(df.index.date)['저가'].transform('min').shift(1)
+    df['당일고가'] = df.groupby(df.index.date)['고가'].transform('max')
+    df['전일고가'] = df.groupby(df.index.date)['고가'].transform('max').shift(1)
+
     return df
 def convert_df_compare(df):
     # print(convert_df)
@@ -66,7 +72,7 @@ def convert_df_compare(df):
     # df['고저평균대비등락율'] = ((df['종가'] / ((df['고가'] + df['저가']) / 2) - 1) * 100).round(2)
     df['데이터길이'] = np.arange(1, len(df.index.tolist()) + 1, 1)  # start=1, stop=len(df.index.tolist())+1, step=1
     return df
-def futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
+def futopt_set_tickers(df_f,df_f_mini,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
     # 조건에 '시가_풋옵션_5분봉' 과같은 팩터가 올 수 있으니 비율을 똑같이 해줘야 함
 
 
@@ -79,6 +85,7 @@ def futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
     df_p['종목명'] = '풋옵션'
 
     df_f.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
+    df_f_mini.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
     df_c.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
     df_p.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
     # df = ex.fetch_closed_roder(side='매수',ticker='005930')
@@ -93,6 +100,7 @@ def futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
     common_columns = list(set(df_f.columns).intersection(df_c.columns).intersection(df_p.columns))
     # 공통된 컬럼명만 추출하여 새로운 데이터프레임 생성
     df_f_common = df_f[common_columns]
+    df_f_mini_common = df_f_mini[common_columns]
     df_c_common = df_c[common_columns]
     df_p_common = df_p[common_columns]
 
@@ -102,11 +110,12 @@ def futopt_set_tickers(df_f,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
 
     # 각 데이터프레임에 구분 행 추가
     df1_with_separator = pd.concat([df_f_common, create_separator_row(common_columns)], ignore_index=True)
-    df2_with_separator = pd.concat([df_c_common, create_separator_row(common_columns)], ignore_index=True)
-    df3_with_separator = pd.concat([df_p_common, create_separator_row(common_columns)], ignore_index=True)
+    df2_with_separator = pd.concat([df_f_mini_common, create_separator_row(common_columns)], ignore_index=True)
+    df3_with_separator = pd.concat([df_c_common, create_separator_row(common_columns)], ignore_index=True)
+    df4_with_separator = pd.concat([df_p_common, create_separator_row(common_columns)], ignore_index=True)
 
     # 모든 데이터프레임을 합치기
-    df_combined = pd.concat([df1_with_separator, df2_with_separator, df3_with_separator], ignore_index=True)
+    df_combined = pd.concat([df1_with_separator, df2_with_separator, df3_with_separator, df4_with_separator], ignore_index=True)
 
     if not df_c_weekly.empty and not df_p_weekly.empty:
         if COND_MRKT == "WKM":
@@ -179,7 +188,9 @@ def resample_df(df, bong, rule, name, compare):
     return df
 
 def get_kis_ohlcv(market, ohlcv):
+    print(ohlcv)
     df = pd.DataFrame(ohlcv)
+    print(df)
     dt = pd.to_datetime(df['stck_bsop_date'] + df['stck_cntg_hour'], format="%Y%m%d%H%M%S")
     df.set_index(dt, inplace=True)
     df = df.apply(to_numeric)
@@ -202,18 +213,21 @@ def get_kis_ohlcv(market, ohlcv):
         df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
         df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
         df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
-
+        print(df)
         # 날짜 변경 여부 확인
         df['날짜변경'] = df.index.to_series().dt.date != df.index.to_series().shift(-1).dt.date
+        print(df)
 
         # 날짜 변경 시 누적거래대금 값 유지
         df.loc[df['날짜변경'], '거래대금'] = df['누적거래대금']
+        print(df)
 
         # 날짜변경 컬럼 제거 (선택 사항)
         df.drop(columns=['날짜변경'], inplace=True)
 
     df.index.name = "날짜"
     df = df[::-1]  # 거꾸로 뒤집기
+    df.to_sql('test', sqlite3.connect('DB/bt.db'), if_exists='replace')
     return df
 def stamp_to_df(df):
     # df = pd.DataFrame(list_data, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
@@ -377,7 +391,7 @@ def fetch_inverse_list(market,dict_ex):
         list_inverse = []
     return list_inverse
 
-def detail_to_spread(df_min, bong, bong_detail, compare): #df=특정봉데이터반환, df_combined=전체봉데이터반환
+def detail_to_spread(df_min, bong:str, bong_detail:str='1분봉', compare:bool=False): #df=특정봉데이터반환, df_combined=전체봉데이터반환
     dict_bong_stamp = {'1분봉': 1, '3분봉': 3, '5분봉': 5, '15분봉': 15, '30분봉': 30, '60분봉': 60, '4시간봉': 240, '일봉': 1440,
                        '주봉': 10080}
     df_min.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
@@ -475,28 +489,40 @@ def detail_to_compare(df, ticker, bong):
     df = df.drop(columns=df.filter(like='_'+bong).columns)
 #     print(df)
     return df
-def make_exchange_bybit():
-    conn = sqlite3.connect('DB/setting.db')
-    df = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
-    conn.close()
+def make_exchange_bybit(api: str ='', secret: str=''):
+    import pickle
+    import os
 
-    if 'bybit_API' in df.index.tolist() and  'bybit_SECRET' in df.index.tolist() :
-        api = df.loc['bybit_API','value']
-        secret = df.loc['bybit_SECRET','value']
-        exchange_ccxt = ccxt.bybit(config={
-            'apiKey': api,
-            'secret': secret,
-            'enableRateLimit': True,
-            'options': {'position_mode': True,},
-            })
-        exchange_pybit = HTTP(
-                testnet = False,
-                api_key = api,
-                api_secret = secret,
-            )
+    token_name = "DB/token.dat"
+
+    if os.path.isfile(token_name):  # 파일이 있으면
+        f = open(token_name, "rb")
+        data = pickle.load(f)
+        f.close()
     else:
-        exchange_ccxt = None
-        exchange_pybit = None
+        data = {}
+    if "BYBIT" in data.keys():
+        api = data["BYBIT"]['api']
+        secret = data["BYBIT"]['secret']
+    else:
+        data["BYBIT"]['api'] = api
+        data["BYBIT"]['secret'] = secret
+        with open(token_name, "wb") as f:
+            pickle.dump(data, f)
+    exchange_ccxt = ccxt.bybit(config={
+        'apiKey': api,
+        'secret': secret,
+        'enableRateLimit': True,
+        'options': {'position_mode': True,},
+        })
+    exchange_pybit = HTTP(
+            testnet = False,
+            api_key = api,
+            api_secret = secret,
+        )
+    # else:
+    #     exchange_ccxt = None
+    #     exchange_pybit = None
     return exchange_ccxt, exchange_pybit
 
 
@@ -704,7 +730,7 @@ def make_exchange_kis(trade_type,df_set=None):
 #             return None
 
     market = trade_type[2:]
-    exchange = KIS.KoreaInvestment(api_key=key, api_secret=secret, acc_no=acc_no, market=market, mock=mock)
+    exchange = KIS.KoreaInvestment(api_key=key, secret_key=secret, acc_no=acc_no, market=market, mock=mock)
     return exchange
 def export_sql(df,text):
     con = sqlite3.connect('DB/bt.db')
@@ -923,13 +949,8 @@ class CodeEditor(QTextEdit):
         else:
             super(CodeEditor, self).keyPressEvent(event)
 if __name__ == "__main__":
-# d1 = datetime.datetime.now().date()
-# conn_DB = sqlite3.connect('DB/DB_futopt.db')
-# df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn_DB).set_index('날짜')
-# conn_DB.close()
-# d2 = datetime.date(2025,3,13)
-# res = check_holiday(df_holiday,d2)
     ex,pybit = make_exchange_bybit()
+    quit()
     dict_binance = make_exchange_binance()
     print(dict_binance)
     dict_ex = {'bybit':ex,'spot':dict_binance['spot'],'linear':dict_binance['linear'],'coinm':dict_binance['coinm']}

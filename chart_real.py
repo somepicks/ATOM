@@ -1,5 +1,4 @@
 import sqlite3
-# from datetime import datetime,timedelta,date
 import datetime
 import time
 from pandas import to_numeric
@@ -9,8 +8,6 @@ import pandas as pd
 from PyQt5.QtWidgets import QMainWindow,QTableWidgetItem,QHeaderView,QApplication
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
-# from PyQt5 import QtWidgets, QtCore
-# from PyQt5 import QtWidgets, QtCore
 import numpy as np
 import pyqtgraph as pg
 # import crosshair
@@ -29,9 +26,8 @@ from PyQt5.QtWidgets import QMainWindow,QGridLayout,QLineEdit,QLabel,QPushButton
 import common_def
 import ATOM_chart_numpy
 from PyQt5.QtTest import *
+import KIS
 
-
-# from pyqtgraph.Qt import QtCore
 
 # class DateAxisItem(pg.AxisItem):
 #     def __init__(self, *args, **kwargs):
@@ -181,7 +177,7 @@ class Graph(QThread):
                         globals()[ticker_full_name] = df.copy()
                         df = common_def.convert_df(df)
                 else:
-                    df = common_def.get_kis_ohlcv(self.market,ohlcv)
+                    df = common_def.get_kis_ohlcv(self.market,[])
                     if ticker_full_name.count('_') == 2:  # 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
                         df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
                     else:  # 비교대상의 경우 'BTC_5분봉'
@@ -208,6 +204,7 @@ class Graph(QThread):
                 now_day = now_day.strftime("%Y%m%d")
                 now_time = datetime.datetime.now().strftime("%H%M%S")
                 ohlcv = []
+            print(f"{ticker= }")
             ohlcv = self.ex.fetch_1m_ohlcv(symbol=ticker,
                                            limit=int(bong_since),
                                            ohlcv=ohlcv,
@@ -284,11 +281,13 @@ class Graph(QThread):
         self.time_Var = QTimer()
         self.time_Var.moveToThread(self)
         if self.market == '국내주식' :
-            self.ex = common_def.make_exchange_kis('모의주식')
+            # self.ex = common_def.make_exchange_kis('모의주식')
+            self.ex = KIS.KoreaInvestment(market=self.market,mock=False)
         elif self.market == '국내선옵':
             list_tickers.append('콜옵션')
             list_tickers.append('풋옵션')
-            self.ex = common_def.make_exchange_kis('모의선옵')
+            # self.ex = common_def.make_exchange_kis('모의선옵')
+            self.ex = KIS.KoreaInvestment(market=self.market,mock=False)
         elif self.market == '코인':
             self.ex,self.ex_pybit = common_def.make_exchange_bybit(False)
 

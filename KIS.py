@@ -27,14 +27,15 @@ import numpy as np
 from PyQt5 import QtTest
 from PyQt5.QtTest import *
 from dateutil.relativedelta import relativedelta
+from pykrx import stock
 
-
+import common_def
 
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
+pd.set_option("display.unicode.east_asian_width", True) #고정폭 폰트로 교정
 # pd.set_option('display.max_rows', None)  # 출력 옵션 설정: 모든 열의 데이터 유형을 출력
-pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
 EXCHANGE_CODE = {
     "홍콩": "HKS",
@@ -189,11 +190,11 @@ notice_items = [
 class KoreaInvestmentWS(Process):
     """WebSocket
     """
-    def __init__(self, api_key: str, api_secret: str, tr_id_list: list,
+    def __init__(self, api_key: str, secret_key: str, tr_id_list: list,
                  tr_key_list: list, country:str,mock:bool,user_id: str = None):
         super().__init__()
         self.api_key = api_key
-        self.api_secret = api_secret
+        self.secret_key = secret_key
         self.tr_id_list = tr_id_list
         self.tr_key_list = tr_key_list
         self.user_id = user_id
@@ -296,7 +297,7 @@ class KoreaInvestmentWS(Process):
         headers = {"content-type": "application/json"}
         body = {"grant_type": "client_credentials",
                 "appkey": self.api_key,
-                "secretkey": self.api_secret}
+                "secretkey": self.secret_key}
         PATH = "oauth2/Approval"
         URL = f"{self.base_url}/{PATH}"
         res = requests.post(URL, headers=headers, data=json.dumps(body))
@@ -356,140 +357,116 @@ class KoreaInvestmentWS(Process):
 
 
 class KoreaInvestment:
-    '''
-    한국투자증권 REST API
-    '''
-    def __init__(self, api_key: str, api_secret: str, acc_no: str, market: str,
-                 exchange: str = "서울", mock: bool = False):
-        """생성자
-        Args:
-            api_key (str): 발급받은 API key
-            api_secret (str): 발급받은 API secret
-            acc_no (str): 계좌번호 체계의 앞 8자리-뒤 2자리
-            exchange (str): "서울", "나스닥", "뉴욕", "아멕스", "홍콩", "상해", "심천",
-                            "도쿄", "하노이", "호치민"
-            mock (bool): True (mock trading), False (real trading)
-            market (str): "주식", "선옵"
-        """
+    def __init__(self,  market: str, api_key: str ='', secret_key: str='', acc_no: str='', mock: bool = True):
+        print(f"{market=}")
         self.mock = mock
-        self.market = market
-        self.set_base_url(market, mock)
+        self.set_base_url()
         self.api_key = api_key
-        self.api_secret = api_secret
-
-        # account number
+        self.secret_key = secret_key
+        self.token_name = "DB/token.dat"
         self.acc_no = acc_no
-        print(f"{self.acc_no= }")
-        self.acc_no_prefix = acc_no.split('-')[0]
-        # print(f"{self.acc_no_prefix= }")
-        self.acc_no_postfix = acc_no.split('-')[1]
-        # print(f"{self.acc_no_postfix= }")
+        if '-' in acc_no:
+            self.acc_no_prefix = acc_no.split('-')[0]
+            self.acc_no_postfix = acc_no.split('-')[1]
+        elif len(acc_no) == 8:
+            self.acc_no_prefix = acc_no[:6]
+            self.acc_no_postfix = acc_no[-2:]
+        self.exchange = '해외' if market.startswith('해외') else '국내'
+        self.market = '주식' if market.endswith('주식') else '선옵'
 
-        if self.market == '해외선옵' or self.market == '해외주식':
-            exchange = '해외'
-        self.exchange = exchange
-
-        # access token
         self.access_token = None
-        if self.check_access_token():
+        if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
             self.load_access_token()
         else:
             self.issue_access_token()
 
-    def set_base_url(self, market: str = '주식', mock: bool = True):
-        """테스트(모의투자) 서버 사용 설정
-        Args:
-            mock(bool, optional): True: 테스트서버, False: 실서버 Defaults to True.
-        """
-        if market == '주식':
-            if mock:
-                self.base_url = "https://openapivts.koreainvestment.com:29443"
-                # print(f'{market}: 돌다리도 두드리자')
-            else:
-                self.base_url = "https://openapi.koreainvestment.com:9443"
-                # print(f'{market}: 인생은 실전')
-        elif market == '선옵':
-            if mock:
-                self.base_url = "https://openapivts.koreainvestment.com:29443"
-                # print(f'{market}: 돌다리도 두드리자')
-            else:
-                self.base_url = "https://openapi.koreainvestment.com:9443"
-                # print(f'{market}: 인생은 실전')
-        elif market == '해외선옵':
-            if mock:
-                self.base_url = "https://openapivts.koreainvestment.com:29443"
-                # print(f'{market}: 돌다리도 두드리자')
-            else:
-                self.base_url = "https://openapi.koreainvestment.com:9443"
-                # print(f'{market}: 인생은 실전')
-        else:
-            raise
-    def issue_access_token(self):
-        if self.api_key == 'test':
-            # print(' KIS 테스트모드')
-            pass
-        else:
-            """OAuth인증/접근토큰발급
-            """
-            path = "oauth2/tokenP"
-            url = f"{self.base_url}/{path}"
-            headers = {"content-type": "application/json"}
-            data = {
-                "grant_type": "client_credentials",
-                "appkey": self.api_key,
-                "appsecret": self.api_secret
-            }
-
-            resp = requests.post(url, headers=headers, data=json.dumps(data))
-            resp_data = resp.json()
-            try:
-                self.access_token = f'Bearer {resp_data["access_token"]}'
-            except Exception as e:
-                print(f"API 오류 발생: {e}")
-                print(f"{resp_data= }")
-
-
-            # add extra information for the token verification
-            now = datetime.datetime.now()
-            resp_data['timestamp'] = int(now.timestamp()) + resp_data["expires_in"]
-            resp_data['api_key'] = self.api_key
-            resp_data['api_secret'] = self.api_secret
-
-            # dump access token
-            with open("token.dat", "wb") as f:
-                pickle.dump(resp_data, f)
 
     def check_access_token(self):
-        """check access token
-        Returns:
-            Bool: True: token is valid, False: token is not valid
-        """
         try:
-            f = open("token.dat", "rb")
+            f = open(self.token_name, "rb")
             data = pickle.load(f)
             f.close()
-
-            expire_epoch = data['timestamp']
-            now_epoch = int(datetime.datetime.now().timestamp())
-            status = False
-
-            if ((now_epoch - expire_epoch > 0) or
-                (data['api_key'] != self.api_key) or
-                (data['api_secret'] != self.api_secret)):
-                status = False
+            dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전"
+            if dic_txt in data.keys():
+                data = data[dic_txt]
+                expire_epoch = data['access_token_token_expired']
+                if datetime.datetime.strptime(expire_epoch,"%Y-%m-%d %H:%M:%S")-datetime.datetime.now() < datetime.timedelta(hours=12):
+                    status = False  # 토큰 신규 발급
+                    self.api_key = data['api']
+                    self.secret_key = data['secret']
+                    self.acc_no_prefix = data['acc_prefix']
+                    self.acc_no_postfix = data['acc_postfix']
+                else:
+                    status = True
             else:
-                status = True
+                status = False
             return status
         except IOError:
             return False
 
     def load_access_token(self):
-        """load access token
-        """
-        with open("token.dat", "rb") as f:
+        print('토큰 조회')
+        with open(self.token_name, "rb") as f:
+            dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전"
             data = pickle.load(f)
+            data = data[dic_txt]
             self.access_token = f'Bearer {data["access_token"]}'
-    def inquiry_TR(self, path, tr_id:str, params:dict):
+            self.api_key = data['api']
+            self.secret_key = data['secret']
+            self.acc_no_prefix = data['acc_prefix']
+            self.acc_no_postfix = data['acc_postfix']
+
+    def issue_access_token(self):
+        # if self.api_key == 'test':# print(' KIS 테스트모드')
+        #     pass
+        # else:
+        print('토큰 발행')
+        path = "oauth2/tokenP"
+        url = f"{self.base_url}/{path}"
+        headers = {"content-type": "application/json"}
+        params = {
+            "grant_type": "client_credentials",
+            "appkey": self.api_key,
+            "appsecret": self.secret_key
+        }
+        resp = requests.post(url, headers=headers, data=json.dumps(params))
+        output = resp.json()
+        try:
+            self.access_token = f'Bearer {output["access_token"]}'
+            # now = datetime.datetime.now()
+            # output['timestamp'] = int(now.timestamp()) + output["expires_in"]
+            output['api'] = self.api_key
+            output['secret'] = self.secret_key
+            output['acc_prefix'] = self.acc_no_prefix
+            output['acc_postfix'] = self.acc_no_postfix
+
+
+            if os.path.isfile(self.token_name):  # 파일이 있으면
+                f = open(self.token_name, "rb")
+                data = pickle.load(f)
+            else:
+                data ={}
+            with open(self.token_name, "wb") as f:
+                if self.mock:
+                    data[f"한국투자증권_{self.exchange}_{self.market}_모의"]=output
+                else:
+                    data[f"한국투자증권_{self.exchange}_{self.market}_실전"]=output
+                pickle.dump(data, f)
+
+        except Exception as e:
+            print(f"issue_access_token - API 오류 발생: {e}")
+            print(f"{data= }")
+            return
+
+    def set_base_url(self):
+        if self.mock:
+            self.base_url = "https://openapivts.koreainvestment.com:29443"
+            # print(f'{market}: 돌다리도 두드리자')
+        else:
+            self.base_url = "https://openapi.koreainvestment.com:9443"
+            # print(f'{market}: 인생은 실전')
+
+    def inquiry_TR_get(self, path, tr_id:str, params:dict):
         url = f"{self.base_url}/{path}"
         data = {
             "CANO": self.acc_no_prefix,
@@ -500,7 +477,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": tr_id,
            "tr_cont": "",
            "custtype": "P",
@@ -508,11 +485,14 @@ class KoreaInvestment:
             }
         res = requests.get(url, headers=headers, params=params)
         return res.json()
-    def check_holiday_domestic_stock(self,nowday:datetime,expiry_date:datetime): # 'YYYYMMDD'
+
+    def check_holiday_domestic_stock(self,nowday:datetime,expiry_date:datetime=''): # 'YYYYMMDD'
         """국내주식 업종/기타/국내휴장일조회[국내주식-040] """
         output = []
         path = "uapi/domestic-stock/v1/quotations/chk-holiday"
         nowday = nowday.strftime('%Y%m%d')
+        if expiry_date == '':
+            expiry_date = datetime.datetime.strptime(nowday,'%Y%m%d')+datetime.timedelta(days=1)
         expiry_date = expiry_date.strftime('%Y%m%d')
         while True:
             params = {
@@ -520,7 +500,7 @@ class KoreaInvestment:
                 "CTX_AREA_NK": '',
                 "CTX_AREA_FK": ''
             }
-            resp = self.inquiry_TR(path=path, tr_id="CTCA0903R", params=params)
+            resp = self.inquiry_TR_get(path=path, tr_id="CTCA0903R", params=params)
             if resp['msg1'] == '조회가 계속됩니다..다음버튼을 Click 하십시오.                                   ':
                 output.extend(resp['output'])
                 df = pd.DataFrame(output)
@@ -551,7 +531,7 @@ class KoreaInvestment:
                 # "CTX_AREA_NK": '',
                 # "CTX_AREA_FK": ''
             }
-            resp = self.inquiry_TR(path=path, tr_id="HHMCM000002C0", params=params)
+            resp = self.inquiry_TR_get(path=path, tr_id="HHMCM000002C0", params=params)
             if resp['msg1'] == '정상처리 되었습니다.':
                 output = resp['output1']
                 list_date.append(int(output['date1']))
@@ -576,7 +556,7 @@ class KoreaInvestment:
         headers = {
            "content-type": "application/json",
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "User-Agent": "Mozilla/5.0"
         }
         resp = requests.post(url, headers=headers, data=json.dumps(data))
@@ -584,7 +564,7 @@ class KoreaInvestment:
         return haskkey
 
     def fetch_price(self, symbol: str or dict) -> dict:
-        if self.exchange == "서울":
+        if self.exchange == "국내":
             if self.market == '주식':
                 return self.fetch_domestic_price("J", symbol)
             elif self.market == '선옵':
@@ -596,7 +576,7 @@ class KoreaInvestment:
         else:
             if self.market == '주식':
                 return self.fetch_oversea_price(symbol)
-            elif self.market == '해외선옵':
+            elif self.market == '선옵':
                 trade_market = '선물' if symbol[:1] == '1' else '콜옵션' if symbol[:1] == '2' else '풋옵션' if symbol[:1] == '3' else '스프레드'
                 if trade_market == '선물':
                     return self.fetch_domestic_price("F", symbol)
@@ -613,7 +593,7 @@ class KoreaInvestment:
                    "content-type": "application/json",
                    "authorization": self.access_token,
                    "appKey": self.api_key,
-                   "appSecret": self.api_secret,
+                   "appSecret": self.secret_key,
                    "tr_id": "FHKST01010100"
                 }
                 params = {
@@ -623,6 +603,30 @@ class KoreaInvestment:
                 resp = requests.get(url, headers=headers, params=params)
                 if resp.json()['msg1'] == '정상처리 되었습니다.':
                     output = resp.json()
+                    output = output['output']
+                    output['누적거래대금'] = output.pop('acml_tr_pbmn')
+                    output['누적거래량'] = output.pop('acml_vol')
+                    output['호가단위'] = output.pop('aspr_unit')
+                    output['BPS'] = output.pop('bps')
+                    output['자본금'] = output.pop('cpfn')
+                    output['250일최고가'] = output.pop('d250_hgpr')
+                    output['250일최고가일자'] = output.pop('d250_hgpr_date')
+                    output['250일최고가대비현재가비율'] = output.pop('d250_hgpr_vrss_prpr_rate')
+                    output['EPS'] = output.pop('eps')
+                    output['외국인보유수량'] = output.pop('frgn_hldn_qty')
+                    output['시가총액'] = output.pop('hts_avls')
+                    # output['EPS'] = output.pop('eps')
+                    output['PBR'] = output.pop('pbr')
+                    output['PER'] = output.pop('per')
+                    output['프로그램매매 순매수 수량'] = output.pop('pgtr_ntby_qty')
+                    output['전일대비율'] = output.pop('prdy_ctrt')
+                    output['전일대비'] = output.pop('prdy_vrss')
+                    output['전일 대비 거래량 비율'] = output.pop('prdy_vrss_vol_rate')
+                    output['시가'] = output.pop('stck_oprc')
+                    output['고가'] = output.pop('stck_hgpr')
+                    output['저가'] = output.pop('stck_lwpr')
+                    output['현재가'] = output.pop('stck_prpr')
+                    output['종목코드'] = output.pop('stck_shrn_iscd')
                     break
 
             elif self.market == '선옵':
@@ -632,7 +636,7 @@ class KoreaInvestment:
                    "content-type": "application/json",
                    "authorization": self.access_token,
                    "appKey": self.api_key,
-                   "appSecret": self.api_secret,
+                   "appSecret": self.secret_key,
                    "tr_id": "FHMIF10000000"
                 }
                 params = {
@@ -682,7 +686,7 @@ class KoreaInvestment:
            "content-type": "application/json",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "HHDFS00000300"
         }
 
@@ -696,40 +700,47 @@ class KoreaInvestment:
         resp = requests.get(url, headers=headers, params=params)
         return resp.json()
 
-    def fetch_1m_ohlcv(self , symbol: str,  limit: int , ohlcv:list,now_day:str,now_time:str):
-        """당일 1분봉조회"""
+    def fetch_1m_ohlcv(self , symbol: str,  limit: int, ohlcv:list, now_day:str, now_time:str):
         # now_day = datetime.datetime.now().date().strftime("%Y%m%d")
         # now_time = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
+        print(f"{self.market =}")
         if self.market == '주식':
-            if to == "":
-                to = now.strftime("%H%M%S")
-                # kospi market end time
-                if (90000 > int(to)) or (int(to) > 153000):
-                    to = "153000"
-            while True:  # 매번 전체를 조회하는 방식임 시간 단축을 위해 추 후 변경 필요
-                resp = self._fetch_today_1m_ohlcv(symbol, to)  # to = 현재시간
-                if resp['msg1'] != '정상처리 되었습니다.':
-                    # time.sleep(0.3)
-                    QTest.qWait(300)
-                    # QTest.qWait(self,300)
-                elif resp['msg1'] == '기간이 만료된 token 입니다.':
-                    raise
-                else:
-                    output = resp['output2']
+            """당일 1분봉조회 (당일분봉만 제공됨)"""
+            if ohlcv:
+                output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time)  # to = 현재시간
+                output = [x for x in output if x['stck_bsop_date'] == now_day]
+                output = [x for x in output if int(x['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
+                del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                output.extend(ohlcv)
+                ohlcv = output
+            else:
+                while True:
+                    output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time)  # to = 현재시간
                     ohlcv.extend(output)
-                    to = ohlcv[-1]['stck_cntg_hour']
-                    dt = datetime.datetime.strptime(to, "%H%M%S").time()
+                    print("==============================================================")
+                    print(f"{now_time= }")
+                    print(output)
+                    print(ohlcv)
+                    from_time = ohlcv[-1]['stck_cntg_hour'] # 가장 마지막 시간
+                    from_day = ohlcv[-1]['stck_bsop_date'] # 가장 마지막 날짜
+                    dt = datetime.datetime.strptime(from_time, "%H%M%S").time()
                     dt = datetime.datetime.combine(datetime.date.today(), dt)
                     dt = dt - datetime.timedelta(minutes=1)
-                    # if dt < early:
-                    to = dt.strftime("%H%M%S")
+                    now_time = dt.strftime("%H%M%S")
+
+                    if not ohlcv[0]['stck_bsop_date'] ==  output[-1]['stck_bsop_date']:
+                        print('day 다름')
+                        ohlcv = [x for x in ohlcv if x['stck_bsop_date'] == ohlcv[0]['stck_bsop_date']]
+                        break
                     # time.sleep(0.5)
-                    QTest.qWait(500)
                     # QTest.qWait(self,500)
 
-                    if to == '085900':
+                    if now_time == '085900':
+                        ohlcv = [x for x in output if x['stck_bsop_date'] == now_day]
+                        print('time 다름')
                         break
-            ohlcv = self.make_ohlcv_1m(ohlcv)
+                    QTest.qWait(500)
+            # ohlcv = self.make_ohlcv_1m(ohlcv)
             return ohlcv
         elif self.market == '선옵':
             if ohlcv : #실시간일 경우
@@ -741,13 +752,16 @@ class KoreaInvestment:
                 ohlcv = output
             else:
                 # print(f"최초생성 {now_time= }")
-                if (int(now_time) < 90000) or (153000 < int(now_time)):
+                if (int(now_time) < 84500) or (153000 < int(now_time)):
                     now_time = "154500"
                 # now_day='20250210'
                 # now_time='012700'
-#                 print(f"{now_day= }")
+                print(f"{now_day= }")
                 while True:
                     output = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day, fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
+                    print(output)
+                    # output = [{'stck_bsop_date':x['stck_bsop_date'],"stck_cntg_hour":x['stck_cntg_hour']} for x in output]
+                    # print(output)
                     if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
                         ohlcv.extend(output)
                         if now_time == '084400': # 8시 44분은 조회가 안되기 때문에 다음날로 넘어가야됨
@@ -804,36 +818,21 @@ class KoreaInvestment:
 
         return ohlcv
     def _fetch_1m_ohlcv(self, symbol: str, to: str, day:str="", fake_tick:bool=False):
-        """국내주식시세/주식당일분봉조회
-
-        Args:
-            symbol (str): 6자리 종목코드
-            to (str): "HH:MM:SS"
-        """
+        """      to (str): "HH:MM:SS"        """
         if self.market == '주식':
             path = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
-            url = f"{self.base_url}/{path}"
-            headers = {
-               "content-type": "application/json; charset=utf-8",
-               "authorization": self.access_token,
-               "appKey": self.api_key,
-               "appSecret": self.api_secret,
-               "tr_id": "FHKST03010200",
-               "tr_cont": "",
-            }
             params = {
-                "fid_etc_cls_code": "",
-                "fid_cond_mrkt_div_code": "J",
-                "fid_input_iscd": symbol,
-                "fid_input_hour_1": to,
-                "fid_pw_data_incu_yn": "N"  #N : 당일데이터만 조회   Y : 이후데이터도 조회
+                "FID_ETC_CLS_CODE": "",
+                "FID_COND_MRKT_DIV_CODE": "J", # J:KRX, NX:NXT, UN:통합
+                "FID_INPUT_ISCD": symbol,
+                "FID_INPUT_HOUR_1": to,  #  input > FID_INPUT_HOUR_1 에 미래일시 입력 시에 현재가로 조회됩니다.ex) 오전 10시에 113000 입력 시에 오전 10시~11시30분 사이의 데이터가 오전 10시 값으로 조회됨
+                "FID_PW_DATA_INCU_YN": "Y"  #N : 당일데이터만 조회   Y : 이후데이터도 조회
             }
             i = 0
             while True:
-                res = requests.get(url, headers=headers, params=params)
-                # hrd = {'User_Agent': generate_user_agent(os='win', device_type='desktop')}
-                if res.json()['msg1'] == '정상처리 되었습니다.':
-                    break
+                output = self.inquiry_TR_get(path=path, tr_id="FHKST03010200", params=params)
+                if output['msg1'] == '정상처리 되었습니다.':
+                    return output['output2']
                 elif i == 10:
                     raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_today_1m_ohlcv')
                 else:
@@ -842,15 +841,6 @@ class KoreaInvestment:
                 i += 1
         elif self.market == '선옵':
             path = "uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice"
-            url = f"{self.base_url}/{path}"
-            headers = {
-               "content-type": "application/json; charset=utf-8",
-               "authorization": self.access_token,
-               "appKey": self.api_key,
-               "appSecret": self.api_secret,
-               "tr_id": "FHKIF03020200",
-               "tr_cont": "",
-            }
             continue_check = "N" if day == "" else "Y" # continue_day에 날짜가 들어오면 "Y"
             fake_tick = 'Y' if fake_tick == True else "N"
             trade_market = 'F' if symbol[:1] == '1' else 'O' if symbol[:1] == '2'or symbol[:1] == '3' else print('종목코드확인필요')
@@ -867,8 +857,8 @@ class KoreaInvestment:
             # print(f"{trade_market= }    {symbol= }   {continue_check= }   {fake_tick= }   {day= }   {to= }")
             while True:
                 try:
-                    res = requests.get(url, headers=headers, params=params)  # 연결된 구성원으로부터 - 에러 발생
-                    output = res.json()
+                    output = self.inquiry_TR_get(path=path, tr_id="FHKIF03020200", params=params)  # 연결된 구성원으로부터 - 에러 발생
+                    # output = res.json()
                 except:
                     output = {}
                     output['msg1'] = 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다'
@@ -911,7 +901,7 @@ class KoreaInvestment:
                "content-type": "application/json; charset=utf-8",
                "authorization": self.access_token,
                "appKey": self.api_key,
-               "appSecret": self.api_secret,
+               "appSecret": self.secret_key,
                "tr_id": "HHDFC55020400",
                "tr_cont": "",
             }
@@ -973,26 +963,28 @@ class KoreaInvestment:
         return output['output2']
 
 
-    def make_ohlcv_1m(self, ohlcv):
-        try:
-            df = pd.DataFrame(ohlcv)
-        except:
-            ohlcv
-        dt = pd.to_datetime(df['stck_bsop_date'] + df['stck_cntg_hour'], format="%Y%m%d%H%M%S")
-        df.set_index(dt, inplace=True)
-        df = df.apply(to_numeric)
-        if self.market == '주식':
-            df = df[['stck_oprc', 'stck_hgpr', 'stck_lwpr', 'stck_prpr', 'cntg_vol', 'acml_tr_pbmn']]
-            df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
-            df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
-            # df['거래량'] = df['누적거래량'] - df['누적거래량'].shift(-1)
-        elif self.market == '선옵':
-            df = df[['futs_oprc', 'futs_hgpr', 'futs_lwpr', 'futs_prpr', 'cntg_vol', 'acml_tr_pbmn']]
-            df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
-            df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
-        df.index.name = "날짜"
-        df = df[::-1]  # 거꾸로 뒤집기
-        return df
+    # def make_ohlcv_1m(self, ohlcv):   #common_df.get_kis_ohlcv 에서 변환
+    #     try:
+    #         df = pd.DataFrame(ohlcv)
+    #     except:
+    #         ohlcv
+    #     dt = pd.to_datetime(df['stck_bsop_date'] + df['stck_cntg_hour'], format="%Y%m%d%H%M%S")
+    #     df.set_index(dt, inplace=True)
+    #     df = df.apply(to_numeric)
+    #     if self.market == '주식':
+    #         df = df[['stck_oprc', 'stck_hgpr', 'stck_lwpr', 'stck_prpr', 'cntg_vol', 'acml_tr_pbmn']]
+    #         df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
+    #         df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
+    #         # df['거래량'] = df['누적거래량'] - df['누적거래량'].shift(-1)
+    #         df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
+    #
+    #     elif self.market == '선옵':
+    #         df = df[['futs_oprc', 'futs_hgpr', 'futs_lwpr', 'futs_prpr', 'cntg_vol', 'acml_tr_pbmn']]
+    #         df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
+    #         df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
+    #     df.index.name = "날짜"
+    #     df = df[::-1]  # 거꾸로 뒤집기
+    #     return df
 
     def display_opt(self, today): #휴일에 대한 대응이 안되어있음
         """국내선물옵션기본시세/국내옵션전광판_콜풋"""
@@ -1008,7 +1000,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPIF05030100",
            "tr_cont": "",
            "custtype": "P",
@@ -1122,7 +1114,7 @@ class KoreaInvestment:
             "FID_MRKT_CLS_CODE1": "PO"
         }
         while True :
-            resp = self.inquiry_TR(path=path, tr_id="FHPIF05030100", params=params)
+            resp = self.inquiry_TR_get(path=path, tr_id="FHPIF05030100", params=params)
             if resp['msg1'] == '정상처리 되었습니다.' and resp['output1'] and resp['output2']:
                 df_call = pd.DataFrame(resp['output1'])
                 df_put = pd.DataFrame(resp['output2'])
@@ -1425,17 +1417,17 @@ class KoreaInvestment:
         print(datetime.datetime.strftime(datetime.datetime.now(),"%H:%M:%S"))
 
 
-    def display_fut(self):
+    def display_fut(self,mini=False):
         """국내선물옵션기본시세/국내선물전광판_선물"""
         path = "uapi/domestic-futureoption/v1/quotations/display-board-futures"
         params = {
             "FID_COND_MRKT_DIV_CODE": "F",
             "FID_COND_SCR_DIV_CODE": "20503",
-            "FID_COND_MRKT_CLS_CODE": '',
+            "FID_COND_MRKT_CLS_CODE": 'MKI' if mini else "",
             }
         i = 0
         while True:
-            resp = self.inquiry_TR(path=path,tr_id="FHPIF05030200",params=params)
+            resp = self.inquiry_TR_get(path=path,tr_id="FHPIF05030200",params=params)
             if resp['msg1'] == '정상처리 되었습니다.':
                 break
             else:
@@ -1475,10 +1467,47 @@ class KoreaInvestment:
             "FID_RANK_SORT_CLS_CODE": "0", # 0: 순매수상위, 1: 순매도상위
             "FID_ETC_CLS_CODE": "0" # 0:전체 1:외국인 2:기관계 3:기타
         }
-        resp = self.inquiry_TR(path=path, tr_id="FHPTJ04400000", params=params)
+        resp = self.inquiry_TR_get(path=path, tr_id="FHPTJ04400000", params=params)
         return resp
+    def investor_trend_stock(self,ticker):
+        """주식현재가 투자자[v1_국내주식-012]""" # 일별
+        path = "uapi/domestic-stock/v1/quotations/inquire-investor"
+        url = f"{self.base_url}/{path}"
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "UN", # J : KRX, NX : NXT, UN : 통합
+            "FID_INPUT_ISCD":ticker
+        }
+        headers = {
+           "content-type": "application/json; charset=utf-8",
+           "authorization": self.access_token,
+           "appKey": self.api_key,
+           "appSecret": self.secret_key,
+           "tr_id": "FHKST01010900", # 실전 모의 똑같음,
+           "tr_cont": "",
+        }
+        try:
+            resp = requests.get(url, headers=headers, params=params)
+            if resp.json()['msg1'] == '정상처리 되었습니다.':
+                df = pd.DataFrame(resp.json()['output'])
+                df.rename(
+                    columns={'stck_bsop_date': '날짜', 'stck_clpr': '종가', 'prdy_vrss': '전일대비', 'prdy_vrss_sign': '전일대비부호',
+                             'prsn_ntby_qty': '개인순매수수량',
+                             'frgn_ntby_qty': '외국인순매수수량',
+                             'orgn_ntby_qty': '기관계순매수수량',
+                             'prsn_ntby_tr_pbmn': '개인순매수거래대금',
+                             'frgn_ntby_tr_pbmn': '외국인순매수거래대금',
+                             'orgn_ntby_tr_pbmn': '기관계순매수거래대금',
+                             }, inplace=True)
+                df = df[['날짜','종가','전일대비','전일대비부호','개인순매수수량','외국인순매수수량','기관계순매수수량','개인순매수거래대금','외국인순매수거래대금','기관계순매수거래대금']]
+                df = df[::-1]  # 거꾸로 뒤집기
+                df.index = df['날짜']
+                df = self.convert_column_types(df)
+                return df
+        except:
+            return pd.DataFrame()
     def investor_trend_time(self,market) -> dict:
         """국내주식 시세분석/시장별 투자자매매동향(시세)"""
+        """market = 코스피, 선물, 주식선물, 콜옵션, 풋옵션, 콜_위클리_월... """
         path = "uapi/domestic-stock/v1/quotations/inquire-investor-time-by-market"
         url = f"{self.base_url}/{path}"
         # if market == '선물' or market == '콜옵션' or market == '풋옵션':
@@ -1510,11 +1539,17 @@ class KoreaInvestment:
         elif market == '코스피':
             iscd = "KSP"
             iscd2 = "0001"
+        elif market == "코스닥150선물":
+            iscd = "KQI"
+            iscd2 = "F002"
+        elif market == "ETF" or market == "etf":
+            iscd = "ETF"
+            iscd2 = "T000"
         headers = {
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPTJ04030000",
            "tr_cont": "",
         }
@@ -1527,6 +1562,10 @@ class KoreaInvestment:
             try:
                 resp = requests.get(url, headers=headers, params=params)
                 output = resp.json()
+                if output['msg1'] == "기간이 만료된 token 입니다.":
+                    pprint("토큰 기간만료")
+                    print(output['msg1'])
+                    quit()
             except:
                 output={}
             if output['msg1'] == '정상처리 되었습니다.':
@@ -1556,7 +1595,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "HHPTJ04160200",
            "tr_cont": "",
            # "hashkey": hashkey
@@ -1575,14 +1614,14 @@ class KoreaInvestment:
         Returns:
             dict: _description_
         """
-        if self.exchange == '서울':
+        if self.exchange == '국내':
             ohlcv = []
             if self.market == '주식':
                 if early_day == '':
                     early_day = datetime.datetime.now().date() - datetime.timedelta(days=600) # early_day 비어있으면 600일 이전 조회
                     early_day = early_day.strftime("%Y%m%d")
                 while True :
-                    # print(early_day, lately_day)
+                    print(symbol, timeframe, early_day, lately_day, adj_price)
                     resp = self._fetch_ohlcv_domestic(symbol, timeframe, early_day, lately_day, adj_price)
                     if [item for item in resp['output2'] if item == {}]: #output2가 빈 딕셔너리를 보내면 탈출
                         break
@@ -1664,7 +1703,7 @@ class KoreaInvestment:
            "content-type": "application/json",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHKST01010400"
         }
 
@@ -1685,7 +1724,7 @@ class KoreaInvestment:
         Returns:
             pd.DataFrame: pandas dataframe
         """
-        if self.exchange == "서울":
+        if self.exchange == "국내":
             df = self.fetch_kospi_symbols()
             kospi_df = df[['단축코드', '한글명', '그룹코드']].copy()
             kospi_df['시장'] = '코스피'
@@ -1905,7 +1944,7 @@ class KoreaInvestment:
             price (int): 1주당 가격
             order_type (str): "00": 지정가, "01": 시장가, ..., "80": 바스켓
         """
-        if self.exchange == '서울':
+        if self.exchange == '국내':
             if self.market == '주식':
                 path = "/uapi/domestic-stock/v1/trading/inquire-psbl-order"
                 url = f"{self.base_url}/{path}"
@@ -1913,7 +1952,7 @@ class KoreaInvestment:
                    "content-type": "application/json",
                    "authorization": self.access_token,
                    "appKey": self.api_key,
-                   "appSecret": self.api_secret,
+                   "appSecret": self.secret_key,
                    "tr_id": "VTTC8908R" if self.mock else "TTTC8908R"
                 }
                 params = {
@@ -1936,7 +1975,7 @@ class KoreaInvestment:
                     "content-type": "application/json; charset=utf-8",
                     "authorization": self.access_token,
                     "appKey": self.api_key,
-                    "appSecret": self.api_secret,
+                    "appSecret": self.secret_key,
                     "tr_id": "VTTO5105R" if self.mock else "TTTO5105R"
                 }
                 params = {
@@ -1954,18 +1993,18 @@ class KoreaInvestment:
         return data
 
     def fetch_balance(self) -> dict:
-        """잔고 조회
-        Args:
-        Returns:
-            dict: response data
-        """
-        if self.exchange == '서울':
+        if self.exchange == '국내':
             output = {}
             dict_amount = {}
             i = 0
             while True:
                 data = self.fetch_balance_domestic()
-                if data['msg1'][:18] == '조회 되었습니다. (마지막 자료)'or data['msg1'][:16] == '모의투자 조회가 완료되었습니다':
+                if data['msg1'].startswith('조회 되었습니다') or data['msg1'].startswith('모의투자 조회가 완료') or data['msg1'].startswith('조회가 완료'):
+                    break
+                elif data['msg1'].startswith('조회할 내용이 없습니다'):
+                    dict_amount["예수금"] = int(data['output2'][0]['dnca_tot_amt'])
+                    dict_amount["총평가금액"] = int(data['output2'][0]['tot_evlu_amt'])
+                    return dict_amount,pd.DataFrame()
                     break
                 else:
                     # time.sleep(0.5)
@@ -1977,18 +2016,9 @@ class KoreaInvestment:
                         quit()
 
             if self.market == '주식':
-                # pprint(data)
                 output['output1'] = data['output1']
                 output['output2'] = data['output2']
-                #
-                # while data['tr_cont'] == 'M':
-                #     fk100 = data['ctx_area_fk100']
-                #     nk100 = data['ctx_area_nk100']
-                #
-                #     data = self.fetch_balance_domestic(fk100, nk100)
-                #     output['output1'].extend(data['output1'])
-                #     output['output2'].extend(data['output2'])
-                #####################################
+
                 dict_amount["예수금"] = int(output['output2'][0]['dnca_tot_amt'])
                 dict_amount["총평가금액"] = int(output['output2'][0]['tot_evlu_amt'])
                 df_instock = pd.DataFrame(output['output1'])
@@ -2001,6 +2031,7 @@ class KoreaInvestment:
                     df_instock = df_instock[['종목명','종목코드','금일매수수량','금일매도수량','보유수량','주문가능수량',
                                              '매입금액','평가금액','평가손익','평가손익율','평가수익율']]
                     df_instock.set_index('종목코드', inplace=True)
+                return dict_amount, df_instock
             elif self.market == '선옵':
                 # output['output1'] = data['output1']
                 # output['output2'] = data['output2']
@@ -2105,7 +2136,7 @@ class KoreaInvestment:
                "content-type": "application/json",
                "authorization": self.access_token,
                "appKey": self.api_key,
-               "appSecret": self.api_secret,
+               "appSecret": self.secret_key,
                "tr_id": "VTTC8434R" if self.mock else "TTTC8434R"
             }
             params = {
@@ -2134,7 +2165,7 @@ class KoreaInvestment:
                "content-type": "application/json",
                "authorization": self.access_token,
                "appKey": self.api_key,
-               "appSecret": self.api_secret,
+               "appSecret": self.secret_key,
                "tr_id": "VTFO6118R" if self.mock else "CTFO6118R",
                 "custtype": "P"
             }
@@ -2168,7 +2199,7 @@ class KoreaInvestment:
            "content-type": "application/json",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "VTRP6504R" if self.mock else "CTRP6504R"
         }
 
@@ -2243,7 +2274,7 @@ class KoreaInvestment:
                "content-type": "application/json",
                "authorization": self.access_token,
                "appKey": self.api_key,
-               "appSecret": self.api_secret,
+               "appSecret": self.secret_key,
                "tr_id": tr_id
             }
 
@@ -2271,7 +2302,7 @@ class KoreaInvestment:
                 "content-type": "application/json",
                 "authorization": self.access_token,
                 "appkey": self.api_key,
-                "appsecret": self.api_secret,
+                "appsecret": self.secret_key,
                 "tr_id": "OTFM1411R",
                 "tr_cont": "",
                 "custtype": "P",
@@ -2297,7 +2328,7 @@ class KoreaInvestment:
            "content-type": "application/json",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "JTTT3010R"
         }
 
@@ -2306,119 +2337,121 @@ class KoreaInvestment:
         return res.json()
 
     def create_order(self, side: str, symbol: str, price, quantity: int, order_type: str) -> dict:
-        while True:
-            QTest.qWait(500)
-            if self.market == '주식':
-                path = "uapi/domestic-stock/v1/trading/order-cash"
-                url = f"{self.base_url}/{path}"
+        # while True:
+        QTest.qWait(500)
+        if self.market == '주식':
+            path = "uapi/domestic-stock/v1/trading/order-cash"
+            url = f"{self.base_url}/{path}"
 
-                if self.mock:
-                    tr_id = "VTTC0802U" if side == "buy" else "VTTC0801U"
-                else:
-                    tr_id = "TTTC0802U" if side == "buy" else "TTTC0801U"
-
-                unpr = "0" if order_type == "시장가" else str(price)
-
-                data = {
-                    "CANO": self.acc_no_prefix,
-                    "ACNT_PRDT_CD": self.acc_no_postfix,
-                    "PDNO": symbol,
-                    "ORD_DVSN": order_type,
-                    "ORD_QTY": str(quantity),
-                    "ORD_UNPR": unpr
-                }
-                hashkey = self.issue_hashkey(data)
-                headers = {
-                   "content-type": "application/json",
-                   "authorization": self.access_token,
-                   "appKey": self.api_key,
-                   "appSecret": self.api_secret,
-                   "tr_id": tr_id,
-                   "custtype": "P",
-                   "hashkey": hashkey
-                }
-                resp = requests.post(url, headers=headers, data=json.dumps(data))
-
-            elif self.market == '선옵':
-                path = "/uapi/domestic-futureoption/v1/trading/order"
-                url = f"{self.base_url}/{path}"
-                if self.mock:
-                    tr_id = "VTTO1101U"
-                else: # 실매매는 주간 야간 따로임
-                    sky = '야간' if datetime.datetime.now().time() > datetime.time(18,0,0) or datetime.time(5,0,0) > datetime.datetime.now().time() else '주간'
-                    tr_id = "TTTO1101U" if sky == "주간" else "JTCE1001U"
-                SLL_BUY = "02" if side == "buy" else "01"
-                unpr = "0" if order_type == "시장가" else str(price)
-                ORD = "02" if order_type == "시장가" else "01"
-                # print(f"{symbol= }, {SLL_BUY= },{unpr= },{ORD= }, {quantity= }")
-                data = {
-                    "ORD_PRCS_DVSN_CD": "02",
-                    "CANO": self.acc_no_prefix,
-                    "ACNT_PRDT_CD": self.acc_no_postfix,
-                    "SLL_BUY_DVSN_CD": SLL_BUY, #01 : 매도 , 02 : 매수
-                    "SHTN_PDNO": symbol,
-                    "ORD_QTY": str(quantity),
-                    "UNIT_PRICE": unpr, # 시장가나 최유리 지정가인 경우 0으로 입력
-                    "NMPR_TYPE_CD": "",
-                    "KRX_NMPR_CNDT_CD": "",
-                    "ORD_DVSN_CD": ORD # 01 : 지정가, 02 : 시장가
-                }
-                hashkey = self.issue_hashkey(data)
-                headers = {
-                    "content-type": "application/json",
-                    "authorization": self.access_token,
-                    "appKey": self.api_key,
-                    "appSecret": self.api_secret,
-                    "tr_id": tr_id ,
-                    "custtype": "P",
-                    "hashkey": hashkey
-                }
-                # print(f"kis _create order : {side=}, {symbol=} {quantity=} {unpr=} {order_type=}, {tr_id=}")
-                resp = requests.post(url, headers=headers, data=json.dumps(data))
-                resp = resp.json()
-            if resp['msg1'] == '주문 전송 완료 되었습니다.' or resp['msg1'] == '모의투자 매수주문이 완료 되었습니다.' or resp[
-                'msg1'] == '모의투자 매도주문이 완료 되었습니다.' or resp['msg1'][:11]=="주문전송이 정상적으로":
-                resp['output']['ODNO'] = int(resp['output']['ODNO'])
-                id = str(resp['output']['ODNO'])  # 주문번호가 '000456' 이런식으로 오기 때문에 str → int → str 로 변환
-                break
-            elif resp['msg1'] == '주문가능금액을 초과 했습니다':
-                raise print(f"create_order - {resp['msg1']}  주문 가능금액 초과")
-            elif resp['msg1'] == '주문수량을 확인 하여 주십시요.':
-                raise print(f"create_order - {resp['msg1']}  {symbol= }, {price= }, {quantity= }, {price*quantity= }")
-            elif resp['msg1'] == '장운영일자가 주문일과 상이합니다':
-                pprint(resp)
-                raise print(resp['msg1'])
-            elif resp['msg1'] == '주문 수량을 확인해주세요.':
-                raise print(f"create_order - {resp['msg1']} - 주문 시간이 안맞았을 확률 또는 가격이나 수량이 float으로 되있거나 틀릴 확률")
-            elif resp['msg1'] == '주식주문호가단위 오류입니다.':
-                pprint(resp)
-                raise print(resp['msg1'])
-            elif resp['msg1'] == '모의투자 장시작전 입니다.':
-                print(f"create_order - {resp['msg1']}")
-                # time.sleep(1)
-                QTest.qWait(1000)
-            elif resp['msg1'] == '초당 거래건수를 초과하였습니다.':
-                print(f"create_order - {resp['msg1']=}, {symbol=},  ")
-            elif resp['msg1'] == '모의투자 장종료 입니다.':
-                raise print(f"create_order - {resp['msg1']}")
-            elif resp['msg1'] == '모의투자 주문처리가 안되었습니다(호가단위 오류)':
-                raise print(f"{resp['msg1']} 종목코드: {symbol}, 매수가: {price}, 배팅금액: {price * quantity * 250000}, {quantity= }")
-            elif resp['msg1'] == '모의투자 주문가능금액이 부족합니다.':
-                dict_asset, df_x = self.fetch_balance()  # 자산, 보유종목
-                print(f"{dict_asset}")
-                print(f"create_order - {resp['msg1']} 에러 | {symbol=}, {price= }, {quantity= }, {price * quantity= }")
-                raise
-            elif resp['msg1'] == '모의투자 상/하한가 오류':
-                pprint(f"create_order - 모의투자 상/하한가 오류 {symbol=}, {price=} {quantity=}, {side=}")
+            if self.mock:
+                tr_id = "VTTC0012U" if side == "buy" else "VTTC0011U"
             else:
-                print('create_order - =============== else =============== 데이터값 확인 필요')
-                pprint(f"create_order {resp}, {symbol=}, {price=} {quantity=}, {side=}")
-                quit()
+                tr_id = "TTTC0012U" if side == "buy" else "TTTC0011U"
+
+            unpr = "0" if order_type == "시장가" else str(price)
+            ord = "01" if order_type == "시장가" else "00"
+
+            data = {
+                "CANO": self.acc_no_prefix,
+                "ACNT_PRDT_CD": self.acc_no_postfix,
+                "PDNO": symbol,
+                "ORD_DVSN": ord,
+                "ORD_QTY": str(quantity),
+                "ORD_UNPR": unpr
+            }
+            hashkey = self.issue_hashkey(data)
+            headers = {
+               "content-type": "application/json",
+               "authorization": self.access_token,
+               "appKey": self.api_key,
+               "appSecret": self.secret_key,
+               "tr_id": tr_id,
+               "custtype": "P",
+               "hashkey": hashkey
+            }
+            resp = requests.post(url, headers=headers, data=json.dumps(data))
+            resp = resp.json()
+
+        elif self.market == '선옵':
+            path = "/uapi/domestic-futureoption/v1/trading/order"
+            url = f"{self.base_url}/{path}"
+            if self.mock:
+                tr_id = "VTTO1101U"
+            else: # 실매매는 주간 야간 따로임
+                sky = '야간' if datetime.datetime.now().time() > datetime.time(18,0,0) or datetime.time(5,0,0) > datetime.datetime.now().time() else '주간'
+                tr_id = "TTTO1101U" if sky == "주간" else "JTCE1001U"
+            SLL_BUY = "02" if side == "buy" else "01"
+            unpr = "0" if order_type == "시장가" else str(price)
+            ORD = "02" if order_type == "시장가" else "01"
+            # print(f"{symbol= }, {SLL_BUY= },{unpr= },{ORD= }, {quantity= }")
+            data = {
+                "ORD_PRCS_DVSN_CD": "02",
+                "CANO": self.acc_no_prefix,
+                "ACNT_PRDT_CD": self.acc_no_postfix,
+                "SLL_BUY_DVSN_CD": SLL_BUY, #01 : 매도 , 02 : 매수
+                "SHTN_PDNO": symbol,
+                "ORD_QTY": str(quantity),
+                "UNIT_PRICE": unpr, # 시장가나 최유리 지정가인 경우 0으로 입력
+                "NMPR_TYPE_CD": "",
+                "KRX_NMPR_CNDT_CD": "",
+                "ORD_DVSN_CD": ORD # 01 : 지정가, 02 : 시장가
+            }
+            hashkey = self.issue_hashkey(data)
+            headers = {
+                "content-type": "application/json",
+                "authorization": self.access_token,
+                "appKey": self.api_key,
+                "appSecret": self.secret_key,
+                "tr_id": tr_id ,
+                "custtype": "P",
+                "hashkey": hashkey
+            }
+            # print(f"kis _create order : {side=}, {symbol=} {quantity=} {unpr=} {order_type=}, {tr_id=}")
+            resp = requests.post(url, headers=headers, data=json.dumps(data))
+            resp = resp.json()
+        if resp['msg1'].startswith('주문 전송 완료 되었습니다') or resp['msg1'].startswith('모의투자 매수주문이 완료 되었습니다') or resp[
+            'msg1'] == '모의투자 매도주문이 완료 되었습니다.' or resp['msg1'].startswith("주문전송이 정상적으로"):
+            resp['output']['ODNO'] = int(resp['output']['ODNO'])
+            id = str(resp['output']['ODNO'])  # 주문번호가 '000456' 이런식으로 오기 때문에 str → int → str 로 변환
+        elif resp['msg1'] == '주문가능금액을 초과 했습니다':
+            raise print(f"create_order - {resp['msg1']}  주문 가능금액 초과")
+        elif resp['msg1'] == '주문수량을 확인 하여 주십시요.':
+            raise print(f"create_order - {resp['msg1']}  {symbol= }, {price= }, {quantity= }, {price*quantity= }")
+        elif resp['msg1'] == '장운영일자가 주문일과 상이합니다':
+            pprint(resp)
+            print('- 주문시간 안맞음 -')
+            raise print(resp['msg1'])
+        elif resp['msg1'] == '주문 수량을 확인해주세요.':
+            raise print(f"create_order - {resp['msg1']} - 주문 시간이 안맞았을 확률 또는 가격이나 수량이 float으로 되있거나 틀릴 확률")
+        elif resp['msg1'] == '주식주문호가단위 오류입니다.':
+            pprint(resp)
+            raise print(resp['msg1'])
+        elif resp['msg1'] == '모의투자 장시작전 입니다.':
+            print(f"create_order - {resp['msg1']}")
+            # time.sleep(1)
+            QTest.qWait(1000)
+        elif resp['msg1'] == '초당 거래건수를 초과하였습니다.':
+            print(f"create_order - {resp['msg1']=}, {symbol=},  ")
+        elif resp['msg1'] == '모의투자 장종료 입니다.':
+            raise print(f"create_order - {resp['msg1']}")
+        elif resp['msg1'] == '모의투자 주문처리가 안되었습니다(호가단위 오류)':
+            raise print(f"{resp['msg1']} 종목코드: {symbol}, 매수가: {price}, 배팅금액: {price * quantity * 250000}, {quantity= }")
+        elif resp['msg1'] == '모의투자 주문가능금액이 부족합니다.':
+            dict_asset, df_x = self.fetch_balance()  # 자산, 보유종목
+            print(f"{dict_asset}")
+            print(f"create_order - {resp['msg1']} 에러 | {symbol=}, {price= }, {quantity= }, {price * quantity= }")
+            raise
+        elif resp['msg1'] == '모의투자 상/하한가 오류':
+            pprint(f"create_order - 모의투자 상/하한가 오류 {symbol=}, {price=} {quantity=}, {side=}")
+        else:
+            print('create_order - =============== else =============== 데이터값 확인 필요')
+            pprint(f"create_order {resp}, {symbol=}, {price=} {quantity=}, {side=}")
+            quit()
         return id
 
     def create_market_buy_order(self, symbol: str, quantity: int, side:str) -> dict:
         # print(f'create_market_buy_order {symbol= }, {quantity= }')
-        if self.exchange == "서울":
+        if self.exchange == "국내":
             if self.market == '주식':
                 id = self.create_order(side = "buy", symbol=symbol, price=00, quantity=quantity, order_type="시장가")
             elif self.market == '선옵':
@@ -2429,7 +2462,7 @@ class KoreaInvestment:
 
     def create_market_sell_order(self, symbol: str, quantity: int, side:str) -> dict:
         # print(f'create_market_sell_order {symbol= }, {quantity= }')
-        if self.exchange == "서울":
+        if self.exchange == "국내":
             if self.market == '주식':
                 id = self.create_order("sell", symbol, 0, quantity, "시장가")
             elif self.market == '선옵':
@@ -2440,7 +2473,7 @@ class KoreaInvestment:
 
     def create_limit_buy_order(self, symbol: str, price: int, quantity: int, side:str) -> dict:
         # print(f'create_limit_buy_order {symbol= }, {price= } {quantity= }')
-        if self.exchange == "서울":
+        if self.exchange == "국내":
             if self.market == '주식':
                 id = self.create_order("buy", symbol, price, quantity, "00")
             elif self.market == '선옵':
@@ -2451,7 +2484,7 @@ class KoreaInvestment:
 
     def create_limit_sell_order(self, symbol: str, price: int, quantity: int, side:str) -> dict:
         # print(f'create_limit_sell_order {symbol= }, {price= } {quantity= }')
-        if self.exchange == "서울":
+        if self.exchange == "국내":
             if self.market == '주식':
                 id = self.create_order("sell", symbol, price, quantity, "00")
             elif self.market == '선옵':
@@ -2530,7 +2563,7 @@ class KoreaInvestment:
         Returns:
             _type_: _description_
         """
-        if self.exchange == '서울':
+        if self.exchange == '국내':
             if self.market == '주식':
                 path = "uapi/domestic-stock/v1/trading/order-rvsecncl"
                 url = f"{self.base_url}/{path}"
@@ -2552,7 +2585,7 @@ class KoreaInvestment:
                    "content-type": "application/json",
                    "authorization": self.access_token,
                    "appKey": self.api_key,
-                   "appSecret": self.api_secret,
+                   "appSecret": self.secret_key,
                    "tr_id": "VTTC0803U" if self.mock else "TTTC0803U",
                    "hashkey": hashkey
                 }
@@ -2595,7 +2628,7 @@ class KoreaInvestment:
                    "content-type": "application/json",
                    "authorization": self.access_token,
                    "appKey": self.api_key,
-                   "appSecret": self.api_secret,
+                   "appSecret": self.secret_key,
                    "tr_id": tr_id,
                    "hashkey": hashkey
                 }
@@ -2617,7 +2650,7 @@ class KoreaInvestment:
                "content-type": "application/json; charset=utf-8",
                "authorization": self.access_token,
                "appKey": self.api_key,
-               "appSecret": self.api_secret,
+               "appSecret": self.secret_key,
                "tr_id": "TTTC8036R"
             }
             side = '2' if side == 'buy' else '1'
@@ -2636,81 +2669,93 @@ class KoreaInvestment:
 
         return resp.json()
     def fetch_closed_order(self, side:str='ALL',  ticker:str='',id:str=''):
-        """주식일별주문체결조회
-        Args:
-        Returns:
-            _type_: _description_
-        """
         if self.market == '주식':
             path = "/uapi/domestic-stock/v1/trading/inquire-daily-ccld"
-            url = f"{self.base_url}/{path}"
-            tr = 'VTTC8001R' if self.mock else 'TTTC8001R'
-            headers = {
-               "content-type": "application/json",
-               "authorization": self.access_token,
-               "appKey": self.api_key,
-               "appSecret": self.api_secret,
-               "tr_id": tr
-            }
+            # url = f"{self.base_url}/{path}"
+            tr = 'VTTC0081R' if self.mock else 'TTTC0081R'
+            # headers = {
+            #    "content-type": "application/json",
+            #    "authorization": self.access_token,
+            #    "appKey": self.api_key,
+            #    "appSecret": self.secret_key,
+            #    "tr_id": tr
+            # }
 
             side = '02' if side == 'buy' else '01' if side == 'sell' else '00'
             ctx_area_fk200 = ''
             ctx_area_nk200 = ''
+            i = 0
             while True:
                 QTest.qWait(1000)
+                print(f"{side=}, {ticker=}, {id=}, {ctx_area_fk200=}   {ctx_area_nk200=}")
                 params = {
                     "CANO": self.acc_no_prefix,
                     "ACNT_PRDT_CD": self.acc_no_postfix,
                     "INQR_STRT_DT": datetime.datetime.now().strftime("%Y%m%d"),
                     "INQR_END_DT": datetime.datetime.now().strftime("%Y%m%d"),
-                    # "INQR_STRT_DT": '20240723',
-                    # "INQR_END_DT": '20240723',
+                    # "INQR_STRT_DT": "20251107",
+                    # "INQR_END_DT": "20251107",
                     "SLL_BUY_DVSN_CD": side,
                     "INQR_DVSN": '00', #00 역순 , 01 정순
                     "PDNO": ticker,
-                    "CCLD_DVSN": '01', # 00 : 전체, 01 : 체결, 02 : 미체결
+                    "CCLD_DVSN": '01', # 00:전체, 01:체결, 02:미체결
                     "ORD_GNO_BRNO": "",
                     "ODNO": id,
                     "INQR_DVSN_3": "00",
                     "INQR_DVSN_1": "",
                     "CTX_AREA_FK100": ctx_area_fk200,
-                    "CTX_AREA_NK100": ctx_area_nk200
+                    "CTX_AREA_NK100": ctx_area_nk200,
+                    "EXCG_ID_DVSN_CD": "ALL"  # 거래소ID구분코드
                 }
-                try:
-                    res = requests.get(url, headers=headers, params=params)
-                    if i > 10:
-                        pprint(res.json())
-                        print('fetch_closed_order 이상 감지')
-                        break
-                    elif res.json()['msg1'] == '모의투자 조회할 내역(자료)이 없습니다.                                          ':
-                        df_chegyeol = pd.DataFrame()
-                        break
-                    elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
-                        print(f"fetch_closed_order - {res.json()['msg1']=} {i= }")
-                        QTest.qWait(1000)
-                    elif res.json()['msg1'] == '모의투자 조회가 완료되었습니다.                                                 ' \
-                            or res.json()['msg1'] == '조회가 완료되었습니다.':
-                        list_odno = [str(int(item['odno'])) for item in res.json()['output1']]  # 딕셔너리의 주문번호를 리스트로
-                        if not res.json()['output1']:
-                            if id in list_odno:
-                                dict_chegyeol = res.json()['output1'][list_odno.index(id)]
-                                break
-                        else:
-                            dict_chegyeol = {}
-                    elif res.json()['msg1'] == '모의투자 조회가 계속 됩니다. 다음 또는 PaDn을 누르십시오.                       ':
-                        list_odno = [str(int(item['odno'])) for item in res.json()['output1']]  # 딕셔너리의 주문번호를 리스트로
-                        if id in list_odno:
-                            dict_chegyeol = res.json()['output1'][list_odno.index(id)]
-                            break
-                        ctx_area_nk200 = res.json()['ctx_area_nk200']
-                        ctx_area_nk200 = str(int(ctx_area_nk200))
+                # try:
+                output = self.inquiry_TR_get(path=path, tr_id=tr, params=params)
+                # res = requests.get(url, headers=headers, params=params)
+                # output = res.json()
+                if i > 10:
+                    pprint(output)
+                    print(f'fetch_closed_order - {self.market=} 이상 감지')
+                    break
+                elif output['msg1'].startswith('모의투자 조회할 내역(자료)이 없습니다'):
+                    return pd.DataFrame()
+                elif output['msg1'].startswith('조회할 내용이 없습니다'):
+                    return pd.DataFrame()
+                elif output['msg1'].startswith('초당 거래건수를 초과하였습니다.'):
+                    print(f"fetch_closed_order - {output['msg1']=} {i= }")
+                    QTest.qWait(1000)
+                elif output['msg1'].startswith('모의투자 조회가 완료되었습니다') or output['msg1'].startswith('조회가 완료되었습니다'):
+                    list_odno = [str(int(item['odno'])) for item in output['output1']]  # 딕셔너리의 주문번호를 리스트로
+                    # id를 넣으면 조회일자를 확인하라는 에러가 발생해서 id랑 제거 후 조회
+                    if list_odno:
+                        df_chegyeol = pd.DataFrame(output['output1'])
+                        df_chegyeol.rename(
+                            columns={'ord_dvsn_name':'주문구분명','rmn_qty':'잔여수량','tot_ccld_qty':'총체결수량','avg_prvs':'평균가','tot_ccld_amt':'총체결금액',
+                                     'ord_qty':'주문수량','sll_buy_dvsn_cd':'매도매수구분코드','sll_buy_dvsn_cd_name':'매도매수구분코드명','ord_dvsn_name':'주문구분명'}, inplace=True)
+                        df_chegyeol['odno'] = df_chegyeol['odno'].astype(int)
+                        df_chegyeol['odno'] = df_chegyeol['odno'].astype(str)
+                        df_chegyeol.index = df_chegyeol['odno']
+                        df_chegyeol = df_chegyeol[['잔여수량','총체결수량','평균가','총체결금액','주문수량','매도매수구분코드','매도매수구분코드명','주문구분명']]
                     else:
-                        print(res.json()['msg1'], 'fetch_closed_order')
-                        pprint(res.json())
-                        raise
-                except:
-                    print('kis: fetch_closed_order - HTTPSConnectionPool')
-
+                        df_chegyeol = pd.DataFrame()
+                    return df_chegyeol
+                    # else:
+                    #     dict_chegyeol = {}
+                elif output['msg1'].startswith('모의투자 조회가 계속 됩니다. 다음 또는 PaDn을 누르십시오') or output['msg1'].startswith('조회가 계속 됩니다'):
+                    list_odno = [str(int(item['odno'])) for item in output['output1']]  # 딕셔너리의 주문번호를 리스트로
+                    if id in list_odno:
+                        dict_chegyeol = output['output1'][list_odno.index(id)]
+                        break
+                    ctx_area_nk200 = output['ctx_area_nk200']
+                    ctx_area_nk200 = str(int(ctx_area_nk200))
+                elif output['msg1'].startswith('조회일자를 확인하십시오'):
+                    print('조회일자 확인 필요')
+                    break
+                else:
+                    print(output['msg1'], 'fetch_closed_order')
+                    pprint(output)
+                    raise
+                # except:
+                #     print(f"kis: fetch_closed_order - {output['msg1']=} HTTPSConnectionPool")
+                i += 1
 
         elif self.market == '선옵':
             path = "/uapi/domestic-futureoption/v1/trading/inquire-ccnl"
@@ -2721,7 +2766,7 @@ class KoreaInvestment:
                 "content-type": "application/json",
                 "authorization": self.access_token,
                 "appKey": self.api_key,
-                "appSecret": self.api_secret,
+                "appSecret": self.secret_key,
                 "custtype": "P",
                 "tr_id": tr
             }
@@ -2757,7 +2802,7 @@ class KoreaInvestment:
                     res = requests.get(url, headers=headers, params=params)
                     if i > 10:
                         pprint(res.json())
-                        print('fetch_closed_order 이상 감지')
+                        print(f'fetch_closed_order - {self.market=} 이상 감지')
                         break
                     elif res.json()['msg1'] == '모의투자 조회할 내역(자료)이 없습니다.                                          ':
                         dict_chegyeol = {}
@@ -2803,7 +2848,7 @@ class KoreaInvestment:
                         pprint(res.json())
                         raise
                 except:
-                    print('kis: fetch_closed_order - HTTPSConnectionPool')
+                    print(f"kis: fetch_closed_order - {res.json()['msg1']=} HTTPSConnectionPool")
                 i += 1
         return dict_chegyeol
     def fetch_chegyeol_futopt(self):
@@ -2815,7 +2860,7 @@ class KoreaInvestment:
                 "content-type": "application/json; charset=utf-8",
                 "authorization": self.access_token,
                 "appKey": self.api_key,
-                "appSecret": self.api_secret,
+                "appSecret": self.secret_key,
                 "custtype": "P",
                 "tr_id": "CTFO5139R",
                 "tr_cont": ""
@@ -2913,7 +2958,7 @@ class KoreaInvestment:
                    "content-type": "application/json",
                    "authorization": self.access_token,
                    "appKey": self.api_key,
-                   "appSecret": self.api_secret,
+                   "appSecret": self.secret_key,
                    "tr_id": tr_id,
                    "hashkey": hashkey
                 }
@@ -2937,7 +2982,7 @@ class KoreaInvestment:
                    "content-type": "application/json; charset=utf-8",
                    "authorization": self.access_token,
                    "appKey": self.api_key,
-                   "appSecret": self.api_secret,
+                   "appSecret": self.secret_key,
                    "tr_id": tr_id,
                    "hashkey": hashkey
                 }
@@ -2965,7 +3010,7 @@ class KoreaInvestment:
            "content-type": "application/json",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHKST03010100"
         }
 
@@ -3017,7 +3062,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHKIF03020100"
         }
 
@@ -3067,7 +3112,7 @@ class KoreaInvestment:
            "content-type": "application/json",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "HHDFS76240000"
         }
 
@@ -3109,7 +3154,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "HHDFC55020400",
            "tr_cont": "",
         }
@@ -3230,7 +3275,7 @@ class KoreaInvestment:
             "content-type": "application/json; charset=utf-8",
             "authorization": self.access_token,
             "appKey": self.api_key,
-            "appSecret": self.api_secret,
+            "appSecret": self.secret_key,
             "tr_id": tr_id,
             "tr_cont": "",
             }
@@ -3251,7 +3296,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPST01700000",
            "tr_cont": "",
         }
@@ -3294,7 +3339,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPST01710000",
            "tr_cont": "",
         }
@@ -3335,7 +3380,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPST01740000",
            "tr_cont": "",
         }
@@ -3374,7 +3419,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPST01760000",
            "tr_cont": "",
         }
@@ -3414,7 +3459,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPST01680000",
            "tr_cont": "",
         }
@@ -3452,7 +3497,7 @@ class KoreaInvestment:
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
            "appKey": self.api_key,
-           "appSecret": self.api_secret,
+           "appSecret": self.secret_key,
            "tr_id": "FHPST01800000",
            "tr_cont": "",
         }
@@ -3711,15 +3756,20 @@ class KoreaInvestment:
         dict_trend = {}
         dict_trend.update(self.investor_trend_time('코스피'))
         dict_trend.update(self.investor_trend_time('선물'))
-        dict_trend.update(self.investor_trend_time('주식선물'))
+        # dict_trend.update(self.investor_trend_time('주식선물'))
         dict_trend.update(self.investor_trend_time('콜옵션'))
         dict_trend.update(self.investor_trend_time('풋옵션'))
+        # dict_trend.update(self.investor_trend_time('코스닥150선물'))
+        dict_trend.update(self.investor_trend_time('ETF'))
         if COND_MRKT == "WKM":
             dict_trend.update(self.investor_trend_time('콜_위클리_월'))
             dict_trend.update(self.investor_trend_time('풋_위클리_월'))
         elif COND_MRKT == "WKI":
             dict_trend.update(self.investor_trend_time('콜_위클리_목'))
             dict_trend.update(self.investor_trend_time('풋_위클리_목'))
+        elif COND_MRKT == "만기주":
+            dict_trend.update({'콜_위클리_외인': 0, '콜_위클리_개인': 0, '콜_위클리_기관': 0})
+            dict_trend.update({'풋_위클리_외인': 0, '풋_위클리_개인': 0, '풋_위클리_기관': 0})
         # current_time = datetime.datetime.now().replace(second=0, microsecond=0)
         df = pd.DataFrame([dict_trend], index=[현재시간])
         if not df_trend.empty:
@@ -3729,26 +3779,24 @@ class KoreaInvestment:
         return df_trend
 
 if __name__ == "__main__":
+    kis = KoreaInvestment(market='국내선옵',mock=False)
+    현재시간 = datetime.datetime.now()
+    df = kis.add_trend(현재시간,pd.DataFrame(),'만기주')
+    print(df)
+    quit()
+    # ohlcv = kis.fetch_1m_ohlcv(symbol='101W12',limit=1000,ohlcv=[],now_day="20251107",
+    #                    now_time="100000")
+    # df = common_def.get_kis_ohlcv('국내선옵',ohlcv)
 
-    # import common_def
-    # conn_set = sqlite3.connect('DB/setting.db')
-    # df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_set).set_index('index')
-    # print(df_set)
-    # exchange = common_def.make_exchange_kis(df_set=df_set,trade_type='모의선옵')
-    # res,df = exchange.fetch_balance()
+    # df_standard, df = common_def.detail_to_spread(df, '5분봉', '1분봉',False)
+    df_call, df_put, past_date, expiry_date = kis.display_opt(datetime.datetime.now())
+    print(df_call)
+    print(df_put)
+    print(past_date)
+    print(expiry_date)
     # print(df)
-    key = "PSCLO2WTCrnbFTVJLqZcRGZwYVAll8BHU34I"
-    secret = "l/12Smyub2n5MSDGwxiLde3vK6FWsRWq6HcU8RPfKYgw31qnDiQLhyaj1y2cpyOromd9nZOkeIBIug7PWu+RQShovpzMGB5uf59xKFnOAIbkmTGFGdNhr9ULEWR4OiK2SDdUuZ9PST94RZfy5IDpewS2vUi0q6wcO2t1C/pJ1QZFxsPNvvk="
+    # print(len(df))
 
-    #해외주식
-    account = "63761517"
-    key = "PSCwuAVwC8EGMp0wzmsoA4AixvXd3nngII3K"
-    secret = "x9/Sv7NKSKw3MJXZVrSibfiFNHqelAJAsuvFitxwyiLtclPWme8M4GEoVHUoPynUN+o6KFHnYA3TN7z3LIXns/3WRMeuicf/TiUbPKo1ReDidNRsGw72ecb/NRzybehs72JZt0buNzkzN3bXYSr5tbqihkuVmY1f6BT/0R/8ktxPaJB1Hrc="
-    mock = False
-    country = '국내'
-    cmd = input("rasdf")
-    print(type(cmd))
-    print(cmd)
     quit()
     if __name__ == "__main__":
         broker_ws = KoreaInvestmentWS(key, secret, ["H0STCNT0", "H0STASP0"],

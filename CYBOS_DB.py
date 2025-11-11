@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 import time
-
 import pandas as pd
 import win32com.client
 from pandas import Series, DataFrame
 from datetime import datetime,timedelta, date
 import sqlite3
 import numpy as np
-from pykrx import stock
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -191,6 +189,7 @@ class db_down():
 
     def get_stock_market_types(self):
         # KOSPI 종목 가져오기
+        from pykrx import stock
         kospi = stock.get_market_ticker_list(market="KOSPI")
         kospi_names = [stock.get_market_ticker_name(ticker) for ticker in kospi]
 
@@ -224,6 +223,7 @@ class db_down():
 
 if __name__ == '__main__':
     def connect_cybos(market, ticker):
+        # cybos plus 프로그램 설치 필요
         instCpCybos = win32com.client.Dispatch("CpUtil.CpCybos")
 
         if instCpCybos.IsConnect == 1:
@@ -270,12 +270,17 @@ if __name__ == '__main__':
     #     '월봉': ['M', 1, 'M']}
 
 
-    market = '국내선옵'
+    # market = '국내주식'
     # ticker = '122630'  # 코덱스레버리지
+    # ticker = '252670'  # 코덱스인버스
     # ticker = '전체'
     # ticker = 'A005930' #삼성전자
     # ticker = '201W2200'
-    ticker = '201V2352'
+    # ticker = '201V2352'
+    market = '국내선옵'
+    # dict_ticker = {'코스피200선물': '10100', '미니코스피200선물':'10500','코스닥150선물':'10600','미국달러선물':'17500',
+    #                '3년국채선물': '16500','10년국채선물': '16700', '금연결선물': '18800'}
+    ticker = '10500'
     bong = '1분봉'
     start_day = 20100101
     end_day = datetime.now().strftime("%Y%m%d")
@@ -288,10 +293,6 @@ if __name__ == '__main__':
     except:
         table_list = []
 
-    # market = '국내선옵'
-    # dict_ticker = {'코스피200선물': '10100', '미니코스피200선물':'10500','코스닥150선물':'10600','미국달러선물':'17500',
-    #                '3년국채선물': '16500','10년국채선물': '16700', '금연결선물': '18800'}
-    # ticker = '10100'
     # # KODEX WTI 원유선물: A261220
     # # KODEX 미국S & P500: A219480
     # # KODEX 미국나스닥100선물: A304940

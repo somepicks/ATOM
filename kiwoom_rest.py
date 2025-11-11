@@ -24,7 +24,7 @@ import numpy as np
 from PyQt5 import QtTest
 from PyQt5.QtTest import *
 from dateutil.relativedelta import relativedelta
-from tornado.websocket import WebSocketClientConnection
+# from tornado.websocket import WebSocketClientConnection
 
 import common_def
 
@@ -210,7 +210,7 @@ class kiwoom_finance:
         if self.market == '해외선옵' or self.market == '해외주식':
             exchange = '해외'
         self.exchange = exchange
-
+        self.token_name = "DB/token_kiwoom_mock.dat" if self.mock else "DB/token_kiwoom.dat"
         self.access_token = None
         if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
             print('기존 토큰 로드')
@@ -220,63 +220,35 @@ class kiwoom_finance:
             self.issue_access_token() #없을 경우 토큰 발행
 
     def set_base_url(self, market: str = '주식', mock: bool = True):
-        """테스트(모의투자) 서버 사용 설정
-        Args:
-            mock(bool, optional): True: 테스트서버, False: 실서버 Defaults to True.
-        """
         if market == '주식':
             if mock:
-                self.base_url = "https://mockapi.kiwoom.com"
+                self.base_url = "https://mockapi.kiwoom.com" # 모의투자
             else:
                 self.base_url = "https://api.kiwoom.com"
-        elif market == '선옵':
-            if mock:
-                self.base_url = "https://openapivts.koreainvestment.com:29443"
-            else:
-                self.base_url = "https://openapi.koreainvestment.com:9443"
-        elif market == '해외선옵':
-            if mock:
-                self.base_url = "https://openapivts.koreainvestment.com:29443"
-            else:
-                self.base_url = "https://openapi.koreainvestment.com:9443"
         else:
             raise
     def issue_access_token(self):
-        if self.api_key == 'test':
-            # print(' KIS 테스트모드')
-            pass
-        else:
-            endpoint = 'oauth2/token'
-            url = f"{self.base_url}/{endpoint}"
-            headers = {'Content-Type': 'application/json;charset=UTF-8'}
-            params = {
-                'grant_type': 'client_credentials',  # grant_type
-                'appkey': self.api_key,  # 앱키
-                'secretkey': self.api_secret,  # 시크릿키
-            }
-            response = requests.post(url, headers=headers, json=params)
-            data = response.json()
-            try:
-                self.access_token = data["token"]
-            except Exception as e:
-                print(f"API 오류 발생: {e}")
-                print(f"{data= }")
-                return
+        endpoint = 'oauth2/token'
+        url = f"{self.base_url}/{endpoint}"
+        headers = {'Content-Type': 'application/json;charset=UTF-8'}
+        params = {
+            'grant_type': 'client_credentials',  # grant_type
+            'appkey': self.api_key,  # 앱키
+            'secretkey': self.api_secret,  # 시크릿키
+        }
+        response = requests.post(url, headers=headers, json=params)
+        data = response.json()
+        if data.get('return_msg') == '인증에 실패했습니다[8001:App Key와 Secret Key 검증에 실패했습니다]':
+            print("인증에 실패했습니다[8001:App Key와 Secret Key 검증에 실패했습니다]")
+            return
+        elif data.get('return_msg') == '정상적으로 처리되었습니다':
             data['api'] = self.api_key
-            if self.mock:
-                file_name = "token_mock.dat"
-            else:
-                file_name = "token.dat"
-            with open(file_name, "wb") as f:
+            with open(self.token_name, "wb") as f:
                 pickle.dump(data, f)
 
     def check_access_token(self):
-        if self.mock:
-            file_name = "token_mock.dat"
-        else:
-            file_name = "token.dat"
         try:
-            f = open(file_name, "rb")
+            f = open(self.token_name, "rb")
             data = pickle.load(f)
             f.close()
             expire_epoch = data['expires_dt']
@@ -291,15 +263,34 @@ class kiwoom_finance:
             return False
 
     def load_access_token(self):
-        """load access token
-        """
-        if self.mock:
-            file_name = "token_mock.dat"
-        else:
-            file_name = "token.dat"
-        with open(file_name, "rb") as f:
+        with open(self.token_name, "rb") as f:
             data = pickle.load(f)
             self.access_token = data["token"]
+    def fetch_asset(self) -> dict:
+        endpoint = '/api/dostk/acnt'
+        url = f"{self.base_url}{endpoint}"
+        headers = {
+            'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
+            'authorization': f'Bearer {self.access_token}',  # 접근토큰
+            'cont-yn': "N",  # 연속조회여부
+            'next-key': "",  # 연속조회키
+            'api-id': 'ka01690',  # TR명
+        }
+        params = {
+            'qry_dt': datetime.datetime.now().strftime("%Y%m%d"),  # 조회일자
+        }
+        res = requests.post(url, headers=headers, json=params)
+        data = res.json()
+
+        dict_data = {}
+        if data['return_msg'] == "정상적으로 처리되었습니다":
+            dict_data['추정자산'] = int(data['day_stk_asst'])
+            dict_data['예수금'] = int(data['dbst_bal'])
+            dict_data['총 매입가'] = int(data['tot_buy_amt'])
+            dict_data['총 평가금액'] = int(data['tot_evlt_amt'])
+            dict_data['총 평가손익'] = int(data['tot_evltv_prft'])
+            dict_data['수익률'] = float(data['tot_prft_rt'])
+        return dict_data
     def inquiry_TR(self, path, tr_id:str, params:dict):
         url = f"{self.base_url}/{path}"
         data = {
@@ -393,6 +384,9 @@ class kiwoom_finance:
         resp = requests.post(url, headers=headers, data=json.dumps(data))
         haskkey = resp.json()["HASH"]
         return haskkey
+
+
+
 
     def fetch_price(self, symbol: str or dict) -> dict:
         if self.exchange == "서울":
@@ -2055,173 +2049,156 @@ class kiwoom_finance:
         pprint(res.json())
         return res.json()
 
-    def create_order(self, side: str, symbol: str, price, quantity: int, order_type: str) -> dict:
-        while True:
-            QTest.qWait(500)
-            if self.market == '주식':
-                path = "uapi/domestic-stock/v1/trading/order-cash"
-                url = f"{self.base_url}/{path}"
+    def create_order(self, side: str, symbol: str, price, qty: int, order_type: str) -> dict:
+        # while True:
+        QTest.qWait(500)
+        if self.market == '주식':
+            endpoint = '/api/dostk/ordr'
+            url = f"{self.base_url}{endpoint}"
 
-                if self.mock:
-                    tr_id = "VTTC0802U" if side == "buy" else "VTTC0801U"
-                else:
-                    tr_id = "TTTC0802U" if side == "buy" else "TTTC0801U"
+            tr_id = "kt10000" if side == "매수" else "kt10001" #매수 또는 매도
 
-                unpr = "0" if order_type == "시장가" else str(price)
+            headers = {
+                'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
+                'authorization': f'Bearer {self.access_token}',  # 접근토큰
+                'cont-yn': "N",  # 연속조회여부
+                'next-key': "",  # 연속조회키
+                'api-id': tr_id,  # TR명
+            }
 
-                data = {
-                    "CANO": self.acc_no_prefix,
-                    "ACNT_PRDT_CD": self.acc_no_postfix,
-                    "PDNO": symbol,
-                    "ORD_DVSN": order_type,
-                    "ORD_QTY": str(quantity),
-                    "ORD_UNPR": unpr
-                }
-                hashkey = self.issue_hashkey(data)
-                headers = {
-                   "content-type": "application/json",
-                   "authorization": self.access_token,
-                   "appKey": self.api_key,
-                   "appSecret": self.api_secret,
-                   "tr_id": tr_id,
-                   "custtype": "P",
-                   "hashkey": hashkey
-                }
-                resp = requests.post(url, headers=headers, data=json.dumps(data))
+            unpr = "3" if order_type == "시장가" else '1' #지정가일경우 '1'
+            params = {
+                'dmst_stex_tp': 'KRX',  # 국내거래소구분 KRX,NXT,SOR
+                'stk_cd': symbol[1:],  # 종목코드
+                'ord_qty': str(qty),  # 주문수량
+                'ord_uv': str(price),  # 주문단가
+                'trde_tp': unpr,
+                # 매매구분 0:보통 , 3:시장가 , 5:조건부지정가 , 81:장마감후시간외 , 61:장시작전시간외, 62:시간외단일가 , 6:최유리지정가 , 7:최우선지정가 , 10:보통(IOC) , 13:시장가(IOC) , 16:최유리(IOC) , 20:보통(FOK) , 23:시장가(FOK) , 26:최유리(FOK) , 28:스톱지정가,29:중간가,30:중간가(IOC),31:중간가(FOK)
+                'cond_uv': '',  # 조건단가
+            }
+            resp = requests.post(url, headers=headers, json=params)
 
-            elif self.market == '선옵':
-                path = "/uapi/domestic-futureoption/v1/trading/order"
-                url = f"{self.base_url}/{path}"
-                if self.mock:
-                    tr_id = "VTTO1101U"
-                else: # 실매매는 주간 야간 따로임
-                    sky = '야간' if datetime.datetime.now().time() > datetime.time(18,0,0) or datetime.time(5,0,0) > datetime.datetime.now().time() else '주간'
-                    tr_id = "TTTO1101U" if sky == "주간" else "JTCE1001U"
-                SLL_BUY = "02" if side == "buy" else "01"
-                unpr = "0" if order_type == "시장가" else str(price)
-                ORD = "02" if order_type == "시장가" else "01"
-                # print(f"{symbol= }, {SLL_BUY= },{unpr= },{ORD= }, {quantity= }")
-                data = {
-                    "ORD_PRCS_DVSN_CD": "02",
-                    "CANO": self.acc_no_prefix,
-                    "ACNT_PRDT_CD": self.acc_no_postfix,
-                    "SLL_BUY_DVSN_CD": SLL_BUY, #01 : 매도 , 02 : 매수
-                    "SHTN_PDNO": symbol,
-                    "ORD_QTY": str(quantity),
-                    "UNIT_PRICE": unpr, # 시장가나 최유리 지정가인 경우 0으로 입력
-                    "NMPR_TYPE_CD": "",
-                    "KRX_NMPR_CNDT_CD": "",
-                    "ORD_DVSN_CD": ORD # 01 : 지정가, 02 : 시장가
-                }
-                hashkey = self.issue_hashkey(data)
-                headers = {
-                    "content-type": "application/json",
-                    "authorization": self.access_token,
-                    "appKey": self.api_key,
-                    "appSecret": self.api_secret,
-                    "tr_id": tr_id ,
-                    "custtype": "P",
-                    "hashkey": hashkey
-                }
-                # print(f"kis _create order : {side=}, {symbol=} {quantity=} {unpr=} {order_type=}, {tr_id=}")
-                resp = requests.post(url, headers=headers, data=json.dumps(data))
-                resp = resp.json()
-            if resp['msg1'] == '주문 전송 완료 되었습니다.' or resp['msg1'] == '모의투자 매수주문이 완료 되었습니다.' or resp[
-                'msg1'] == '모의투자 매도주문이 완료 되었습니다.' or resp['msg1'][:11]=="주문전송이 정상적으로":
-                resp['output']['ODNO'] = int(resp['output']['ODNO'])
-                id = str(resp['output']['ODNO'])  # 주문번호가 '000456' 이런식으로 오기 때문에 str → int → str 로 변환
-                break
-            elif resp['msg1'] == '주문가능금액을 초과 했습니다':
-                raise print(f"create_order - {resp['msg1']}  주문 가능금액 초과")
-            elif resp['msg1'] == '주문수량을 확인 하여 주십시요.':
-                raise print(f"create_order - {resp['msg1']}  {symbol= }, {price= }, {quantity= }, {price*quantity= }")
-            elif resp['msg1'] == '장운영일자가 주문일과 상이합니다':
-                pprint(resp)
-                raise print(resp['msg1'])
-            elif resp['msg1'] == '주문 수량을 확인해주세요.':
-                raise print(f"create_order - {resp['msg1']} - 주문 시간이 안맞았을 확률 또는 가격이나 수량이 float으로 되있거나 틀릴 확률")
-            elif resp['msg1'] == '주식주문호가단위 오류입니다.':
-                pprint(resp)
-                raise print(resp['msg1'])
-            elif resp['msg1'] == '모의투자 장시작전 입니다.':
-                print(f"create_order - {resp['msg1']}")
-                # time.sleep(1)
-                QTest.qWait(1000)
-            elif resp['msg1'] == '초당 거래건수를 초과하였습니다.':
-                print(f"create_order - {resp['msg1']=}, {symbol=},  ")
-            elif resp['msg1'] == '모의투자 장종료 입니다.':
-                raise print(f"create_order - {resp['msg1']}")
-            elif resp['msg1'] == '모의투자 주문처리가 안되었습니다(호가단위 오류)':
-                raise print(f"{resp['msg1']} 종목코드: {symbol}, 매수가: {price}, 배팅금액: {price * quantity * 250000}, {quantity= }")
-            elif resp['msg1'] == '모의투자 주문가능금액이 부족합니다.':
-                dict_asset, df_x = self.fetch_balance()  # 자산, 보유종목
-                print(f"{dict_asset}")
-                print(f"create_order - {resp['msg1']} 에러 | {symbol=}, {price= }, {quantity= }, {price * quantity= }")
-                raise
-            elif resp['msg1'] == '모의투자 상/하한가 오류':
-                pprint(f"create_order - 모의투자 상/하한가 오류 {symbol=}, {price=} {quantity=}, {side=}")
-            else:
-                print('create_order - =============== else =============== 데이터값 확인 필요')
-                pprint(f"create_order {resp}, {symbol=}, {price=} {quantity=}, {side=}")
-                quit()
+        elif self.market == '선옵':
+            path = "/uapi/domestic-futureoption/v1/trading/order"
+            url = f"{self.base_url}/{path}"
+            if self.mock:
+                tr_id = "VTTO1101U"
+            else: # 실매매는 주간 야간 따로임
+                sky = '야간' if datetime.datetime.now().time() > datetime.time(18,0,0) or datetime.time(5,0,0) > datetime.datetime.now().time() else '주간'
+                tr_id = "TTTO1101U" if sky == "주간" else "JTCE1001U"
+            SLL_BUY = "02" if side == "buy" else "01"
+            unpr = "0" if order_type == "시장가" else str(price)
+            ORD = "02" if order_type == "시장가" else "01"
+            # print(f"{symbol= }, {SLL_BUY= },{unpr= },{ORD= }, {quantity= }")
+            data = {
+                "ORD_PRCS_DVSN_CD": "02",
+                "CANO": self.acc_no_prefix,
+                "ACNT_PRDT_CD": self.acc_no_postfix,
+                "SLL_BUY_DVSN_CD": SLL_BUY, #01 : 매도 , 02 : 매수
+                "SHTN_PDNO": symbol,
+                "ORD_QTY": str(quantity),
+                "UNIT_PRICE": unpr, # 시장가나 최유리 지정가인 경우 0으로 입력
+                "NMPR_TYPE_CD": "",
+                "KRX_NMPR_CNDT_CD": "",
+                "ORD_DVSN_CD": ORD # 01 : 지정가, 02 : 시장가
+            }
+            hashkey = self.issue_hashkey(data)
+            headers = {
+                "content-type": "application/json",
+                "authorization": self.access_token,
+                "appKey": self.api_key,
+                "appSecret": self.api_secret,
+                "tr_id": tr_id ,
+                "custtype": "P",
+                "hashkey": hashkey
+            }
+            # print(f"kis _create order : {side=}, {symbol=} {quantity=} {unpr=} {order_type=}, {tr_id=}")
+            resp = requests.post(url, headers=headers, data=json.dumps(data))
+            resp = resp.json()
+        if resp['msg1'] == '주문 전송 완료 되었습니다.' or resp['msg1'] == '모의투자 매수주문이 완료 되었습니다.' or resp[
+            'msg1'] == '모의투자 매도주문이 완료 되었습니다.' or resp['msg1'][:11]=="주문전송이 정상적으로":
+            resp['output']['ODNO'] = int(resp['output']['ODNO'])
+            id = str(resp['output']['ODNO'])  # 주문번호가 '000456' 이런식으로 오기 때문에 str → int → str 로 변환
+        elif resp['msg1'] == '주문가능금액을 초과 했습니다':
+            raise print(f"create_order - {resp['msg1']}  주문 가능금액 초과")
+        elif resp['msg1'] == '주문수량을 확인 하여 주십시요.':
+            raise print(f"create_order - {resp['msg1']}  {symbol= }, {price= }, {qty= }, {price*qty= }")
+        elif resp['msg1'] == '장운영일자가 주문일과 상이합니다':
+            pprint(resp)
+            raise print(resp['msg1'])
+        elif resp['msg1'] == '주문 수량을 확인해주세요.':
+            raise print(f"create_order - {resp['msg1']} - 주문 시간이 안맞았을 확률 또는 가격이나 수량이 float으로 되있거나 틀릴 확률")
+        elif resp['msg1'] == '주식주문호가단위 오류입니다.':
+            pprint(resp)
+            raise print(resp['msg1'])
+        elif resp['msg1'] == '모의투자 장시작전 입니다.':
+            print(f"create_order - {resp['msg1']}")
+            # time.sleep(1)
+            QTest.qWait(1000)
+        elif resp['msg1'] == '초당 거래건수를 초과하였습니다.':
+            print(f"create_order - {resp['msg1']=}, {symbol=},  ")
+        elif resp['msg1'] == '모의투자 장종료 입니다.':
+            raise print(f"create_order - {resp['msg1']}")
+        elif resp['msg1'] == '모의투자 주문처리가 안되었습니다(호가단위 오류)':
+            raise print(f"{resp['msg1']} 종목코드: {symbol}, 매수가: {price}, 배팅금액: {price * qty * 250000}, {qty= }")
+        elif resp['msg1'] == '모의투자 주문가능금액이 부족합니다.':
+            dict_asset, df_x = self.fetch_balance()  # 자산, 보유종목
+            print(f"{dict_asset}")
+            print(f"create_order - {resp['msg1']} 에러 | {symbol=}, {price= }, {qty= }, {price * qty= }")
+            raise
+        elif resp['msg1'] == '모의투자 상/하한가 오류':
+            pprint(f"create_order - 모의투자 상/하한가 오류 {symbol=}, {price=} {qty=}, {side=}")
+        else:
+            print('create_order - =============== else =============== 데이터값 확인 필요')
+            pprint(f"create_order {resp}, {symbol=}, {price=} {qty=}, {side=}")
+            quit()
         return id
 
     def create_market_buy_order(self, symbol: str, quantity: int, side:str) -> dict:
         # print(f'create_market_buy_order {symbol= }, {quantity= }')
         if self.exchange == "서울":
             if self.market == '주식':
-                id = self.create_order(side = "buy", symbol=symbol, price=00, quantity=quantity, order_type="시장가")
+                id = self.create_order(side = "매수", symbol=symbol, price=00, qty=quantity, order_type="시장가")
             elif self.market == '선옵':
-                id = self.create_order(side = side, symbol=symbol, price=0, quantity=quantity, order_type="시장가")
+                id = self.create_order(side = side, symbol=symbol, price=0, qty=quantity, order_type="시장가")
         else: # 해외
-            id = self.create_oversea_order("buy", symbol, "0", quantity, "00")
+            id = self.create_oversea_order("매수", symbol, "0", quantity, "00")
         return id
 
     def create_market_sell_order(self, symbol: str, quantity: int, side:str) -> dict:
-        # print(f'create_market_sell_order {symbol= }, {quantity= }')
+        # print(f'create_market_sell_order {symbol= }, {qty= }')
         if self.exchange == "서울":
             if self.market == '주식':
-                id = self.create_order("sell", symbol, 0, quantity, "시장가")
+                id = self.create_order(side="매도", symbol=symbol, price=0, qty=quantity, order_type="시장가")
             elif self.market == '선옵':
-                id = self.create_order(side=side, symbol=symbol, price=0, quantity=quantity, order_type="시장가")
+                id = self.create_order(side=side, symbol=symbol, price=0, qty=quantity, order_type="시장가")
         else: # 해외
-            id = self.create_oversea_order("sell", symbol, "0", quantity, "00")
+            id = self.create_oversea_order("매도", symbol, "0", quantity, "00")
         return id
 
     def create_limit_buy_order(self, symbol: str, price: int, quantity: int, side:str) -> dict:
-        # print(f'create_limit_buy_order {symbol= }, {price= } {quantity= }')
+        # print(f'create_limit_buy_order {symbol= }, {price= } {qty= }')
         if self.exchange == "서울":
             if self.market == '주식':
-                id = self.create_order("buy", symbol, price, quantity, "00")
+                id = self.create_order(side="매수", symbol=symbol, price=price, qty=quantity, order_type="00")
             elif self.market == '선옵':
-                id = self.create_order(side=side, symbol=symbol, price=price, quantity=quantity, order_type="지정가")
+                id = self.create_order(side=side, symbol=symbol, price=price, qty=quantity, order_type="지정가")
         else: # 해외
-            id = self.create_oversea_order("buy", symbol, price, quantity, "00")
+            id = self.create_oversea_order("매수", symbol, price, quantity, "00")
         return id
 
     def create_limit_sell_order(self, symbol: str, price: int, quantity: int, side:str) -> dict:
-        # print(f'create_limit_sell_order {symbol= }, {price= } {quantity= }')
+        # print(f'create_limit_sell_order {symbol= }, {price= } {qty= }')
         if self.exchange == "서울":
             if self.market == '주식':
-                id = self.create_order("sell", symbol, price, quantity, "00")
+                id = self.create_order(side="매도", symbol=symbol, price=price, qty=quantity, order_type="00")
             elif self.market == '선옵':
-                id = self.create_order(side=side, symbol=symbol, price=price, quantity=quantity, order_type="지정가")
+                id = self.create_order(side=side, symbol=symbol, price=price, qty=quantity, order_type="지정가")
         else: # 해외
-            id = self.create_oversea_order("sell", symbol, price, quantity, "00")
+            id = self.create_oversea_order("매도", symbol, price, quantity, "00")
         return id
 
     def cancel_order(self,symbol, order_no: str, quantity: int):
-        """주문 취소
-        Args:
-            org_no(str): organization number
-            order_no (str): order number
-            quantity (int): 수량
-            total (bool): True (잔량전부), False (잔량일부)
-            order_type (str): 주문구분
-            price (int): 가격
-        Returns:
-            dict :
-        """
         i = 0
         while True:
             try:
@@ -2354,12 +2331,6 @@ class kiwoom_finance:
 
     def fetch_open_order(self, side: str):
         if self.market == '주식':
-            """주식 정정/취소가능 주문 조회
-            Args:
-                param (dict): 세부 파라미터
-            Returns:
-                _type_: _description_
-            """
             path = "uapi/domestic-stock/v1/trading/inquire-psbl-rvsecncl"
             url = f"{self.base_url}/{path}"
 
@@ -3527,14 +3498,13 @@ class WebSocketClient:
             await self.websocket.close()
             self.connected = False
             print('Disconnected from WebSocket server')
-    async def
 
 
 if __name__ == "__main__":
-    mock = False
+    mock = True
     if mock:
         api_key = "zSQr2jdgor8SPPF5DigW5Vq64xKRQcbNQY_2O4muS2o"
-        secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
+        secret_key = "HMelbm85t221wIMlrRqfQOOLO6JLoW7S-wAN7jRZELM"
         SOCKET_domain = 'wss://mockapi.kiwoom.com:10000'  # 모의투자 접속 URL
         SOCKET_URL = "/api/dostk/websocket"
 
@@ -3545,10 +3515,10 @@ if __name__ == "__main__":
         secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
         SOCKET_domain = 'wss://api.kiwoom.com:10000'  # 접속 URL
         SOCKET_URL = "/api/dostk/websocket"
-    uri = SOCKET_domain + SOCKET_URL
+    # uri = SOCKET_domain + SOCKET_URL
     ex = kiwoom_finance(api_key=api_key,api_secret=secret_key,market='주식',mock=mock)
     access_token = ex.access_token
-
+    quit()
 
     async def trade_stocks(ACCESS_TOKEN):
         # 조건검색식 조회

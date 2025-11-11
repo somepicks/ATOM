@@ -20,6 +20,7 @@ import asyncio
 import requests
 import websockets
 from pprint import pprint
+import kiwoom_rest
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -29,15 +30,15 @@ pd.set_option('mode.chained_assignment',  None)
 
 
 class do_trade(QThread):
-    qt_inverse = pyqtSignal(pd.DataFrame)
+    # qt_inverse = pyqtSignal(pd.DataFrame)
     qt_open = pyqtSignal(pd.DataFrame)
-    qt_future = pyqtSignal(pd.DataFrame)
-    qt_linear = pyqtSignal(pd.DataFrame)
-    save_inverse = pyqtSignal(pd.DataFrame)
-    save_df = pyqtSignal(pd.DataFrame,str)
-    save_set = pyqtSignal(pd.DataFrame)
+    # qt_future = pyqtSignal(pd.DataFrame)
+    # qt_linear = pyqtSignal(pd.DataFrame)
+    # save_inverse = pyqtSignal(pd.DataFrame)
+    # save_df = pyqtSignal(pd.DataFrame,str)
+    # save_set = pyqtSignal(pd.DataFrame)
     val_light = pyqtSignal(bool)
-    val_wallet = pyqtSignal(int,int)
+    # val_wallet = pyqtSignal(int,int)
     val_time = pyqtSignal(str)
     shutdown_signal = pyqtSignal()
     def __init__(self, parent, df_open, df_closed, df_set, dict_option):
@@ -51,6 +52,23 @@ class do_trade(QThread):
         self.dict_option = dict_option
 
     def run(self):
+        while True:
+            now = datetime.datetime.now()
+
+            if now.hour == 9 and now.minute >= 0:
+                if not df_jong_ga.empty:
+                    for i,ticker in enumerate(df_jong_ga['종목코드'].tolist()):
+                        res = self.dict_option['exchange'].order_close(ticker,1,df_jong_ga.loc[df_jong_ga.index[i],'현재가'],'시장가')
+                        pprint(res)
+                        df_jong_ga = pd.DataFrame()
+            # 오후 3시 30분 체크 (15:29)
+            elif now.hour == 15 and now.minute >= 29:
+                # asyncio로 프로그램을 실행합니다.
+                asyncio.run(main(self.dict_option['exchange']))
+                break
+
+
+
         # 현재 시간의 분, 초, 마이크로초를 0으로 만들고 1시간 추가 (다음으로 올 정시 구하기)
         next_hour = self.dict_option['start_time'].replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
         self.fetch_balance()
@@ -72,16 +90,11 @@ class do_trade(QThread):
         finish_time = self.df_set.loc['자동종료', 'val']
         if str == type(start_time):
             start_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
-
         dict_time = {'loop': 0,'1분후': 1, '5분후': 5, '10분후': 10, '30분후': 30, '1시간후': 60, '설정안함':43200}
         finish_time = start_time + datetime.timedelta(minutes=dict_time[finish_time])
 
         while self._status:
             now_time = datetime.datetime.now()
-            # if self.dict_bybit['active'] == True:
-            #     self.tickers_bybit = self.common.fetch_tickers('bybit') #현재가 조회용
-            # if self.dict_binance['active'] == True:
-            #     self.tickers_binance = self.common.fetch_tickers('binance')#현재가 조회용
             funding_time = pd.to_datetime(self.df_set.loc['funding_time','val'])
             current_t = now_time.replace(microsecond=0)
             self.text_time = funding_time - current_t
@@ -120,10 +133,6 @@ class do_trade(QThread):
                 df = self.common.get_df(market, ticker, '4시간봉', 10)  # 10일 전부터의 데이터 불러오기
                 dict_txt_inverse = self.buy_auto(idx,market,ticker,dict_txt_inverse)
 
-                dict_division = {'BTC':25, 'ETH':30, 'XRP':25, 'SOL':28}
-                dict_leverage = {'BTC':3, 'ETH':3, 'XRP':3, 'SOL':3}
-                # dict_txt_linear = self.buy_linear(df=df,idx=idx,division=dict_division.get(ticker,40),
-                #                            future_leverage=dict_leverage.get(ticker,2),dict_txt=dict_txt_linear)
                 if idx in self.df_linear.index.tolist():
                     self.sell_future(df=df,idx=idx)
             if dict_txt_linear:
@@ -317,18 +326,7 @@ class do_trade(QThread):
         ticker = self.df_inverse.loc[idx,'ticker']
         min_cont = self.df_inverse.loc[idx,'주문최소금액(USD)']
         used_usdt = self.df_inverse.loc[idx, '합계(USD)']
-        # df = self.get_df(market, ticker, '4시간봉',10) #10일 전부터의 데이터 불러오기
-
         buy_signal_future,side = self.get_buy_signal(df,market,ticker)
-        # if market == 'binance' and ticker == 'MANA':
-        #     buy_signal_future = True
-        # else:
-        #     buy_signal_future = False
-        # buy_signal_future = True
-        # market = 'bybit'
-        # ticker = 'BTC'
-        # min_cont = 100
-        # used_usdt = 10
         if buy_signal_future == True:
             # print('*******************************************************************************************************')
             # print(f"buy_linear 매수신호 : {idx} - {datetime.datetime.now()}  {market=}  {ticker= }  {future_leverage=}")
@@ -706,185 +704,6 @@ class do_trade(QThread):
         else:
             return {'체결': False}
 
-    def fetch_balance(self):
-        self.df_inverse, self.df_future, assets_binance, assets_bybit = self.common.get_all_assets()
-
-
-        self.val_wallet.emit(assets_binance, assets_bybit)
-        self.qt_inverse.emit(self.df_inverse)
-        self.qt_future.emit(self.df_future)
-
-
-    def get_funding_time(self,now: datetime):
-        funding_hours = [1, 9, 17]  # 펀딩비 시간
-        today = now.replace(minute=0, second=0, microsecond=0)
-        # 현재 시간 이후의 가장 가까운 펀딩비 시간을 찾음
-        for hour in funding_hours:
-            funding_time = today.replace(hour=hour)
-            if funding_time > now:
-                return funding_time
-        # 오늘 모든 펀딩비 시간이 지났다면 다음 날 첫 번째 펀딩비 시간 반환
-        funding_time = today + datetime.timedelta(days=1, hours=funding_hours[0] - today.hour)
-        return funding_time
-
-class kiwoom_finance:
-    def __init__(self, api_key: str, api_secret: str, market: str,
-                 exchange: str = "서울", mock: bool = False):
-        self.mock = mock
-        self.market = market
-        self.set_base_url(market, mock) # self.base_url 설정
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.exchange = exchange
-        self.access_token = None
-        self.fetch_access = True
-        if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
-            print('기존 토큰 로드')
-            self.load_access_token()
-        else:
-            print('신규 토큰 발행')
-            self.issue_access_token() #없을 경우 토큰 발행
-
-    def set_base_url(self, market: str = '주식', mock: bool = True):
-        if mock:
-            self.base_url = "https://mockapi.kiwoom.com"
-        else:
-            self.base_url = "https://api.kiwoom.com"
-
-    def issue_access_token(self):
-        if self.api_key == 'test':
-            pass
-        else:
-            endpoint = 'oauth2/token'
-            url = f"{self.base_url}/{endpoint}"
-            headers = {'Content-Type': 'application/json;charset=UTF-8'}
-            params = {
-                'grant_type': 'client_credentials',  # grant_type
-                'appkey': self.api_key,  # 앱키
-                'secretkey': self.api_secret,  # 시크릿키
-            }
-            response = requests.post(url, headers=headers, json=params)
-            data = response.json()
-            try:
-                self.access_token = data["token"]
-            except Exception as e:
-                print(f"API 오류 발생: {e}")
-                print(f"{data= }")
-                quit()
-            data['api'] = self.api_key
-            if self.mock:
-                file_name = "kiwoom_token_mock.dat"
-            else:
-                file_name = "kiwoom_token.dat"
-            with open(file_name, "wb") as f:
-                pickle.dump(data, f)
-
-    def check_access_token(self):
-        if self.mock:
-            file_name = "kiwoom_token_mock.dat"
-        else:
-            file_name = "kiwoom_token.dat"
-        try:
-            f = open(file_name, "rb")
-            data = pickle.load(f)
-            f.close()
-            expire_epoch = data['expires_dt']
-            if datetime.datetime.strptime(expire_epoch,"%Y%m%d%H%M%S")-datetime.datetime.now() < datetime.timedelta(hours=12):
-                status = False #기존 토큰 제거
-            elif not data['api'] == self.api_key:
-                status = False
-            else:
-                status = True
-            return status
-        except IOError:
-            return False
-
-    def load_access_token(self):
-        if self.mock:
-            file_name = "kiwoom_token_mock.dat"
-        else:
-            file_name = "kiwoom_token.dat"
-        with open(file_name, "rb") as f:
-            data = pickle.load(f)
-            self.access_token = data["token"]
-
-    def fetch_asset(self) -> dict:
-        endpoint = '/api/dostk/acnt'
-        url = f"{self.base_url}{endpoint}"
-        headers = {
-            'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
-            'authorization': f'Bearer {self.access_token}',  # 접근토큰
-            'cont-yn': "N",  # 연속조회여부
-            'next-key': "",  # 연속조회키
-            'api-id': 'ka01690',  # TR명
-        }
-        params = {
-            'qry_dt': datetime.datetime.now().strftime("%Y%m%d"),  # 조회일자
-        }
-        res = requests.post(url, headers=headers, json=params)
-        data = res.json()
-
-        dict_data = {}
-        if data['return_msg'] == "정상적으로 처리되었습니다":
-            dict_data['추정자산'] = int(data['day_stk_asst'])
-            dict_data['예수금'] = int(data['dbst_bal'])
-            dict_data['총 매입가'] = int(data['tot_buy_amt'])
-            dict_data['총 평가금액'] = int(data['tot_evlt_amt'])
-            dict_data['총 평가손익'] = int(data['tot_evltv_prft'])
-            dict_data['수익률'] = float(data['tot_prft_rt'])
-        return dict_data
-    def order_open(self,ticker,qty,price,ord_type):
-        endpoint = '/api/dostk/ordr'
-        url = f"{self.base_url}{endpoint}"
-        headers = {
-            'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
-            'authorization': f'Bearer {self.access_token}',  # 접근토큰
-            'cont-yn': "N",  # 연속조회여부
-            'next-key': "",  # 연속조회키
-            'api-id': 'kt10000',  # TR명
-        }
-        if ord_type == '지정가':
-            ord_type = '1'
-        elif ord_type == '시장가':
-            ord_type = '3'
-        params = {
-            'dmst_stex_tp': 'KRX',  # 국내거래소구분 KRX,NXT,SOR
-            'stk_cd': ticker[1:],  # 종목코드
-            'ord_qty': str(qty),  # 주문수량
-            'ord_uv': str(price),  # 주문단가
-            'trde_tp': ord_type,
-            # 매매구분 0:보통 , 3:시장가 , 5:조건부지정가 , 81:장마감후시간외 , 61:장시작전시간외, 62:시간외단일가 , 6:최유리지정가 , 7:최우선지정가 , 10:보통(IOC) , 13:시장가(IOC) , 16:최유리(IOC) , 20:보통(FOK) , 23:시장가(FOK) , 26:최유리(FOK) , 28:스톱지정가,29:중간가,30:중간가(IOC),31:중간가(FOK)
-            'cond_uv': '',  # 조건단가
-        }
-        res = requests.post(url, headers=headers, json=params)
-        data = res.json()
-        return data
-    def order_close(self,ticker,qty,price,ord_type):
-        endpoint = '/api/dostk/ordr'
-        url = f"{self.base_url}{endpoint}"
-        headers = {
-            'Content-Type': 'application/json;charset=UTF-8',  # 컨텐츠타입
-            'authorization': f'Bearer {self.access_token}',  # 접근토큰
-            'cont-yn': "N",  # 연속조회여부
-            'next-key': "",  # 연속조회키
-            'api-id': 'kt10001',  # TR명
-        }
-        if ord_type == '지정가':
-            ord_type = '1'
-        elif ord_type == '시장가':
-            ord_type = '3'
-        params = {
-            'dmst_stex_tp': 'KRX',  # 국내거래소구분 KRX,NXT,SOR
-            'stk_cd': ticker[1:],  # 종목코드
-            'ord_qty': str(qty),  # 주문수량
-            'ord_uv': str(price),  # 주문단가
-            'trde_tp': ord_type,
-            # 매매구분 0:보통 , 3:시장가 , 5:조건부지정가 , 81:장마감후시간외 , 61:장시작전시간외, 62:시간외단일가 , 6:최유리지정가 , 7:최우선지정가 , 10:보통(IOC) , 13:시장가(IOC) , 16:최유리(IOC) , 20:보통(FOK) , 23:시장가(FOK) , 26:최유리(FOK) , 28:스톱지정가,29:중간가,30:중간가(IOC),31:중간가(FOK)
-            'cond_uv': '',  # 조건단가
-        }
-        res = requests.post(url, headers=headers, json=params)
-        data = res.json()
-        return data
 
 
 class Window(QMainWindow):
@@ -985,16 +804,6 @@ class Window(QMainWindow):
         QVB_main.addLayout(QHB_api)
         QW_main.setLayout(QVB_main)
 
-    # def save_api(self,market):
-    #     if not self.QLE_api_binance.text() == '':
-    #         self.df_set.loc[f'api_{market}','val']=self.QLE_api_binance.text()
-    #     if not self.QLE_secret_binance.text() == '':
-    #         self.df_set.loc[f'secret_{market}','val']=self.QLE_secret_binance.text()
-    #     self.QLE_api_binance.clear()
-    #     self.QLE_secret_binance.clear()
-    #     self.dict_binance = self.make_exchange_binance()
-    #     self.df_set.to_sql('set', self.conn, if_exists='replace')
-
     def init_file(self):
         db_file = 'DB/jong_be.db'
         if not os.path.isfile(db_file): # 신규 설정
@@ -1066,7 +875,7 @@ class Window(QMainWindow):
             api = self.df_set.loc['api','val']
             secret = self.df_set.loc['secret','val']
             mock = False
-        ex = kiwoom_finance(api_key=api,api_secret=secret,market='주식',mock=mock)
+        ex = kiwoom_rest.kiwoom_finance(api_key=api,api_secret=secret,market='주식',mock=mock)
         print(ex)
 
         dict_res = ex.fetch_asset()
@@ -1075,7 +884,7 @@ class Window(QMainWindow):
         # if self.dict_bybit['active'] == False and self.dict_binance['active'] == False:
         #     self.text_message('에러','가능한 API가 없습니다.')
         #     return
-        dict_option = {}
+        dict_option = {'exchange':ex,}
         self.thread = do_trade(self,self.df_open,self.df_closed,self.df_set, dict_option)
         self.thread.start()
 
@@ -1118,15 +927,11 @@ class Window(QMainWindow):
     def save_set(self,df):
         df.to_sql('set',self.conn,if_exists='replace')
 
-    def qtable_have(self,df):
+    def qtable_open(self,df):
         if not df.empty:
-            # df['free(qty)'] = df['free(qty)'].apply(lambda int_num: "{:,}".format(int_num))
-            # df['현재가'] = df['현재가'].apply(lambda int_num: "{:,}".format(int_num))
-            # df['합계(USD)'] = df['합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
-            # df['배팅가능합계(USD)'] = df['배팅가능합계(USD)'].apply(lambda int_num: "{:,}".format(int_num))
             df = df[['market', 'ticker','합계(USD)', 'free(qty)', 'used(qty)', 'total(qty)', '현재가', '배팅가능합계(USD)', '주문최소금액(USD)']]
             self.set_table_make(self.QT_open, df)
-            self.df_qtable_have = df.copy()
+            self.df_qtable_open = df.copy()
 
     def save_to_sql(self, df, table):
         df.to_sql(table, self.conn, if_exists='replace')
@@ -1327,17 +1132,6 @@ async def main(ex):
 
 
 if __name__ == "__main__":
-    # mock = False
-    # if mock:
-    #     api_key = "zSQr2jdgor8SPPF5DigW5Vq64xKRQcbNQY_2O4muS2o"
-    #     secret_key = "HMelbm85t221wIMlrRqfQOOLO6JLoW7S-wAN7jRZELM"
-    #     SOCKET_domain = 'wss://mockapi.kiwoom.com:10000'  # 모의투자 접속 URL
-    #     SOCKET_URL = "/api/dostk/websocket"
-    # else:
-    #     api_key = "P0FfJ6jrHYYv5rOroape_sHsMatIGQhdACJfA3K2TkM"
-    #     secret_key = "TusEUmZ3pL6QtDIjHy3owfdsxfw8gVjJVwt1I4IeomQ"
-    #     api_key = "yldEAW1zfmbEnyK0X0M_v91AqSk-b3LO5dvALqSLfRo"
-    #     secret_key = "9BEshcgN9Rp9afF0KDmh3e8RRGxswjSkro0Df6O8cv8"
     # title = '종가'
     # ex = kiwoom_finance(api_key=api_key,api_secret=secret_key,market='주식',mock=mock)
     # dict_res = ex.fetch_asset()
