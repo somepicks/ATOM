@@ -74,8 +74,6 @@ def convert_df_compare(df):
     return df
 def futopt_set_tickers(df_f,df_f_mini,df_c,df_p,df_c_weekly,df_p_weekly,COND_MRKT):
     # 조건에 '시가_풋옵션_5분봉' 과같은 팩터가 올 수 있으니 비율을 똑같이 해줘야 함
-
-
     현재가 = df_f.loc[df_f.index[0], '현재가']
     df_c = df_c[df_c['행사가'] > 현재가 - 30]
     df_c = df_c[df_c['행사가'] < 현재가 + 30]

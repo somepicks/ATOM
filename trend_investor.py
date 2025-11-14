@@ -1,5 +1,7 @@
 import os
 import time
+
+import numpy as np
 import schedule
 # from datetime import datetime
 from PIL import ImageGrab
@@ -204,7 +206,7 @@ class ScreenCaptureBot():
             print(f"✅ 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         else:
             print(f"❌ 텔레그램 전송 실패: {response.status_code} - {response.text}")
-        time.sleep(60)
+        time.sleep(1)
     def send_to_df_etf(self):
         pass
     def ect_time(self):
@@ -289,7 +291,6 @@ class ScreenCaptureBot():
 
 
 
-
     def capture_and_send(self):
         """스크린샷을 캡처하고 저장한 후 텔레그램으로 전송하는 메인 함수"""
         print(f"📸 스크린샷 캡처 시작: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -341,7 +342,7 @@ class ScreenCaptureBot():
             dfs = [df_kospi,df_future,df_call,df_put,df_call_w,df_put_w,df_etf,df_sum]
             colors = ["blue", "orange", "green"]
             # 범례 이름 통일
-            legend_labels = ["외인", "기관", "개인"]
+            legend_labels = ["외인", "개인", "기관"]
             for i, df in enumerate(dfs):
                 # 각 데이터프레임의 컬럼마다 색상 적용
                 for j, col in enumerate(df.columns):
@@ -443,6 +444,83 @@ class ScreenCaptureBot():
                 print(f"✅ world 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             else:
                 print(f"❌ world 텔레그램 전송 실패: {response.status_code} - {response.text}")
+        ################################### 옵션 현재가
+
+        df_call_week, df_put_week, cond, past_day, ex_day = self.ex.display_opt_weekly(datetime.datetime.now())
+        d = (ex_day-datetime.datetime.now().date()).days
+        txt=f'위클리 옵션 만기일:{ex_day} [-{(ex_day-datetime.datetime.now().date()).days} 일]'
+        self.get_option(df_call_week, df_put_week,txt)
+        df_call, df_put, past_date, expiry_date = self.ex.display_opt(datetime.datetime.now())
+        txt=f'본옵션 만기일:{expiry_date} [-{(expiry_date-datetime.datetime.now().date()).days} 일]'
+        self.get_option(df_call, df_put,txt)
+
+        print(cond)
+    def get_option(self,df_call, df_put,caption):
+        df_call = self.ex.convert_column_types(df_call)
+        df_put = self.ex.convert_column_types(df_put)
+        df_call_chuchul = df_call[(df_call['현재가'] > 0.3) & (df_call['현재가'] < 5)]
+        df_put_chuchul = df_put[(df_put['현재가'] > 0.3) & (df_put['현재가'] < 5)]
+        list_common = list(set(df_call_chuchul['행사가'].tolist()) | set(df_put_chuchul['행사가'].tolist()))
+        df_call = df_call
+        df_call = df_call[df_call['행사가'].isin(list_common)]
+        df_put = df_put[df_put['행사가'].isin(list_common)]
+        df_call.index = df_call['환산현재가']
+        df_put.index = df_put['환산현재가']
+        df_call = df_call[['거래량', '현재가', '행사가']]
+        df_call.rename(columns={'현재가': '콜_현재가', '거래량': '콜_거래량'},
+                       inplace=True)
+        df_put = df_put[['현재가', '거래량']]
+        df_put.rename(columns={'현재가': '풋_현재가', '거래량': '풋_거래량'},
+                      inplace=True)
+        merged_df = pd.merge(df_call, df_put, left_index=True, right_index=True, how='inner')
+        merged_df['양합'] = merged_df['콜_현재가'] + merged_df['풋_현재가']
+        # merged_df = merged_df[['콜_거래량','콜_현재가','행사가','양합','풋_현재가','풋_거래량']]
+        current_col_red = merged_df.columns[1]
+        current_col_blue = merged_df.columns[3]
+        current_col_green = merged_df.columns[5]
+        fig, ax = plt.subplots(figsize=(6, 5))
+        table = ax.table(cellText=merged_df.round(2).astype(str).values,
+                         rowLabels=merged_df.index,
+                         colLabels=merged_df.columns,
+                         loc='center',
+                         )
+        table.scale(1, 1)
+        # fontsize = 50
+        for (i_row, j_col), cell in table.get_celld().items():
+            # cell.get_text().set_fontsize(fontsize)
+            if i_row == 0 or j_col == -1:  # 헤더
+                cell.set_text_props(weight='bold', color='black')
+            else:
+                col_name = merged_df.columns[j_col]
+
+                # 현재 열이면 빨간색
+                if col_name == current_col_red:
+                    cell.get_text().set_color('red')
+                if col_name == current_col_blue:
+                    cell.get_text().set_color('blue')
+                if col_name == current_col_green:
+                    cell.get_text().set_color('green')
+        ax.axis('off')
+        plt.tight_layout()
+        # 8. 이미지 저장
+        filename = "DB/df_plot_opt.png"
+        # plt.savefig(bbox_inches="tight", pad_inches=0.1, dpi=150)
+        plt.savefig(filename)
+        plt.close()
+        # caption = f"ETF\n🕐 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        # 5. 텔레그램 전송
+        files = {'photo': open(filename, 'rb')}
+        data = {
+            'chat_id': self.chat_id,
+            'caption': caption
+        }
+        response = requests.post(self.telegram_url, data=data, files=files)
+        if response.status_code == 200:
+            print(f"✅ 거래대금 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            print(f"❌ 거래대금 텔레그램 전송 실패: {response.status_code} - {response.text}")
+
+        # df_call, df_put, past_date, expiry_date = ex.display_opt(datetime.datetime.today())
 
     def set_capture_region(self, x1, y1, x2, y2):
         """캡처할 영역을 설정합니다."""
@@ -544,77 +622,267 @@ class ScreenCaptureBot():
         dic_frgn = {}
         dic_orgn = {}
         dic_prsn = {}
-        nowadays_frgn = {}
-        nowadays_orgn = {}
-        nowadays_prsn = {}
+        dict_nowadays_frgn = {}
+        dict_nowadays_orgn = {}
+        dict_nowadays_prsn = {}
         tday = datetime.datetime.today().strftime('%Y%m%d')
-        for ticker in li:
+        for i,ticker in enumerate(li):
             df = self.ex.investor_trend_stock(ticker)
             print(ticker)
             print(df)
+            df = df[-5:]
             if tday in df.index.tolist():
-                dic_frgn[ticker] = df.loc[tday,'외국인순매수거래대금']
-                dic_orgn[ticker] = df.loc[tday,'기관계순매수거래대금']
-                dic_prsn[ticker] = df.loc[tday,'개인순매수거래대금']
-                nowadays_frgn[ticker] = df['외국인순매수거래대금'].tail(5).sum()
-                nowadays_orgn[ticker] = df['기관계순매수거래대금'].tail(5).sum()
-                nowadays_prsn[ticker] = df['개인순매수거래대금'].tail(5).sum()
+                if df.isnull().any().any():
+                    print(f"{ticker} NAN 또는 0 존재")
+                else:
+                    dic_frgn[ticker] = df.loc[tday,'외국인순매수거래대금']
+                    dic_orgn[ticker] = df.loc[tday,'기관계순매수거래대금']
+                    dic_prsn[ticker] = df.loc[tday,'개인순매수거래대금']
+                    dict_nowadays_frgn[ticker] = df['외국인순매수거래대금'].sum()
+                    dict_nowadays_orgn[ticker] = df['기관계순매수거래대금'].sum()
+                    dict_nowadays_prsn[ticker] = df['개인순매수거래대금'].sum()
+            else:
+                print(f"{ticker} : {tday} 데이터 없음")
+            if i == 10:
+                break
             time.sleep(1)
-        list_out = list(set(df_kospi.index.tolist())-set(dic_frgn.keys()))
+        list_out = list(set(li)-set(dic_frgn.keys()))
         top_dic_frgn = sorted(dic_frgn, key=dic_frgn.get, reverse=True)[:10]
         top_dic_orgn = sorted(dic_orgn, key=dic_orgn.get, reverse=True)[:10]
         top_dic_prsn = sorted(dic_prsn, key=dic_prsn.get, reverse=True)[:10]
-        top_nowadays_frgn = sorted(nowadays_frgn, key=nowadays_frgn.get, reverse=True)[:10]
-        top_nowadays_orgn = sorted(nowadays_orgn, key=nowadays_orgn.get, reverse=True)[:10]
-        top_nowadays_prsn = sorted(nowadays_prsn, key=nowadays_prsn.get, reverse=True)[:10]
+        top_nowadays_frgn = sorted(dict_nowadays_frgn, key=dict_nowadays_frgn.get, reverse=True)[:10]
+        top_nowadays_orgn = sorted(dict_nowadays_orgn, key=dict_nowadays_orgn.get, reverse=True)[:10]
+        top_nowadays_prsn = sorted(dict_nowadays_prsn, key=dict_nowadays_prsn.get, reverse=True)[:10]
         top_dic_frgn = {df_kospi.loc[x,'회사명']:dic_frgn[x] for x in top_dic_frgn}
         top_dic_orgn = {df_kospi.loc[x,'회사명']:dic_orgn[x] for x in top_dic_orgn}
         top_dic_prsn = {df_kospi.loc[x,'회사명']:dic_prsn[x] for x in top_dic_prsn}
-        top_nowadays_frgn = {df_kospi.loc[x,'회사명']:dic_frgn[x] for x in top_nowadays_frgn}
-        top_nowadays_orgn = {df_kospi.loc[x,'회사명']:dic_orgn[x] for x in top_nowadays_orgn}
-        top_nowadays_prsn = {df_kospi.loc[x,'회사명']:dic_prsn[x] for x in top_nowadays_prsn}
+
+        top_nowadays_frgn = {df_kospi.loc[x,'회사명']:dict_nowadays_frgn[x] for x in top_nowadays_frgn}
+        top_nowadays_orgn = {df_kospi.loc[x,'회사명']:dict_nowadays_orgn[x] for x in top_nowadays_orgn}
+        top_nowadays_prsn = {df_kospi.loc[x,'회사명']:dict_nowadays_prsn[x] for x in top_nowadays_prsn}
         self.send_bar_sum_graph(top_dic_frgn,'외국인 순매수 거래대금 상위')
         self.send_bar_sum_graph(top_dic_orgn,'기관 순매수 거래대금 상위')
         self.send_bar_sum_graph(top_dic_prsn,'개인 순매수 거래대금 상위')
         self.send_bar_sum_graph(top_nowadays_frgn,'외국인 최근 5거래일 순매수 거래대금 상위')
         self.send_bar_sum_graph(top_nowadays_orgn,'기관 최근 5거래일 순매수 거래대금 상위')
         self.send_bar_sum_graph(top_nowadays_prsn,'개인 최근 5거래일 순매수 거래대금 상위')
-
-
-
         print(f"집계 제외 종목{[df_kospi.loc[x,'회사명'] for x in list_out ]}")
+
+    def etf_trending(self):
+        today = datetime.datetime.today()
+        past_day = today - datetime.timedelta(days=20)
+
+        df_leverage = stock.get_etf_trading_volume_and_value(past_day.strftime('%Y%m%d'), today.strftime('%Y%m%d'), '122630', "거래대금", "순매수")
+        time.sleep(1)
+        df_kodex = stock.get_etf_trading_volume_and_value(past_day.strftime('%Y%m%d'), today.strftime('%Y%m%d'), '069500', "거래대금", "순매수")
+        time.sleep(1)
+        df_invers = stock.get_etf_trading_volume_and_value(past_day.strftime('%Y%m%d'), today.strftime('%Y%m%d'), '114800', "거래대금", "순매수")
+        time.sleep(1)
+        df_2x = stock.get_etf_trading_volume_and_value(past_day.strftime('%Y%m%d'), today.strftime('%Y%m%d'), '252670', "거래대금", "순매수")
+        time.sleep(1)
+        df_200 = stock.get_index_ohlcv(past_day.strftime('%Y%m%d'), today.strftime('%Y%m%d'), "1028")
+
+        # 방법 1: set의 교집합 사용 (가장 효율적)
+        common_dates = set(df_200.index)
+        for df in [df_leverage, df_kodex, df_invers, df_2x]:
+            common_dates = common_dates.intersection(set(df.index))
+
+        # 공통 날짜로 필터링
+        df_200 = df_200[df_200.index.isin(common_dates)]
+        df_leverage = df_leverage[df_leverage.index.isin(common_dates)]
+        df_kodex = df_kodex[df_kodex.index.isin(common_dates)]
+        df_invers = df_invers[df_invers.index.isin(common_dates)]
+        df_2x = df_2x[df_2x.index.isin(common_dates)]
+
+        titles = [
+            "KODEX 레버리지",
+            "KODEX 200",
+            "KODEX 200선물인버스2X",
+            "KODEX 인버스",
+        ]
+
+        df_leverage = df_leverage[["기관", "개인", "외국인"]]
+        df_kodex = df_kodex[["기관", "개인", "외국인"]]
+        df_invers = df_invers[["기관", "개인", "외국인"]]
+        df_2x = df_2x[["기관", "개인", "외국인"]]
+        df_leverage=df_leverage//100000000
+        df_kodex=df_kodex//100000000
+        df_invers=df_invers//100000000
+        df_2x=df_2x//100000000
+        print('KODEX 레버리지')
+        print(df_leverage)
+        print('KODEX 200')
+        print(df_kodex)
+        print('KODEX 인버스')
+        print(df_invers)
+        print('KODEX 200선물인버스2X')
+        print(df_2x)
+
+        fig, axes = plt.subplots(2, 2, figsize=(8, 8))
+        axes = axes.flatten()
+        dfs = [df_leverage,df_kodex,df_2x,df_invers]
+        colors = ["green","orange","blue"]
+        # 범례 이름 통일
+        legend_labels = ["기관", "개인", "외국인"]
+        for i, df in enumerate(dfs):
+            # 각 데이터프레임의 컬럼마다 색상 적용
+            for j, col in enumerate(df.columns):
+                # df[col].plot(ax=axes[i], color=colors[j % len(colors)], label=col)
+                df[col].plot(ax=axes[i], color=colors[j % len(colors)], label=legend_labels[j])
+
+
+            ax2 = axes[i].twinx()
+            ax2.plot(df_200.index, df_200["종가"], color="red", linestyle="--", label="KOSPI200", linewidth=1.5, alpha=0.7)
+            ax2.set_ylabel("KOSPI200", color="red")
+            ax2.tick_params(axis="y", labelcolor="red")
+
+            # 왼쪽 범례만 표시 (코스피는 legend에 안 넣음)
+            axes[i].legend(loc="upper left")
+
+            # 제목 및 축 설정
+            axes[i].set_title(titles[i], fontsize=12, fontweight="bold")
+            # axes[i].set_xlabel("날짜")
+            # axes[i].set_ylabel("거래대금")
+            axes[i].tick_params(axis="x", rotation=45)
+
+        plt.tight_layout()
+        # 8. 이미지 저장
+        filename = "DB/df_plot_etf.png"
+        # plt.savefig(bbox_inches="tight", pad_inches=0.1, dpi=150)
+        plt.savefig(filename)
+        plt.close()
+        caption = f"ETF\n🕐 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        # 5. 텔레그램 전송
+        files = {'photo': open(filename, 'rb')}
+        data = {
+            'chat_id': self.chat_id,
+            'caption': caption
+        }
+        response = requests.post(self.telegram_url, data=data, files=files)
+        if response.status_code == 200:
+            print(f"✅ 거래대금 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            print(f"❌ 거래대금 텔레그램 전송 실패: {response.status_code} - {response.text}")
+
+################################# 이하 텍스트형식으로 표시
+        import platform
+        # 한글 폰트 설정
+        if platform.system() == 'Windows':
+            plt.rcParams['font.family'] = 'Malgun Gothic'
+        elif platform.system() == 'Darwin':  # macOS
+            plt.rcParams['font.family'] = 'AppleGothic'
+        else:  # Linux
+            plt.rcParams['font.family'] = 'NanumGothic'
+
+        # 마이너스 기호 깨짐 방지
+        plt.rcParams['axes.unicode_minus'] = False
+        # 각 데이터프레임을 텍스트로 표시
+        # 2x2 서브플롯 생성
+        fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+        # 플롯 간격 조정
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+
+        # axes = axes.flatten()
+        for i, ax in enumerate(axes.flat):
+            df = dfs[i]
+
+            # ✅ 인덱스가 datetime이면 날짜 문자열로 변환
+            if isinstance(df.index, pd.DatetimeIndex):
+                df.index = df.index.strftime('%Y-%m-%d')
+            # 값에 따라 색 지정: 음수=파란색, 양수=빨간색, 0=검정색
+            colors = df.applymap(lambda x: 'color: red' if x > 0 else ('color: blue' if x < 0 else 'color: black'))
+
+            # 값 자체를 문자열로 변환
+            table_data = df.round(2).astype(str)
+
+            # matplotlib table로 표시
+            table = ax.table(cellText=table_data.values,
+                             rowLabels=df.index,
+                             colLabels=df.columns,
+                             loc='center')
+
+            # 셀 색상 적용
+            for (i_row, j_col), cell in table.get_celld().items():
+                if i_row == 0 or j_col == -1:  # 헤더 행/열
+                    cell.set_text_props(weight='bold', color='black')
+                else:
+                    val = df.iloc[i_row - 1, j_col]
+                    if val > 0:
+                        cell.get_text().set_color('red')
+                    elif val < 0:
+                        cell.get_text().set_color('blue')
+                    else:
+                        cell.get_text().set_color('black')
+
+            ax.axis('off')
+            ax.set_title(titles[i], fontsize=12)
+
+        plt.tight_layout()
+        filename = 'DB/df_etf.png'
+        plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
+        print("이미지가 'df_etf.png'로 저장되었습니다.")
+        plt.close()
+        print(df_leverage.index[-1])
+        print(df_leverage.index.dtype)
+        print(df_leverage.index[-1])
+        print(datetime.datetime.now().date())
+        if df_leverage.index[-1] == datetime.datetime.now().date().strftime('%Y-%m-%d'):
+            print('금일 데이터 있음')
+            orgn=df_leverage.loc[df_leverage.index[-1],'기관']+df_kodex.loc[df_kodex.index[-1],'기관']+df_invers.loc[df_invers.index[-1],'기관']+df_2x.loc[df_2x.index[-1],'기관']
+            prsn=df_leverage.loc[df_leverage.index[-1],'개인']+df_kodex.loc[df_kodex.index[-1],'개인']+df_invers.loc[df_invers.index[-1],'개인']+df_2x.loc[df_2x.index[-1],'개인']
+            frgn=df_leverage.loc[df_leverage.index[-1],'외국인']+df_kodex.loc[df_kodex.index[-1],'외국인']+df_invers.loc[df_invers.index[-1],'외국인']+df_2x.loc[df_2x.index[-1],'외국인']
+            caption = f"지수 ETF 총 합 = 외국인: {frgn}억, 기관: {orgn}억, 개인: {prsn}억"
+
+        else:
+
+            caption = f"ETF\n🕐 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        # 5. 텔레그램 전송
+        files = {'photo': open(filename, 'rb')}
+        data = {
+            'chat_id': self.chat_id,
+            'caption': caption
+        }
+        response = requests.post(self.telegram_url, data=data, files=files)
+        if response.status_code == 200:
+            print(f"✅ 거래대금 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            print(f"❌ 거래대금 텔레그램 전송 실패: {response.status_code} - {response.text}")
+
+
+
+
 
 
 def main():
     # 텔레그램 봇 설정
     BOT_TOKEN = "1883109215:AAHM6-d42-oNmdDO6vmT3SWxB0ICH_od86M"  # 여기에 봇 토큰을 입력하세요
-    # CHAT_ID = "1644533124"  # 여기에 채팅 ID를 입력하세요 (bot 채팅)
-    CHAT_ID = "-1002919914781"  # 여기에 채팅 ID를 입력하세요 (텔레그램 채널)
+    CHAT_ID = "1644533124"  # 여기에 채팅 ID를 입력하세요 (bot 채팅)
+    # CHAT_ID = "-1002919914781"  # 여기에 채팅 ID를 입력하세요 (텔레그램 채널)
     # api = 'PS03yEfsiLWpVOZFyv1IoLiprgXvpHcQQMCb'
     # secrets = 'MBLgiwO7TG3JKPTYpqLylhiWen8KGtHN2jmxr+VjkM4c9tTb9Dxt0KlRkMoVBDhu4D2QeGsnMa4kPU0t2V1q9c5YjAaEOLTMp9T15cHsaqg8Y4jdN2uDm5+JMFGFzhOplG8Ftm/DAtPkz/xu6rT49/YGzrXcxNyB/gA0DPw9zJ5pt8ZqYFk='
     # acc = '63761517-01'
-
 
     # ex = KIS.KoreaInvestment(api_key=api,secret_key=secrets,acc_no=acc,market='국내선옵',mock=False)
     ex = KIS.KoreaInvestment(market='국내선옵',mock=False)
     # pprint(ex.investor_trend_stock("005930"))
     # pprint(ex.investor_trend_estimate("005930"))
     ticker_future=ex.display_fut().index[0]
-    df_call,df_put,cond,past_day,ex_day = ex.display_opt_weekly(datetime.datetime.now())
+
+    df_call, df_put, cond, past_day, ex_day = ex.display_opt_weekly(datetime.datetime.now())
 
     # 봇 인스턴스 생성 (images 폴더에 저장)
     bot = ScreenCaptureBot(BOT_TOKEN, CHAT_ID,ex,cond,ticker_future, save_folder="images")
     df_kospi,li_kospi = bot.fetch_kospi_200_list()
-
-
-    # 현재 화면 크기 확인
-    screen_width, screen_height = bot.get_screen_size()
-
-    print(f"현재 화면 크기: {screen_width} x {screen_height}")
+    li_kospi = stock.get_index_portfolio_deposit_file("1028")
+    # screen_width, screen_height = bot.get_screen_size()
+    # print(f"현재 화면 크기: {screen_width} x {screen_height}")
+    bot.capture_and_send()
+    quit()
+    # 해당 행사가를 가진 행만 추출
 
     # 기존 저장된 이미지 개수 확인
-    saved_count = bot.get_saved_images_count()
-    print(f"현재 저장된 이미지 개수: {saved_count}개")
+    # saved_count = bot.get_saved_images_count()
+    # print(f"현재 저장된 이미지 개수: {saved_count}개")
 
     # 캡처 영역 설정 (예시: 화면 전체의 왼쪽 절반)
     x1=0
@@ -655,11 +923,12 @@ def main():
                 time.sleep(600)
 
                 bot.save_data()
-                final_count = bot.get_saved_images_count()
-                print(f"📁 총 {final_count}개의 이미지가 저장되어 있습니다.")
+                # final_count = bot.get_saved_images_count()
+                # print(f"📁 총 {final_count}개의 이미지가 저장되어 있습니다.")
                 bot.capture_and_send()
                 bot.send_to_df_chart()
                 bot.sorting_kospi200_list(li_kospi, df_kospi)
+                bot.etf_trending()
 
                 print('윈도우 종료')
                 os.system("shutdown /s /t 0")  # 윈도우 죵료

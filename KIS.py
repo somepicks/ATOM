@@ -700,7 +700,7 @@ class KoreaInvestment:
         resp = requests.get(url, headers=headers, params=params)
         return resp.json()
 
-    def fetch_1m_ohlcv(self , symbol: str,  limit: int, ohlcv:list, now_day:str, now_time:str):
+    def fetch_1m_ohlcv(self , symbol: str,  limit: int, ohlcv:list, now_day:str, now_time:str,night:bool):
         # now_day = datetime.datetime.now().date().strftime("%Y%m%d")
         # now_time = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
         print(f"{self.market =}")
@@ -1024,8 +1024,9 @@ class KoreaInvestment:
             # expiry_date = expiry_date.strftime("%Y%m%d")
             past_month = today - relativedelta(months=1)
             past_date = self.nth_weekday(past_month, 2, 3)
-
             expiry_month = today.strftime("%Y%m")
+        past_date = past_date.date()
+        expiry_date = expiry_date.date()
         i = 0
         while True:
             params = {

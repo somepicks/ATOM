@@ -549,6 +549,7 @@ class Window(QMainWindow):
             self.df_tickers = pd.DataFrame()
         else:
             stg_file = ''
+            return
 
         self.QCB_chart_bong_detail.setCurrentText('1분봉')
         self.QCB_chart_bong_detail.setEnabled(False)
