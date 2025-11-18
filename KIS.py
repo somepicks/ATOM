@@ -640,7 +640,7 @@ class KoreaInvestment:
                    "tr_id": "FHMIF10000000"
                 }
                 params = {
-                    "fid_cond_mrkt_div_code": market_code,
+                    "fid_cond_mrkt_div_code": market_code, #F: 지수선물, O:지수옵션,JF: 주식선물, JO:주식옵션,CF: 상품선물(금), 금리선물(국채), 통화선물(달러),CM: 야간선물, EU: 야간옵션
                     "fid_input_iscd": symbol
                 }
                 resp = requests.get(url, headers=headers, params=params)

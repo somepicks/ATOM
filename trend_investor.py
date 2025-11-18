@@ -447,15 +447,17 @@ class ScreenCaptureBot():
         ################################### 옵션 현재가
 
         df_call_week, df_put_week, cond, past_day, ex_day = self.ex.display_opt_weekly(datetime.datetime.now())
-        d = (ex_day-datetime.datetime.now().date()).days
+        # d = (ex_day-datetime.datetime.now().date()).days
+        df = self.ex.display_fut()
+        ticker_fut = df.index[0]
+        output = self.ex.fetch_domestic_price(market_code="F", symbol=ticker_fut)
         txt=f'위클리 옵션 만기일:{ex_day} [-{(ex_day-datetime.datetime.now().date()).days} 일]'
         self.get_option(df_call_week, df_put_week,txt)
         df_call, df_put, past_date, expiry_date = self.ex.display_opt(datetime.datetime.now())
-        txt=f'본옵션 만기일:{expiry_date} [-{(expiry_date-datetime.datetime.now().date()).days} 일]'
-        self.get_option(df_call, df_put,txt)
+        txt=f"본옵션 만기일:{expiry_date} [-{(expiry_date-datetime.datetime.now().date()).days} 일] 베이시스: {output['베이시스']} 이론가: {['이론가']}"
+        self.get_option(df_call, df_put,txt,output['현재가'])
 
-        print(cond)
-    def get_option(self,df_call, df_put,caption):
+    def get_option(self,df_call, df_put,caption,fut_price):
         df_call = self.ex.convert_column_types(df_call)
         df_put = self.ex.convert_column_types(df_put)
         df_call_chuchul = df_call[(df_call['현재가'] > 0.3) & (df_call['현재가'] < 5)]
@@ -474,6 +476,12 @@ class ScreenCaptureBot():
                       inplace=True)
         merged_df = pd.merge(df_call, df_put, left_index=True, right_index=True, how='inner')
         merged_df['양합'] = merged_df['콜_현재가'] + merged_df['풋_현재가']
+        # 새로운 행 생성
+        new_row = pd.DataFrame(index=['현재가'],columns=['행사가'],data=fut_price)
+        merged_df = pd.concat([merged_df, new_row], ignore_index=False)
+        merged_df = merged_df.sort_values(by='행사가')
+        # merged_df.fillna(0, inplace=True)
+
         # merged_df = merged_df[['콜_거래량','콜_현재가','행사가','양합','풋_현재가','풋_거래량']]
         current_col_red = merged_df.columns[1]
         current_col_blue = merged_df.columns[3]
@@ -515,10 +523,7 @@ class ScreenCaptureBot():
             'caption': caption
         }
         response = requests.post(self.telegram_url, data=data, files=files)
-        if response.status_code == 200:
-            print(f"✅ 거래대금 텔레그램 전송 성공: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        else:
-            print(f"❌ 거래대금 텔레그램 전송 실패: {response.status_code} - {response.text}")
+
 
         # df_call, df_put, past_date, expiry_date = ex.display_opt(datetime.datetime.today())
 
@@ -864,6 +869,10 @@ def main():
 
     # ex = KIS.KoreaInvestment(api_key=api,secret_key=secrets,acc_no=acc,market='국내선옵',mock=False)
     ex = KIS.KoreaInvestment(market='국내선옵',mock=False)
+    # df = ex.display_fut()
+    # ticker_fut = df.index[0]
+    # output = ex.fetch_domestic_price(market_code="F",symbol=ticker_fut)
+
     # pprint(ex.investor_trend_stock("005930"))
     # pprint(ex.investor_trend_estimate("005930"))
     ticker_future=ex.display_fut().index[0]
@@ -876,8 +885,6 @@ def main():
     li_kospi = stock.get_index_portfolio_deposit_file("1028")
     # screen_width, screen_height = bot.get_screen_size()
     # print(f"현재 화면 크기: {screen_width} x {screen_height}")
-    bot.capture_and_send()
-    quit()
     # 해당 행사가를 가진 행만 추출
 
     # 기존 저장된 이미지 개수 확인
@@ -897,6 +904,7 @@ def main():
     # bot.capture_and_send()
     # quit()
     ####################################
+    bot.sorting_kospi200_list(li_kospi, df_kospi)
 
     # schedule.every(15).minutes.do(bot.capture_and_send)
     while True:
@@ -905,25 +913,26 @@ def main():
             break
         time.sleep(1)
     schedule.every(1).minutes.do(bot.trend_time)
+    schedule.every(15).minutes.do(bot.capture_and_send)
 
     bot.send_to_df_chart()
     # 스케줄러 실행
-    capture_signal = False
+    # capture_signal = False
     try:
         while True:
             # 현재 시간 확인
             now = datetime.datetime.now()
-            if now.hour == 9 and now.minute >= 45:
-                if capture_signal == False:
-                    schedule.every(15).minutes.do(bot.capture_and_send)
-                    capture_signal = True
+            # if now.hour == 9 and now.minute >= 45:
+            #     if capture_signal == False:
+            #         capture_signal = True
             # 오후 3시 30분 체크 (15:30)
-            if now.hour == 15 and now.minute >= 45:
+            if now.hour >= 15 and now.minute >= 45:
                 print(f"\n🕐 오후 3시 45분넘어 프로그램을 종료합니다.")
                 time.sleep(600)
 
                 bot.save_data()
                 # final_count = bot.get_saved_images_count()
+
                 # print(f"📁 총 {final_count}개의 이미지가 저장되어 있습니다.")
                 bot.capture_and_send()
                 bot.send_to_df_chart()
