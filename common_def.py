@@ -341,7 +341,6 @@ class common(QObject):
     df_real_chart = pyqtSignal(pd.DataFrame)
     def __init__(self, market,dict_option):
         super().__init__()
-
         self.market = market
         self.dict_option = dict_option
         self.dict_bong_int_reverse = {1:'1분봉' , 3:'3분봉', 5:'5분봉' , 15:'15분봉' ,30 :'30분봉' ,

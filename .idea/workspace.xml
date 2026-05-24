@@ -5,15 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
-      <change beforePath="$PROJECT_DIR$/.idea/ATOM.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ATOM.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ATOM_websocket.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ATOM_backtest_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_backtest_numpy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ATOM_chart.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_chart.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ATOM_chart_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_chart_numpy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CYBOS_DB.py" beforeDir="false" afterPath="$PROJECT_DIR$/CYBOS_DB.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/DB_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/DB_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_futopt.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/DB_stock.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_stock.db" afterDir="false" />
@@ -24,24 +17,8 @@
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_stock.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_stock.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/strategy.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/strategy.db" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TA_Lib-0.4.28-cp311-cp311-win_amd64.whl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/VSA.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/bybit_funding_fee.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/chart_real.py" beforeDir="false" afterPath="$PROJECT_DIR$/chart_real.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex_equals.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_equals.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex_get_df.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_get_df.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex_pyqt.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_pyqt.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex_websocket.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_websocket.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/get_df.py" beforeDir="false" afterPath="$PROJECT_DIR$/get_df.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_chart_table.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_chart_table.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/timesync.py" beforeDir="false" afterPath="$PROJECT_DIR$/timesync.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trend_investor.py" beforeDir="false" afterPath="$PROJECT_DIR$/trend_investor.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -615,7 +592,15 @@
       <option name="project" value="LOCAL" />
       <updated>1763470750013</updated>
     </task>
-    <option name="localTasksCounter" value="45" />
+    <task id="LOCAL-00045" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1779591422447</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1779591422447</updated>
+    </task>
+    <option name="localTasksCounter" value="46" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
