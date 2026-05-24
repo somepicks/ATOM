@@ -27,7 +27,7 @@ import numpy as np
 from PyQt5 import QtTest
 from PyQt5.QtTest import *
 from dateutil.relativedelta import relativedelta
-from pykrx import stock
+# from pykrx import stock
 
 import common_def
 
@@ -37,72 +37,6 @@ pd.set_option('display.width',1500)
 pd.set_option("display.unicode.east_asian_width", True) #고정폭 폰트로 교정
 # pd.set_option('display.max_rows', None)  # 출력 옵션 설정: 모든 열의 데이터 유형을 출력
 pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
-EXCHANGE_CODE = {
-    "홍콩": "HKS",
-    "뉴욕": "NYS",
-    "나스닥": "NAS",
-    "아멕스": "AMS",
-    "도쿄": "TSE",
-    "상해": "SHS",
-    "심천": "SZS",
-    "상해지수": "SHI",
-    "심천지수": "SZI",
-    "호치민": "HSX",
-    "하노이": "HNX"
-}
-
-# 해외주식 주문
-# 해외주식 잔고
-EXCHANGE_CODE2 = {
-    "미국전체": "NASD",
-    "나스닥": "NAS",
-    "뉴욕": "NYSE",
-    "아멕스": "AMEX",
-    "홍콩": "SEHK",
-    "상해": "SHAA",
-    "심천": "SZAA",
-    "도쿄": "TKSE",
-    "하노이": "HASE",
-    "호치민": "VNSE"
-}
-
-EXCHANGE_CODE3 = {
-    "나스닥": "NASD",
-    "뉴욕": "NYSE",
-    "아멕스": "AMEX",
-    "홍콩": "SEHK",
-    "상해": "SHAA",
-    "심천": "SZAA",
-    "도쿄": "TKSE",
-    "하노이": "HASE",
-    "호치민": "VNSE"
-}
-
-EXCHANGE_CODE4 = {
-    "나스닥": "NAS",
-    "뉴욕": "NYS",
-    "아멕스": "AMS",
-    "홍콩": "HKS",
-    "상해": "SHS",
-    "심천": "SZS",
-    "도쿄": "TSE",
-    "하노이": "HNX",
-    "호치민": "HSX",
-    "상해지수": "SHI",
-    "심천지수": "SZI"
-}
-
-CURRENCY_CODE = {
-    "나스닥": "USD",
-    "뉴욕": "USD",
-    "아멕스": "USD",
-    "홍콩": "HKD",
-    "상해": "CNY",
-    "심천": "CNY",
-    "도쿄": "JPY",
-    "하노이": "VND",
-    "호치민": "VND"
-}
 
 execution_items = [
     "유가증권단축종목코드", "주식체결시간", "주식현재가", "전일대비부호", "전일대비",
@@ -118,65 +52,13 @@ execution_items = [
 ]
 
 orderbook_items = [
-    "유가증권 단축 종목코드",
-    "영업시간",
-    "시간구분코드",
-    "매도호가01",
-    "매도호가02",
-    "매도호가03",
-    "매도호가04",
-    "매도호가05",
-    "매도호가06",
-    "매도호가07",
-    "매도호가08",
-    "매도호가09",
-    "매도호가10",
-    "매수호가01",
-    "매수호가02",
-    "매수호가03",
-    "매수호가04",
-    "매수호가05",
-    "매수호가06",
-    "매수호가07",
-    "매수호가08",
-    "매수호가09",
-    "매수호가10",
-    "매도호가잔량01",
-    "매도호가잔량02",
-    "매도호가잔량03",
-    "매도호가잔량04",
-    "매도호가잔량05",
-    "매도호가잔량06",
-    "매도호가잔량07",
-    "매도호가잔량08",
-    "매도호가잔량09",
-    "매도호가잔량10",
-    "매수호가잔량01",
-    "매수호가잔량02",
-    "매수호가잔량03",
-    "매수호가잔량04",
-    "매수호가잔량05",
-    "매수호가잔량06",
-    "매수호가잔량07",
-    "매수호가잔량08",
-    "매수호가잔량09",
-    "매수호가잔량10",
-    "총매도호가 잔량", # 43
-    "총매수호가 잔량",
-    "시간외 총매도호가 잔량",
-    "시간외 총매수호가 증감",
-    "예상 체결가",
-    "예상 체결량",
-    "예상 거래량",
-    "예상체결 대비",
-    "부호",
-    "예상체결 전일대비율",
-    "누적거래량",
-    "총매도호가 잔량 증감",
-    "총매수호가 잔량 증감",
-    "시간외 총매도호가 잔량",
-    "시간외 총매수호가 증감",
-    "주식매매 구분코드"
+    "유가증권 단축 종목코드",    "영업시간",    "시간구분코드",
+    "매도호가01",    "매도호가02",    "매도호가03",    "매도호가04",    "매도호가05",    "매도호가06",    "매도호가07",    "매도호가08",    "매도호가09",    "매도호가10",
+    "매수호가01",    "매수호가02",    "매수호가03",    "매수호가04",    "매수호가05",    "매수호가06",    "매수호가07",    "매수호가08",    "매수호가09",    "매수호가10",
+    "매도호가잔량01",    "매도호가잔량02",    "매도호가잔량03",    "매도호가잔량04",    "매도호가잔량05",    "매도호가잔량06",    "매도호가잔량07",    "매도호가잔량08",    "매도호가잔량09",    "매도호가잔량10",
+    "매수호가잔량01",    "매수호가잔량02",    "매수호가잔량03",    "매수호가잔량04",    "매수호가잔량05",    "매수호가잔량06",    "매수호가잔량07",    "매수호가잔량08",    "매수호가잔량09",    "매수호가잔량10",
+    "총매도호가 잔량",    "총매수호가 잔량",    "시간외 총매도호가 잔량",    "시간외 총매수호가 증감",    "예상 체결가",    "예상 체결량",    "예상 거래량",    "예상체결 대비",    "부호",    "예상체결 전일대비율",
+    "누적거래량",    "총매도호가 잔량 증감",    "총매수호가 잔량 증감",    "시간외 총매도호가 잔량",    "시간외 총매수호가 증감",    "주식매매 구분코드"
 ]
 
 notice_items = [
@@ -190,8 +72,8 @@ notice_items = [
 class KoreaInvestmentWS(Process):
     """WebSocket
     """
-    def __init__(self, api_key: str, secret_key: str, tr_id_list: list,
-                 tr_key_list: list, country:str,mock:bool,user_id: str = None):
+    def __init__(self, api_key: str='', secret_key: str='', tr_id_list: list='',
+                 tr_key_list: list='', country:str='',mock:bool=False, user_id: str = None):
         super().__init__()
         self.api_key = api_key
         self.secret_key = secret_key
@@ -203,7 +85,7 @@ class KoreaInvestmentWS(Process):
         self.aes_key = None
         self.aes_iv = None
         self.queue = Queue()
-        self.base_url = "https://openapi.koreainvestment.com:9443"
+
 
     def run(self):
         """_summary_
@@ -248,7 +130,6 @@ class KoreaInvestmentWS(Process):
                     }
                 }
             }
-
             # 주식체결, 주식호가 등록
             for tr_id in self.tr_id_list:
                 for tr_key in self.tr_key_list:
@@ -298,8 +179,9 @@ class KoreaInvestmentWS(Process):
         body = {"grant_type": "client_credentials",
                 "appkey": self.api_key,
                 "secretkey": self.secret_key}
+        base_url = "https://openapi.koreainvestment.com:9443"
         PATH = "oauth2/Approval"
-        URL = f"{self.base_url}/{PATH}"
+        URL = f"{base_url}/{PATH}"
         res = requests.post(URL, headers=headers, data=json.dumps(body))
         return res.json()["approval_key"]
 
@@ -357,70 +239,107 @@ class KoreaInvestmentWS(Process):
 
 
 class KoreaInvestment:
-    def __init__(self,  market: str, api_key: str ='', secret_key: str='', acc_no: str='', mock: bool = True):
-        print(f"{market=}")
+    def __init__(self,  market: str, api_key: str ='', secret_key: str='', acc_no: str='', mock: bool = False, only_short:bool=False):
         self.mock = mock
+        self.market = market
         self.set_base_url()
         self.api_key = api_key
         self.secret_key = secret_key
-        self.token_name = "DB/token.dat"
-        self.acc_no = acc_no
-        if '-' in acc_no:
-            self.acc_no_prefix = acc_no.split('-')[0]
-            self.acc_no_postfix = acc_no.split('-')[1]
-        elif len(acc_no) == 8:
-            self.acc_no_prefix = acc_no[:6]
-            self.acc_no_postfix = acc_no[-2:]
+        self.only_short = only_short
+        self.acc_no_prefix = acc_no[:8]
+        self.token_file = "DB/token.dat"
         self.exchange = '해외' if market.startswith('해외') else '국내'
         self.market = '주식' if market.endswith('주식') else '선옵'
-
+        self.acc_no_postfix = '03' if market.endswith('선옵') else '01'
+        trade = '모의' if mock else '실전'
         self.access_token = None
-        if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
-            self.load_access_token()
+        if market == 'test': #테스트모드
+            print('test 모드')
+            pass
         else:
-            self.issue_access_token()
-
-
+            # print(f"{self.exchange}_{self.market}_{trade}")
+            if self.check_access_token(): #기존에 생성한 토큰이 있는지 확인
+                self.load_access_token()
+            else:
+                output = self.issue_access_token()
+                # pprint(output)
+                # if not output == None:
+                data = output.get('error_description')
+                if not data == None:
+                    if output['error_description'].startswith('접근토큰 발급 잠시 후 다시 시도'):
+                        QTest.qWait(10000)
+                        output = self.issue_access_token()
+                    else:
+                        print(f"토큰 발행 에러: {output}")
     def check_access_token(self):
         try:
-            f = open(self.token_name, "rb")
+            print('===============================')
+            print('check_access_token')
+            f = open(self.token_file, "rb")
             data = pickle.load(f)
+            pprint(data)
             f.close()
-            dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전"
+            if self.only_short:
+                if self.mock:
+                    dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의_매도"
+                else:
+                    dic_txt = f"한국투자증권_{self.exchange}_{self.market}_실전_매도"
+            else:
+                if self.mock:
+                    dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의"
+                else:
+                    dic_txt = f"한국투자증권_{self.exchange}_{self.market}_실전"
             if dic_txt in data.keys():
                 data = data[dic_txt]
-                expire_epoch = data['access_token_token_expired']
-                if datetime.datetime.strptime(expire_epoch,"%Y-%m-%d %H:%M:%S")-datetime.datetime.now() < datetime.timedelta(hours=12):
+                expire_epoch = data.get('access_token_token_expired')
+                if expire_epoch == None:
+                    return False
+                # 토큰이 12시간동안 유효한지 확인
+                elif datetime.datetime.strptime(expire_epoch,"%Y-%m-%d %H:%M:%S")-datetime.datetime.now() < datetime.timedelta(hours=12):
                     status = False  # 토큰 신규 발급
                     self.api_key = data['api']
                     self.secret_key = data['secret']
-                    self.acc_no_prefix = data['acc_prefix']
-                    self.acc_no_postfix = data['acc_postfix']
+                    self.acc_no_prefix = data['acc_no']
+                    self.user_id = data['user_id']
                 else:
                     status = True
             else:
                 status = False
             return status
-        except IOError:
+        except IOError as e:
+            print(f"check_access_token: {e}")
             return False
 
     def load_access_token(self):
         print('토큰 조회')
-        with open(self.token_name, "rb") as f:
-            dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전"
+        with open(self.token_file, "rb") as f:
+            if self.only_short:
+                dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의_매도" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전_매도"
+            else:
+                dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전"
             data = pickle.load(f)
             data = data[dic_txt]
             self.access_token = f'Bearer {data["access_token"]}'
             self.api_key = data['api']
             self.secret_key = data['secret']
-            self.acc_no_prefix = data['acc_prefix']
-            self.acc_no_postfix = data['acc_postfix']
+            self.acc_no_prefix = data['acc_no']
+            self.user_id = data['user_id']
+
 
     def issue_access_token(self):
-        # if self.api_key == 'test':# print(' KIS 테스트모드')
-        #     pass
-        # else:
-        print('토큰 발행')
+        print('토큰 새로 발행')
+        if self.only_short:
+            dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의_매도" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전_매도"
+        else:
+            dic_txt = f"한국투자증권_{self.exchange}_{self.market}_모의" if self.mock else f"한국투자증권_{self.exchange}_{self.market}_실전"
+        # if os.path.isfile(self.token_file):  # 파일이 있으면
+        f = open(self.token_file, "rb")
+        data = pickle.load(f)
+        api_data = data.get(dic_txt)
+        self.api_key = api_data['api']
+        self.secret_key = api_data['secret']
+        self.user_id = api_data['user_id']
+        self.acc_no_prefix = api_data['acc_no'][:8]
         path = "oauth2/tokenP"
         url = f"{self.base_url}/{path}"
         headers = {"content-type": "application/json"}
@@ -431,33 +350,36 @@ class KoreaInvestment:
         }
         resp = requests.post(url, headers=headers, data=json.dumps(params))
         output = resp.json()
-        try:
+        if output.get('접근토큰 발급 잠시 후 다시 시도하세요(1분당 1회)'):
+            time.sleep(60)
+            resp = requests.post(url, headers=headers, data=json.dumps(params))
+            output = resp.json()
+        data_err = output.get('error_description')
+        if data_err == None:
             self.access_token = f'Bearer {output["access_token"]}'
-            # now = datetime.datetime.now()
-            # output['timestamp'] = int(now.timestamp()) + output["expires_in"]
-            output['api'] = self.api_key
-            output['secret'] = self.secret_key
-            output['acc_prefix'] = self.acc_no_prefix
-            output['acc_postfix'] = self.acc_no_postfix
-
-
-            if os.path.isfile(self.token_name):  # 파일이 있으면
-                f = open(self.token_name, "rb")
-                data = pickle.load(f)
+        else:
+            print(f"issue_access_token 에러 {output}")
+            print(f"{self.api_key= }")
+            print(f"{self.secret_key= }")
+            self.access_token = None
+            return output
+        output['api'] = self.api_key
+        output['secret'] = self.secret_key
+        output['acc_no'] = self.acc_no_prefix
+        output['user_id'] = self.user_id
+        # output['acc_postfix'] = self.acc_no_postfix
+        print('==========================')
+        with open(self.token_file, "wb") as f:
+            if self.mock:
+                data[f"한국투자증권_{self.exchange}_{self.market}_모의"]=output
             else:
-                data ={}
-            with open(self.token_name, "wb") as f:
-                if self.mock:
-                    data[f"한국투자증권_{self.exchange}_{self.market}_모의"]=output
+                if '한국투자증권_국내_선옵' in data.keys():
+                    data[f"한국투자증권_{self.exchange}_{self.market}_실전_매도"]=output
                 else:
                     data[f"한국투자증권_{self.exchange}_{self.market}_실전"]=output
-                pickle.dump(data, f)
+            pickle.dump(data, f)
 
-        except Exception as e:
-            print(f"issue_access_token - API 오류 발생: {e}")
-            print(f"{data= }")
-            return
-
+        return output
     def set_base_url(self):
         if self.mock:
             self.base_url = "https://openapivts.koreainvestment.com:29443"
@@ -486,14 +408,18 @@ class KoreaInvestment:
         res = requests.get(url, headers=headers, params=params)
         return res.json()
 
-    def check_holiday_domestic_stock(self,nowday:datetime,expiry_date:datetime=''): # 'YYYYMMDD'
+    def check_holiday_domestic_stock(self,expiry_dt=datetime.datetime.now()): # 'YYYYMMDD'
         """국내주식 업종/기타/국내휴장일조회[국내주식-040] """
         output = []
         path = "uapi/domestic-stock/v1/quotations/chk-holiday"
+        nowday = datetime.datetime.now()
+        nowday = nowday - datetime.timedelta(days=1) #어제
+        if not expiry_dt:
+            expiry_dt = datetime.datetime.strptime(nowday,'%Y%m%d')+datetime.timedelta(days=100)
+            # expiry_date = expiry_dt.strftime('%Y%m%d')
+        # else:
+        #     expiry_date = expiry_dt.strftime('%Y%m%d')
         nowday = nowday.strftime('%Y%m%d')
-        if expiry_date == '':
-            expiry_date = datetime.datetime.strptime(nowday,'%Y%m%d')+datetime.timedelta(days=1)
-        expiry_date = expiry_date.strftime('%Y%m%d')
         while True:
             params = {
                 "BASS_DT": nowday,
@@ -501,10 +427,11 @@ class KoreaInvestment:
                 "CTX_AREA_FK": ''
             }
             resp = self.inquiry_TR_get(path=path, tr_id="CTCA0903R", params=params)
-            if resp['msg1'] == '조회가 계속됩니다..다음버튼을 Click 하십시오.                                   ':
+            if resp['msg1'].startswith('조회가 계속됩니다..다음버튼을 Click 하십시오'):
                 output.extend(resp['output'])
                 df = pd.DataFrame(output)
-                if expiry_date in df['bass_dt'].tolist():
+
+                if expiry_dt.strftime('%Y%m%d') in df['bass_dt'].tolist():
                     df.rename(
                         columns={'bass_dt':'날짜','wday_dvsn_cd': '요일', 'bzdy_yn': '금융기관업무일', 'tr_day_yn': '입출금가능일',
                                  'opnd_yn': '개장일', 'sttl_day_yn': '지불일'}, inplace=True)
@@ -514,8 +441,11 @@ class KoreaInvestment:
                     nowday = df['bass_dt'].tolist()[-1]
                     del output[-1]
                     QTest.qWait(800)
-            elif resp['msg1'] == '모의투자 TR 이 아닙니다.':
-                print(f"API 확인 필요: {resp}")
+            elif resp['msg1'].startswith('모의투자 TR'):
+                print(f"API 확인 필요 실전 API만 가능 : {resp}")
+                raise
+            elif resp['msg1'].startswith('ERROR INVALID INPUT_FILED_SIZE'):
+                print(f"[check_holiday_domestic_stock] - ERROR INVALID INPUT_FILED_SIZE: {resp['msg1']= } : {expiry_dt=} {nowday=}")
                 raise
             else:
                 pprint(resp)
@@ -545,12 +475,6 @@ class KoreaInvestment:
                 else:
                     next_search = 'N'
     def issue_hashkey(self, data: dict):
-        """해쉬키 발급
-        Args:
-            data (dict): POST 요청 데이터
-        Returns:
-            _type_: _description_
-        """
         path = "uapi/hashkey"
         url = f"{self.base_url}/{path}"
         headers = {
@@ -563,25 +487,31 @@ class KoreaInvestment:
         haskkey = resp.json()["HASH"]
         return haskkey
 
-    def fetch_price(self, symbol: str or dict) -> dict:
+    def fetch_price(self, symbol: str , night:bool = False) -> dict:
+        print("fetch_price")
+        print(self.exchange)
         if self.exchange == "국내":
             if self.market == '주식':
                 return self.fetch_domestic_price("J", symbol)
             elif self.market == '선옵':
-                trade_market = '선물' if symbol[:1] == '1' else '콜옵션' if symbol[:1] == '2' else '풋옵션' if symbol[:1] == '3' else '스프레드'
+                trade_market = '선물' if symbol[:1] == 'A' else '콜옵션' if symbol[:1] == 'B' else '풋옵션' if symbol[:1] == 'C' else '스프레드'
                 if trade_market == '선물':
-                    return self.fetch_domestic_price("F", symbol)
+                    if night:
+                        return self.fetch_domestic_price("CM", symbol)
+                    else:
+                        return self.fetch_domestic_price("F", symbol)
                 elif trade_market[1:] == '옵션':
-                    return self.fetch_domestic_price("O", symbol)
+                    if night:
+                        return self.fetch_domestic_price("O", symbol)
+                    else:
+                        return self.fetch_domestic_price("EU", symbol)
+                else:
+                    raise
+            else:
+                print('fetch_price 확인필요')
         else:
             if self.market == '주식':
                 return self.fetch_oversea_price(symbol)
-            elif self.market == '선옵':
-                trade_market = '선물' if symbol[:1] == '1' else '콜옵션' if symbol[:1] == '2' else '풋옵션' if symbol[:1] == '3' else '스프레드'
-                if trade_market == '선물':
-                    return self.fetch_domestic_price("F", symbol)
-                elif trade_market[1:] == '옵션':
-                    return self.fetch_domestic_price("O", symbol)
 
     def fetch_domestic_price(self, market_code: str, symbol: str) -> dict:
         i = 0
@@ -653,8 +583,10 @@ class KoreaInvestment:
                         output['저가'] = output.pop('futs_lwpr')
                         output['거래량'] = output.pop('acml_vol')
                         output['거래대금'] = output.pop('acml_tr_pbmn')
-                        output['베이시스'] = output.pop('basis')
-                        output['이론가'] = output.pop('hts_thpr')
+                        if market_code == "F":
+                            output['베이시스'] = output.pop('basis')
+                            output['이론가'] = output.pop('hts_thpr')
+                        output['만기일'] = output.pop('futs_last_tr_date')
                     else:
                         output['현재가'] = 0
                         output['시가'] = 0
@@ -699,15 +631,208 @@ class KoreaInvestment:
         }
         resp = requests.get(url, headers=headers, params=params)
         return resp.json()
+    def fetch_1m_ohlcv_night(self , symbol: str, now_dt:datetime, from_dt:datetime,
+                             expiry_dt:datetime, past_expiry_dt:datetime, ohlcv:list):
+        # print(f"{symbol=}, {ohlcv=}, {from_dt=}, {now_day=}, {now_time=} {expiry_dt=}   {past_expiry_dt= }")
+        if ohlcv : #실시간일 경우, 실시간일 경우에는 from_dt가 필요 없음
+            # now_time = ohlcv[0]['stck_cntg_hour']
+            # now_day = ohlcv[0]['stck_bsop_date']
+            now_time = now_dt.strftime("%H%M%S")
+            now_day = now_dt.strftime("%Y%m%d")
+            if int(now_time) <= 60000:
+                hour = int(now_time) + 240000
+                now_time = f"{hour:06d}"  # 6자리로 만들되 6자리가 아닌건 앞을 0으로 채움
+                # print_day = datetime.datetime.strptime(now_day, '%Y%m%d')
+                print_day = now_dt - datetime.timedelta(days=1)
+                now_day = print_day.strftime("%Y%m%d")
+            # print(f"{now_day= }    {now_time= }")
+            output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time, day=now_day, fake_tick=False, night=True)  # to = 현재시간
+            # output[0] 이 최신
+            # output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
+            # output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
+            for i,data in enumerate(output):
+                if int(data['stck_cntg_hour'])>=240000:
+                    hour = int(data['stck_cntg_hour'])-240000
+                    output[i]['stck_cntg_hour'] = f"{hour:06d}"   # 6자리로 만들되 6자리가 아닌건 앞을 0으로 채움
+                    print_day = datetime.datetime.strptime(data['stck_bsop_date'],'%Y%m%d')
+                    print_day = print_day + datetime.timedelta(days=1)
+                    output[i]['stck_bsop_date'] = print_day.strftime("%Y%m%d")
+                if ohlcv[0]['stck_bsop_date']+ohlcv[0]['stck_cntg_hour'] == output[i]['stck_bsop_date']+output[i]['stck_cntg_hour']:
+                    del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                    output = output[:i+1]
+                    output.extend(ohlcv)
+                    ohlcv = output
+                    break
 
-    def fetch_1m_ohlcv(self , symbol: str,  limit: int, ohlcv:list, now_day:str, now_time:str,night:bool):
-        # now_day = datetime.datetime.now().date().strftime("%Y%m%d")
-        # now_time = datetime.datetime.now().strftime("%H%M") + "00"  # 마지막에 초는 00으로
-        print(f"{self.market =}")
+            # print('**************')
+            # print(ohlcv[0])
+            # print(ohlcv[-1])
+            # print('**************')
+            # print(output[0])
+            # print(output[-1])
+            # print('**************')
+        else:
+            now_day = now_dt.strftime("%Y%m%d")
+            now_time = now_dt.strftime("%H%M%S")
+            # print(f"최초생성 {now_time= }")
+            # print(f"{now_dt=}")
+            if (60000 < int(now_time)) and (int(now_time) < 180000): #아침 6시 이후부터 저녁6 시 이전에 조회 시에는 전날 데이터를 갖고옴
+                now_time = "300000"
+            else:
+                if int(now_time) < 180000: #자정 이후에 돌릴경우
+                    now_time = int(now_time)+240000
+                    now_day = datetime.datetime.strptime(now_day,"%Y%m%d").date()-datetime.timedelta(days=1)
+                    now_day = now_day.strftime("%Y%m%d")
+            while True:
+                # now_day = '2025-11-28'
+                # now_time = '194500'
+#                 print(f"{now_time=}   {now_day= } {symbol= }")
+                output = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day,expiry_date=expiry_dt, fake_tick=False,night=True)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
+#                 print(pd.DataFrame(output))
+                if output :  #거래량이 없는 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
+                    ohlcv.extend(output)
+                    # pprint(0ppppppppp )
+                    # df = pd.DataFrame(ohlcv)
+                    # with pd.option_context('display.max_columns', None,
+                    #                        'display.max_rows', None):
+                        # print(df)
+                    if now_time == '175900': # 8시 44분은 조회가 안되기 때문에 다음날로 넘어가야됨
+                        # 오래된 시간 추출
+                        now_day = ohlcv[-1]['stck_bsop_date']
+                        now_day = datetime.datetime.strptime(now_day, "%Y%m%d").date()
+                        now_day = now_day - datetime.timedelta(days=1)
+                        now_day = now_day.strftime("%Y%m%d")
+                        now_time = "055900"
+                    else:
+                        # print('=====================')
+                        # print(ohlcv[0])
+                        # print(ohlcv[-1])
+
+                        # 오래된 시간 추출
+                        far_day = ohlcv[-1]['stck_bsop_date']
+                        now_day = datetime.datetime.strptime(far_day, "%Y%m%d").date()
+                        far_time = ohlcv[-1]['stck_cntg_hour'].strip()
+                        hour = int(far_time[:2])
+                        total_minutes = hour * 60 + int(far_time[2:4])
+                        total_minutes_old = total_minutes-1 #1분 빼기
+                        new_hour = total_minutes_old // 60
+                        new_minute = total_minutes_old % 60
+                        now_time = f"{new_hour:02d}{new_minute:02d}{far_time[4:6]}"
+                        if hour >= 24:
+                            hour = hour-24
+                            far_day = now_day + datetime.timedelta(days=1)
+                        else:
+                            far_day = datetime.datetime.strptime(far_day, "%Y%m%d").date()
+
+                        # far_time = str(hour)+str(far_time[2:4])+str(far_time[4:6])
+                        far_time = f"{hour:02d}{far_time[2:4]}{far_time[4:6]}"
+                        far_time = datetime.datetime.strptime(far_time,"%H%M%S").time()
+                        far_dt = datetime.datetime.combine(far_day, far_time) #날짜+시간
+
+                        # 가장 최근 시간 추출
+                        recent_day = ohlcv[0]['stck_bsop_date']
+                        recent_day = datetime.datetime.strptime(recent_day, "%Y%m%d").date()
+                        recent_time = ohlcv[0]['stck_cntg_hour'].strip()
+                        hour = int(recent_time[:2])
+                        if hour >= 24:
+                            hour = hour-24
+                            recent_day = recent_day + datetime.timedelta(days=1)
+                        recent_time = str(hour)+str(recent_time[2:4])+str(recent_time[4:6])
+                        recent_time = datetime.datetime.strptime(recent_time,"%H%M%S").time()
+                        recent_dt = datetime.datetime.combine(recent_day, recent_time) #날짜+시간
+
+
+                        # 시간을 분 단위로 변환
+                        # 만약 0분 이전이면 전날로
+                        # if total_minutes < 0:
+                        #     dt = datetime.datetime.strptime(date, '%Y%m%d')
+                        #     dt = dt - datetime.timedelta(days=1)
+                        #     date = dt.strftime('%Y%m%d')
+                        #     total_minutes = 30 * 60 + 59  # 30시 59분
+                        # print(f"{symbol=}  {now_day} :  {recent_day}  -  {old_dt - datetime.timedelta(minutes=1)}   {from_dt}")
+                        # 다시 시간으로 변환
+                        # print(f"다음 조회시간: {now_day} | {now_time}")
+                        if from_dt > recent_dt:
+                            # print(f"1 {from_dt= }   {recent_dt= }")
+                            break
+                        elif from_dt > far_dt:
+#                             print(f"2 {from_dt= }   {far_dt= }")
+                            break
+                        elif far_dt < past_expiry_dt:
+                            # for data in reversed(ohlcv):
+                            #     if int(data['stck_cntg_hour']) > 240000:
+                            #         # date = str(int(data['stck_bsop_date'])+1)
+                            #         hour = int(data['stck_cntg_hour']) - 240000
+                            #         final_time = str(int(data['stck_bsop_date'])+1)+f"{hour:06d}"
+                            #     else:
+                            #         final_time = data['stck_bsop_date']+data['stck_cntg_hour']
+                            #     if datetime.datetime.strptime(final_time,"%Y%m%d%H%M%S") < past_expiry_dt:
+                            #         ohlcv.pop()
+                            #     else:
+                            #         break
+                            # break
+
+                            while ohlcv:
+                                data = ohlcv[-1]  # 가장 오래된 데이터
+                                if int(data['stck_cntg_hour']) > 240000:
+                                    hour = int(data['stck_cntg_hour']) - 240000
+                                    final_time = str(int(data['stck_bsop_date'])+1)+f"{hour:06d}"
+                                else:
+                                    final_time = data['stck_bsop_date']+data['stck_cntg_hour']
+                                if datetime.datetime.strptime(final_time,"%Y%m%d%H%M%S") < past_expiry_dt:
+                                    ohlcv.pop()
+                                else:
+                                    break
+                            break
+
+                        now_day = now_day.strftime("%Y%m%d")
+                        # print(f"{from_dt=}   {recent_dt}    {far_dt= }   \n{now_day= }   {past_expiry= }")
+                        # quit()
+                else:
+                    # print(f"{symbol= }   {now_time= }   {now_day= }    {now_time= }  {output= }")
+                    break
+                QTest.qWait(10)
+            for i,data in enumerate(ohlcv):
+                if int(data['stck_cntg_hour'])>=240000:
+                    hour = int(data['stck_cntg_hour'])-240000
+                    ohlcv[i]['stck_cntg_hour'] = f"{hour:06d}"   # 6자리로 만들되 6자리가 아닌건 앞을 0으로 채움
+                    print_day = datetime.datetime.strptime(data['stck_bsop_date'],'%Y%m%d')
+                    print_day = print_day + datetime.timedelta(days=1)
+                    ohlcv[i]['stck_bsop_date'] = print_day.strftime("%Y%m%d")
+            # print(ohlcv[0])
+            # print(ohlcv[-1])
+            # print(from_dt)
+            # print(ohlcv[-1]['stck_bsop_date']+ohlcv[-1]['stck_cntg_hour'])
+            # print(datetime.datetime.strptime(ohlcv[-1]['stck_bsop_date']+ohlcv[-1]['stck_cntg_hour'],"%Y%m%d%H%M%S"))
+            if ohlcv:
+                while from_dt >= datetime.datetime.strptime(ohlcv[-1]['stck_bsop_date']+ohlcv[-1]['stck_cntg_hour'],"%Y%m%d%H%M%S"):
+                    del_ohlcv = ohlcv.pop()
+                    if not ohlcv:
+                        print(f"확인 필요 !!!!!!!!!!!!!!!  남아있지 않음 {symbol=} ")
+                        break
+                    # print(datetime.datetime.strptime(del_ohlcv['stck_bsop_date']+del_ohlcv['stck_cntg_hour'],"%Y%m%d%H%M%S"))
+            else:
+                print(f"확인 필요 !!!!!!!!!!!!!!!   {symbol=} ")
+            # if not ohlcv: #데이터가 없을 경우 모든값 0으로
+            #     ohlcv = [{'acml_tr_pbmn': '0',
+            #               'cntg_vol': '0',
+            #               'futs_hgpr': '0',
+            #               'futs_lwpr': '0',
+            #               'futs_oprc': '0',
+            #               'futs_prpr': '0',
+            #               'stck_bsop_date': datetime.datetime.now().date().strftime("%Y%m%d"),
+            #               'stck_cntg_hour': datetime.datetime.now().strftime("%H%M") + "00"}]
+        return ohlcv
+    def fetch_1m_ohlcv(self , symbol:str, now_dt:datetime, from_dt:datetime, past_expiry_dt:datetime,
+                       ohlcv:list, expiry_dt:datetime):
+        now_day = now_dt.strftime("%Y%m%d")
+        now_time = now_dt.strftime("%H%M%S")
         if self.market == '주식':
             """당일 1분봉조회 (당일분봉만 제공됨)"""
+            if int(now_time) > 160000:
+                now_time = "160000"
             if ohlcv:
-                output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time)  # to = 현재시간
+                output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time,)  # to = 현재시간
                 output = [x for x in output if x['stck_bsop_date'] == now_day]
                 output = [x for x in output if int(x['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
                 del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
@@ -717,12 +842,8 @@ class KoreaInvestment:
                 while True:
                     output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time)  # to = 현재시간
                     ohlcv.extend(output)
-                    print("==============================================================")
-                    print(f"{now_time= }")
-                    print(output)
-                    print(ohlcv)
                     from_time = ohlcv[-1]['stck_cntg_hour'] # 가장 마지막 시간
-                    from_day = ohlcv[-1]['stck_bsop_date'] # 가장 마지막 날짜
+                    from_dt = ohlcv[-1]['stck_bsop_date'] # 가장 마지막 날짜
                     dt = datetime.datetime.strptime(from_time, "%H%M%S").time()
                     dt = datetime.datetime.combine(datetime.date.today(), dt)
                     dt = dt - datetime.timedelta(minutes=1)
@@ -739,31 +860,39 @@ class KoreaInvestment:
                         ohlcv = [x for x in output if x['stck_bsop_date'] == now_day]
                         print('time 다름')
                         break
-                    QTest.qWait(500)
+                    QTest.qWait(10)
             # ohlcv = self.make_ohlcv_1m(ohlcv)
             return ohlcv
         elif self.market == '선옵':
             if ohlcv : #실시간일 경우
-                output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time, fake_tick=True)  # to = 현재시간
-                output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
-                output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
-                del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                output.extend(ohlcv)
-                ohlcv = output
+                now_time = now_dt.strftime("%H%M%S")
+                now_day = now_dt.strftime("%Y%m%d")
+                output = self._fetch_1m_ohlcv(symbol=symbol, to=now_time,day=now_day, expiry_date=expiry_dt, fake_tick=False)  # to = 현재시간
+                # output = [item for item in output if int(item['stck_bsop_date']) >= int(ohlcv[0]['stck_bsop_date'])]
+                # output = [item for item in output if int(item['stck_cntg_hour']) >= int(ohlcv[0]['stck_cntg_hour'])]
+                # del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                for i,data in enumerate(output):
+                    if ohlcv[0]['stck_bsop_date'] + ohlcv[0]['stck_cntg_hour'] == output[i]['stck_bsop_date'] + \
+                            output[i]['stck_cntg_hour']:
+                        del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
+                        output = output[:i + 1]
+                        output.extend(ohlcv)
+                        ohlcv = output
+                        break
+                # output.extend(ohlcv)
+                # ohlcv = output
             else:
-                # print(f"최초생성 {now_time= }")
                 if (int(now_time) < 84500) or (153000 < int(now_time)):
                     now_time = "154500"
-                # now_day='20250210'
-                # now_time='012700'
-                print(f"{now_day= }")
+                # i = 0
                 while True:
-                    output = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day, fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
-                    print(output)
+                    # i += 1
+                    output = self._fetch_1m_ohlcv(symbol=symbol,to=now_time, day=now_day,fake_tick=False)  # to = 현재시간 / 허봉포함하면 과거내역 조회가 안됨
                     # output = [{'stck_bsop_date':x['stck_bsop_date'],"stck_cntg_hour":x['stck_cntg_hour']} for x in output]
-                    # print(output)
                     if output :  #체결이 안된 시간은 데이터를 제공하지 않기 때문에 -1분 을 to로 넣어서 조회하면 빈 리스트를 반환 하기 때문에 확인
                         ohlcv.extend(output)
+                        # if i ==1:
+                        #     break
                         if now_time == '084400': # 8시 44분은 조회가 안되기 때문에 다음날로 넘어가야됨
                             now_day = ohlcv[-1]['stck_bsop_date']
                             now_day = datetime.datetime.strptime(now_day, "%Y%m%d").date()
@@ -772,52 +901,91 @@ class KoreaInvestment:
                             now_time = "153400"
                         else:
                             now_day = ohlcv[-1]['stck_bsop_date']
+                            now_day = datetime.datetime.strptime(now_day, "%Y%m%d").date()
                             now_time = ohlcv[-1]['stck_cntg_hour']
                             dt = datetime.datetime.strptime(now_time, "%H%M%S").time()
-                            dt = datetime.datetime.combine(datetime.date.today(), dt)
-                            dt = dt - datetime.timedelta(minutes=1)
-                            now_time = dt.strftime("%H%M%S")
+                            old_dt = datetime.datetime.combine(now_day, dt) #날짜+시간
+                            # 가장 최근 시간 추출
+                            recent_day = ohlcv[0]['stck_bsop_date']
+                            recent_day = datetime.datetime.strptime(recent_day, "%Y%m%d").date()
+                            recent_time = ohlcv[0]['stck_cntg_hour']
+                            dt = datetime.datetime.strptime(recent_time, "%H%M%S").time()
+                            recent_dt = datetime.datetime.combine(recent_day, dt) #날짜+시간
+                            dt = old_dt - datetime.timedelta(minutes=1)
 
-                        list_bsop_dates = [item['stck_bsop_date'] for item in ohlcv]  # 딕셔너리의 날짜를 리스트로 변환
-                        if len(list(set(list_bsop_dates))) > limit:
-                            ohlcv = ohlcv[:list_bsop_dates.index(list_bsop_dates[-1])]
-                            break
+                            if from_dt >= recent_dt:
+                                # print(f"1 fetch_1m_ohlcv {from_dt=}    {recent_dt=}")
+                                break
+                            elif past_expiry_dt >= old_dt:
+#                                 print(f"2 fetch_1m_ohlcv {past_expiry_dt=}   {old_dt= }")
+                                while ohlcv:
+                                    data = ohlcv[-1]  # 가장 오래된 데이터
+                                    final_time = data['stck_bsop_date'] + data['stck_cntg_hour']
+                                    dt = datetime.datetime.strptime(final_time, "%Y%m%d%H%M%S")
+                                    if dt <= past_expiry_dt:
+                                        ohlcv.pop()
+                                    else:
+                                        break
+                                break
+                            elif from_dt >= old_dt:
+#                                 print(f"3 fetch_1m_ohlcv {from_dt=}   {old_dt= }")
+#                                 pprint(ohlcv)
+                                while ohlcv:
+                                    data = ohlcv[-1]  # 가장 오래된 데이터
+                                    final_time = data['stck_bsop_date'] + data['stck_cntg_hour']
+                                    dt = datetime.datetime.strptime(final_time, "%Y%m%d%H%M%S")
+                                    if dt <= from_dt:
+                                        ohlcv.pop()
+                                    else:
+                                        break
+                                break
+                            # elif far_dt < past_expiry:
+
+                            now_time = dt.strftime("%H%M%S")
+                            now_day = now_day.strftime("%Y%m%d")
+
+                        # list_bsop_dates = [item['stck_bsop_date'] for item in ohlcv]  # 딕셔너리의 날짜를 리스트로 변환
+                        # pprint(list_bsop_dates)
+                        # if len(list(set(list_bsop_dates))) > limit:
+                        #     ohlcv = ohlcv[:list_bsop_dates.index(list_bsop_dates[-1])]
+                        #     print(f"{len(list(set(list_bsop_dates)))=}")
+                        #     break
                     else:
-                        # print(f"{symbol= }   {now_time= }   {now_day= }    {now_time= }  {output= }")
+                        print(f"fetch_1m_ohlcv - else {symbol= }   {now_time= }   {now_day= }    {now_time= }")
                         break
-                    QTest.qWait(800)
+                    QTest.qWait(10)
                 now_day = ''
-                for i,data in enumerate(ohlcv):
-                    if now_day != data['stck_bsop_date']:
-                        now_day = data['stck_bsop_date']
-                    if i + 1 < len(ohlcv):
-                        if now_day == data['stck_bsop_date'] and now_day == ohlcv[i+1]['stck_bsop_date']:
-                            t1 = datetime.datetime.strptime(now_day+data['stck_cntg_hour'],'%Y%m%d%H%M%S')
-                            t2 = datetime.datetime.strptime(now_day+ohlcv[i+1]['stck_cntg_hour'],'%Y%m%d%H%M%S')
+                # 체결이 안될경우 앞전 값으로 대체 거래량은 0으로 앞전 값으로 대체하고자 하지 않을 경우 주석처리 할 것
+                # for i,data in enumerate(ohlcv):
+                #     if now_day != data['stck_bsop_date']:
+                #         now_day = data['stck_bsop_date']
+                #     if i + 1 < len(ohlcv):
+                #         if now_day == data['stck_bsop_date'] and now_day == ohlcv[i+1]['stck_bsop_date']:
+                            # t1 = datetime.datetime.strptime(now_day+data['stck_cntg_hour'],'%Y%m%d%H%M%S')
+                            # t2 = datetime.datetime.strptime(now_day+ohlcv[i+1]['stck_cntg_hour'],'%Y%m%d%H%M%S')
                             # t1 = data['stck_cntg_hour']
                             # t2 = ohlcv[i+1]['stck_cntg_hour']
-                            # 체결이 안될경우 앞전 값으로 대체 거래량은 0으로 앞전 값으로 대체하고자 하지 않을 경우 주석처리 할 것
-                            if t1-t2 != datetime.timedelta(minutes=1):
-                                ohlcv.insert(i+1, {'acml_tr_pbmn': '0',
-                                                 'cntg_vol': '0',
-                                                 'futs_hgpr': ohlcv[i+1]['futs_hgpr'],
-                                                 'futs_lwpr': ohlcv[i+1]['futs_lwpr'],
-                                                 'futs_oprc': ohlcv[i+1]['futs_oprc'],
-                                                 'futs_prpr': ohlcv[i+1]['futs_prpr'],
-                                                 'stck_bsop_date': now_day,
-                                                 'stck_cntg_hour': datetime.datetime.strftime(t1-datetime.timedelta(minutes=1),'%H%M%S')})
-                if not ohlcv:
-                    ohlcv= [{'acml_tr_pbmn': '0',
-                                         'cntg_vol': '0',
-                                         'futs_hgpr': '0',
-                                         'futs_lwpr': '0',
-                                         'futs_oprc': '0',
-                                         'futs_prpr': '0',
-                                         'stck_bsop_date': datetime.datetime.now().date().strftime("%Y%m%d"),
-                                         'stck_cntg_hour': datetime.datetime.now().strftime("%H%M") + "00"}]
+                            # if t1-t2 != datetime.timedelta(minutes=1):
+                            #     ohlcv.insert(i+1, {'acml_tr_pbmn': '0',
+                            #                      'cntg_vol': '0',
+                            #                      'futs_hgpr': ohlcv[i+1]['futs_hgpr'],
+                            #                      'futs_lwpr': ohlcv[i+1]['futs_lwpr'],
+                            #                      'futs_oprc': ohlcv[i+1]['futs_oprc'],
+                            #                      'futs_prpr': ohlcv[i+1]['futs_prpr'],
+                            #                      'stck_bsop_date': now_day,
+                            #                      'stck_cntg_hour': datetime.datetime.strftime(t1-datetime.timedelta(minutes=1),'%H%M%S')})
+                # if not ohlcv:
+                #     ohlcv= [{'acml_tr_pbmn': '0',
+                #                          'cntg_vol': '0',
+                #                          'futs_hgpr': '0',
+                #                          'futs_lwpr': '0',
+                #                          'futs_oprc': '0',
+                #                          'futs_prpr': '0',
+                #                          'stck_bsop_date': datetime.datetime.now().date().strftime("%Y%m%d"),
+                #                          'stck_cntg_hour': datetime.datetime.now().strftime("%H%M") + "00"}]
 
         return ohlcv
-    def _fetch_1m_ohlcv(self, symbol: str, to: str, day:str="", fake_tick:bool=False):
+    def _fetch_1m_ohlcv(self, symbol: str, to: str, day:str,expiry_date="", fake_tick:bool=False, night:bool=False):
         """      to (str): "HH:MM:SS"        """
         if self.market == '주식':
             path = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice"
@@ -843,7 +1011,22 @@ class KoreaInvestment:
             path = "uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice"
             continue_check = "N" if day == "" else "Y" # continue_day에 날짜가 들어오면 "Y"
             fake_tick = 'Y' if fake_tick == True else "N"
-            trade_market = 'F' if symbol[:1] == '1' else 'O' if symbol[:1] == '2'or symbol[:1] == '3' else print('종목코드확인필요')
+            if expiry_date == "":
+                fu = 'A'
+                call = 'B'
+                put = 'C'
+            elif datetime.datetime.strftime(expiry_date,"%Y") == '2025':
+                fu = '1'
+                call = '2'
+                put = '3'
+            elif datetime.datetime.strftime(expiry_date,"%Y") == '2026':
+                fu = 'A'
+                call = 'B'
+                put = 'C'
+            if night: # 야간
+                trade_market = 'CM' if symbol.startswith(fu) else 'EU' if symbol.startswith(call) or symbol.startswith(put) else print('야간종목코드확인필요')
+            else: # 주간
+                trade_market = 'F' if symbol.startswith(fu) else 'O' if symbol.startswith(call) or symbol.startswith(put) else print('종목코드확인필요')
             params = {
                 "FID_COND_MRKT_DIV_CODE": trade_market,
                 "FID_INPUT_ISCD": symbol,
@@ -854,15 +1037,12 @@ class KoreaInvestment:
                 "FID_INPUT_HOUR_1": to,
             }
             i=0
-            # print(f"{trade_market= }    {symbol= }   {continue_check= }   {fake_tick= }   {day= }   {to= }")
             while True:
                 try:
                     output = self.inquiry_TR_get(path=path, tr_id="FHKIF03020200", params=params)  # 연결된 구성원으로부터 - 에러 발생
-                    # output = res.json()
                 except:
                     output = {}
                     output['msg1'] = 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다'
-                    # time.sleep(1)
                     QTest.qWait(800)
                 if output['msg1'] == '정상처리 되었습니다.':
                     break
@@ -871,97 +1051,245 @@ class KoreaInvestment:
                 elif output['msg1'] == '기간이 만료된 token 입니다.':
                     QTest.qWait(800)
                     if i == 10:
-                        print(output['msg1'])
-                        print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                        # print(output)
+                        print(f"{output['msg1']} {symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv")
                         QTest.qWait(800)
-
+                        quit()
                         i = 0
                         raise
                         # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
+                elif output['msg1'] == 'ERROR INVALID FID_INPUT_DATE_1':
+                    print(f"날짜 지정 확인 {output['msg1']}")
+                    quit(f"{day}   {to}")
                 else:
                     # time.sleep(1)
                     QTest.qWait(800)
                     if i == 10:
-                        print(output['msg1'])
+                        print(output)
                         print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
                         if output['msg1'] == '기간이 만료된 token 입니다.':
                             print('기간만료', output['msg1'])
-
                         QTest.qWait(800)
-
                         i = 0
                         # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
                 i += 1
-                # time.sleep(1)
-                QTest.qWait(500)
-        elif self.market == '해외선옵':
-            path = "uapi/overseas-futureoption/v1/quotations/inquire-time-futurechartprice"
-            url = f"{self.base_url}/{path}"
-            headers = {
-               "content-type": "application/json; charset=utf-8",
-               "authorization": self.access_token,
-               "appKey": self.api_key,
-               "appSecret": self.secret_key,
-               "tr_id": "HHDFC55020400",
-               "tr_cont": "",
-            }
-            # continue_check = "N" if day == "" else "Y" # continue_day에 날짜가 들어오면 "Y"
-            # fake_tick = 'Y' if fake_tick == True else "N"
-            # trade_market = 'F' if symbol[:1] == '1' else 'O'
-            params = {
-                "EXCH_CD": 'HKEX', #거래소코드 CME, SGX 는 유료
-                "SRS_CD": symbol, # 종목코드
-                "START_DATE_TIME": "", #조회시작일시
-                "CLOSE_DATE_TIME": '20250212',#조회종료일시
-                "QRY_TP": "Q", #조회구분
-                "QRY_CNT": "120", # 요청개수
-                "QRY_GAP": "1",  #묶음개수
-                "INDEX_KEY": "", # 이전조회KEY
-            }
-            i=0
-            # print(f"{trade_market= }    {symbol= }   {continue_check= }   {fake_tick= }   {day= }   {to= }")
-            while True:
-                try:
-                    res = requests.get(url, headers=headers, params=params)  # 연결된 구성원으로부터 - 에러 발생
-                    output = res.json()
-                    # pprint(output)
-                except:
-                    output = {}
-                    output['msg1'] = 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다'
-                    # time.sleep(1)
-                    print('error')
-                    QTest.qWait(800)
-                if output['msg1'] == '정상처리 되었습니다.':
-                    break
-                elif output['msg1'] == 'KIS:_fetch_futopt_today_1m_ohlcv - 연결된 구성원으로부터 응답이 없어 연결하지 못했거나, 호스트로부터 응답이 없어 연결이 끊어졌습니다':
-                    print(output['msg1'])
-                elif output['msg1'] == '기간이 만료된 token 입니다.':
-                    QTest.qWait(800)
-                    if i == 10:
-                        print(output['msg1'])
-                        print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
-                        QTest.qWait(800)
-                        i = 0
-                        raise
-                        # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
-                else:
-                    # time.sleep(1)
-                    QTest.qWait(800)
-                    if i == 10:
-                        print(output['msg1'])
-                        print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
-                        if output['msg1'] == '기간이 만료된 token 입니다.':
-                            print('기간만료', output['msg1'])
-
-                        QTest.qWait(800)
-
-                        i = 0
-                        # raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_futopt_today_1m_ohlcv')
-                i += 1
-                # time.sleep(1)
                 QTest.qWait(500)
         return output['output2']
 
+    def get_futopt_symbol(self,target, symbol, expiry_date:datetime, price):
+        if expiry_date.year == 2025:
+            call = '2'
+            put = '3'
+        elif expiry_date.year == 2026:
+            call = 'B'
+            put = 'C'
+        # for symbol in list_ticker:
+        if target == '선물':
+            ticker_symbol = '선물'
+        elif target == '미니선물':
+            ticker_symbol = '미니선물'
+        elif target == '본옵션':
+            if symbol.startswith(call):
+                ticker_symbol = '콜옵션_' + price
+            elif symbol.startswith(put):
+                ticker_symbol = '풋옵션_' + price
+        elif target == '위클리옵션':
+            if symbol.startswith(call):
+                ticker_symbol = '콜옵션_위클리_' + price
+            elif symbol.startswith(put):
+                ticker_symbol = '풋옵션_위클리_' + price
+        elif target == '야간선물':
+            ticker_symbol = '야간선물'
+        elif target == '야간미니선물':
+            ticker_symbol = '야간미니선물'
+        elif target == '야간본옵션':
+            if symbol.startswith(call):
+                ticker_symbol = '야간콜옵션_' + price
+            elif symbol.startswith(put):
+                ticker_symbol = '야간풋옵션_' + price
+        elif target == '야간위클리옵션':
+            if symbol.startswith(call):
+                ticker_symbol = '야간콜옵션_위클리_' + price
+            elif symbol.startswith(put):
+                ticker_symbol = '야간풋옵션_위클리_' + price
+        return ticker_symbol
+
+    def get_kis_ohlcv(self, ohlcv):
+        df = pd.DataFrame(ohlcv)
+        if not ohlcv:
+            return pd.DataFrame()
+        # df.to_sql(f"df_ohlcv_00", sqlite3.connect("DB/bt.db"), if_exists='replace')
+        dt = pd.to_datetime(df['stck_bsop_date'] + df['stck_cntg_hour'], format="%Y%m%d%H%M%S")
+        df.set_index(dt, inplace=True)
+        df = df.apply(to_numeric)
+        if self.exchange == '국내':
+            if self.market == '주식':
+
+                df = df[['stck_oprc', 'stck_hgpr', 'stck_lwpr', 'stck_prpr', 'cntg_vol', 'acml_tr_pbmn']]
+                # df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
+                # df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
+                # df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
+
+                # 날짜 변경 여부 확인
+                # df['날짜변경'] = df.index.to_series().dt.date != df.index.to_series().shift(-1).dt.date
+
+                # 날짜 변경 시 누적거래대금 값 유지
+                # df.loc[df['날짜변경'], '거래대금'] = df['누적거래대금']
+
+                # 날짜변경 컬럼 제거 (선택 사항)
+                # df.drop(columns=['날짜변경'], inplace=True)
+                df.rename(columns={
+                                  'stck_oprc': '시가',
+                                  'stck_hgpr': '고가',
+                                  'stck_lwpr': '저가',
+                                  'stck_prpr': '종가',
+                                  'cntg_vol': '거래량',
+                                  'acml_tr_pbmn': '누적거래대금',
+                                  }, inplace=True)
+            elif self.market == '선옵':
+                # df = df[['futs_oprc', 'futs_hgpr', 'futs_lwpr', 'futs_prpr', 'cntg_vol', 'acml_tr_pbmn']]
+                df.rename(columns={
+                                  'futs_oprc': '시가',
+                                  'futs_hgpr': '고가',
+                                  'futs_lwpr': '저가',
+                                  'futs_prpr': '종가',
+                                  'cntg_vol': '거래량',
+                                  'acml_tr_pbmn': '누적거래대금',
+                                  }, inplace=True)
+        # df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
+        df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
+        df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
+        # 날짜 변경 여부 확인
+        df['날짜변경'] = df.index.to_series().dt.date != df.index.to_series().shift(-1).dt.date
+        # 날짜 변경 시 누적거래대금 값 유지
+        print(df)
+        df.loc[df['날짜변경'], '거래대금'] = df['누적거래대금']
+
+        # 날짜변경 컬럼 제거 (선택 사항)
+        df.drop(columns=['날짜변경'], inplace=True)
+
+        df.index.name = "날짜"
+        df = df[::-1]  # 거꾸로 뒤집기
+        # df.to_sql('test', sqlite3.connect('DB/bt.db'), if_exists='replace')
+        return df
+    def change_to_list(self,df): #데이터 프레임 to 리스트
+        df = df.loc[::-1] #위아래 뒤집기
+        df.index = pd.to_datetime(df.index)
+        df2 = df.copy()
+        # 인덱스를 날짜/시간 문자열로 분리
+        df2['stck_bsop_date'] = df2.index.strftime('%Y%m%d')
+        df2['stck_cntg_hour'] = df2.index.strftime('%H%M%S')
+        # 컬럼명 원복
+        df2 = df2.rename(columns={
+            '누적거래대금': 'acml_tr_pbmn',
+            '거래량': 'cntg_vol',
+            '고가': 'futs_hgpr',
+            '저가': 'futs_lwpr',
+            '시가': 'futs_oprc',
+            '종가': 'futs_prpr'
+        })
+        # 원하는 컬럼 순서 정렬
+        cols = [
+            'stck_bsop_date',
+            'stck_cntg_hour',
+            'futs_prpr',
+            'futs_oprc',
+            'futs_hgpr',
+            'futs_lwpr',
+            'cntg_vol',
+            'acml_tr_pbmn',
+        ]
+
+        result = df2[cols].to_dict('records')
+        ##################### 중복 확인
+        # 밑에는 중복되는 인덱스가 있는지 확인
+        seen = set()
+        result = [
+            row for row in result
+            if not (
+                    (row['stck_bsop_date'], row['stck_cntg_hour']) in seen
+                    or seen.add((row['stck_bsop_date'], row['stck_cntg_hour']))
+            )
+        ]
+        return result
+
+        # ##################### 중복 확인
+        # # ohlcv 리스트랑 비교해서 중복되는 인덱스는 삭제
+        # existing_keys = {
+        #     row['stck_bsop_date'] + row['stck_cntg_hour']
+        #     for row in ohlcv
+        # }
+        # result = [
+        #     row for row in result
+        #     if row['stck_bsop_date'] + row['stck_cntg_hour'] not in existing_keys
+        # ]
+        # return result
+    def get_futopt_df(self, target, ticker_symbol, symbol, past_expiry_date, expiry_date, df_exist, now_dt):
+        # ohlcv = []
+        print(f"{target= }  {ticker_symbol= }")
+        if not df_exist.empty: # 기존 데이터가 있을 경우
+            print(f"기존데이터 있음    {target= }   {ticker_symbol=}   {past_expiry_date=}  {type(past_expiry_date)=}")
+            from_dt = pd.to_datetime(df_exist.index[-1])
+            if target.startswith('야간'):
+                ohlcv = self.fetch_1m_ohlcv_night(symbol=symbol, from_dt=from_dt, now_dt=now_dt,
+                                                  expiry_dt=expiry_date,past_expiry_dt=past_expiry_date,ohlcv=[])
+            else:
+                ohlcv = self.fetch_1m_ohlcv(symbol=symbol, from_dt=from_dt, now_dt=now_dt,
+                                            expiry_dt=expiry_date,past_expiry_dt=past_expiry_date,ohlcv=[])
+            df = self.get_kis_ohlcv(ohlcv)
+            if df.empty:  # 데이터가 없을 경우
+                print(f"{ticker_symbol= } 데이터 없음")
+                return pd.DataFrame()
+            df.index = pd.to_datetime(df.index)
+            df['종목코드'] = symbol
+            # past_expiry = datetime.datetime.combine(past_expiry_date,
+            #                                         datetime.time(15, 45, 0))  # 12:30:45 추가 past_expiry_date+시간
+            df = df[df.index >= past_expiry_date]
+            if df.empty:
+                return pd.DataFrame()
+            df['만기일'] = expiry_date
+            # 데이터를 기존이랑 합치려면
+            # df = pd.concat([df_exist, df])
+            # df = df[~df.index.duplicated(keep='last')]
+        else:  # 테이블만 있고 데이터 비어있을 경우
+            # list_table.remove(ticker_symbol)
+        # if not ticker_symbol in list_table:  # DB에 테이블 제목만 있고 데이터가 없는 경우가 있어서 else 말고 if not으로 다시 확인
+            print(f"기존데이터 없음 {target= }   {symbol= }  {past_expiry_date=}  {type(past_expiry_date)=}")
+            # past_expiry = datetime.datetime.combine(past_expiry_date,
+            #                                         datetime.time(15, 45, 0))  # 12:30:45 추가 past_expiry_date+시간
+            if target.startswith('야간'):
+                ohlcv = self.fetch_1m_ohlcv_night(symbol=symbol, from_dt=past_expiry_date, now_dt=now_dt,
+                                                  expiry_dt=expiry_date,past_expiry_dt=past_expiry_date,ohlcv=[])
+            else:
+                ohlcv = self.fetch_1m_ohlcv(symbol=symbol, from_dt=past_expiry_date, now_dt=now_dt,
+                                            expiry_dt=expiry_date,past_expiry_dt=past_expiry_date,ohlcv=[])
+            if not ohlcv:
+                return pd.DataFrame()
+            df = self.get_kis_ohlcv(ohlcv)
+            df.index = pd.to_datetime(df.index)
+            df['종목코드'] = symbol
+            try:
+                df = df[df.index > datetime.datetime.combine(past_expiry_date, datetime.time(15, 45,
+                                                                                             0))]  # 12:30:45 추가 past_expiry_date+시간]
+            except:
+                print(past_expiry_date)
+            df['만기일'] = expiry_date
+        # print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_expiry_date= }")
+
+        # 데이터가 없을경우 해당하는 행 삭제
+        now = datetime.datetime.now().replace(second=0, microsecond=0)
+        # df = df.drop(df.loc[df.index == now].index)
+        if not df.empty:
+            # for col in df.columns:
+            #     sample_values = df[col].dropna().head(3)
+            #     if len(sample_values) > 0:
+            #         print(f"{col}: {type(sample_values.iloc[0])}")
+            df.index = df.index.astype(str)
+            return df
+            # df.to_sql(f"{ticker_symbol}", conn, if_exists='replace')
+        else:
+            return pd.DataFrame()
+        # time.sleep(1)
 
     # def make_ohlcv_1m(self, ohlcv):   #common_df.get_kis_ohlcv 에서 변환
     #     try:
@@ -986,7 +1314,7 @@ class KoreaInvestment:
     #     df = df[::-1]  # 거꾸로 뒤집기
     #     return df
 
-    def display_opt(self, today): #휴일에 대한 대응이 안되어있음
+    def display_opt(self, today:datetime): #휴일에 대한 대응이 안되어있음
         """국내선물옵션기본시세/국내옵션전광판_콜풋"""
         path = "uapi/domestic-futureoption/v1/quotations/display-board-callput"
         url = f"{self.base_url}/{path}"
@@ -1006,27 +1334,26 @@ class KoreaInvestment:
            "custtype": "P",
            "hashkey": hashkey
             }
-        expiry_date = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기
+        expiry_date = self.nth_weekday(today,2,3) #이번달의 두번째 주, 목요일 구하기 (datetime.datetime.today())
         if today > expiry_date:
-            past_date = expiry_date
+            past_expiry_date = expiry_date
             # 현재 날짜 가져오기
             today = datetime.datetime.today()
             # 다음 달 계산
             expiry_month = today + relativedelta(months=1)
-
             expiry_date = self.nth_weekday(expiry_month, 2, 3)
             # expiry_date = expiry_date.strftime("%Y%m%d")
             # 연도와 월을 문자열로 변환
             expiry_month = expiry_month.strftime("%Y%m")
-
-
         else:
             # expiry_date = expiry_date.strftime("%Y%m%d")
             past_month = today - relativedelta(months=1)
-            past_date = self.nth_weekday(past_month, 2, 3)
+            past_expiry_date = self.nth_weekday(past_month, 2, 3)
+
+#             print(f"2 {past_expiry_date=} {type(past_expiry_date)=}")
             expiry_month = today.strftime("%Y%m")
-        past_date = past_date.date()
-        expiry_date = expiry_date.date()
+        # past_expiry_date = past_expiry_date.date()
+        # expiry_date = expiry_date.date()
         i = 0
         while True:
             params = {
@@ -1040,7 +1367,7 @@ class KoreaInvestment:
             i += 1
             try:
                 res = requests.get(url, headers=headers, params=params)
-            except requests:
+            except:
                 res.json()['msg1'] = 'display_opt 에러'
             if res.json()['msg1'] == '정상처리 되었습니다.' and res.json()['output1']:
                 df_call = pd.DataFrame(res.json()['output1'])
@@ -1075,10 +1402,11 @@ class KoreaInvestment:
                              'total_bidp_rsqn': '매수호가잔량',
                              'optn_bidp': '매수호가',
                              'optn_askp': '매도호가',
+                             'hts_otst_stpl_qty': '미결제약정',
                              'acml_vol': '거래량',
                              'acml_tr_pbmn': '거래대금'},inplace=True)
                 df_put = df_put[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
-                                 '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
+                                 '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','미결제약정','거래량','거래대금']]
                 df_put.set_index(df_put['종목코드'], inplace=True)
                 break
             elif res.json()['msg1'] == '초당 거래건수를 초과하였습니다.':
@@ -1091,20 +1419,43 @@ class KoreaInvestment:
                     df_call = pd.DataFrame()
                     df_put = pd.DataFrame()
                     break
-        return df_call, df_put, past_date, expiry_date
-    def display_opt_weekly(self,today:datetime):
+
+        if expiry_date.strftime("%Y%m%d") in self.df_holiday.index.tolist():
+            nearest_expiry_str = expiry_date.strftime('%Y%m%d')
+            for date in self.df_holiday.index.tolist():
+                if self.df_holiday.loc[date,'개장일'] == 'Y':
+                    expiry_dt = datetime.datetime.strptime(date,'%Y%m%d')
+                if nearest_expiry_str == date:
+                    break
+        past_expiry_dt = datetime.datetime.combine(past_expiry_date, datetime.time(15, 45,0))
+        expiry_dt = datetime.datetime.combine(expiry_dt, datetime.time(15, 45,0))
+        return df_call, df_put, past_expiry_dt, expiry_dt
+    def display_opt_weekly(self,today:datetime):   #datetime.datetime.today()
         """국내선물옵션기본시세/국내옵션전광판_콜풋"""
         path = "uapi/domestic-futureoption/v1/quotations/display-board-callput"
 
         expiry_date, past_date, expiry_date_week, next_day_name = self.get_trading_dates(today)
+        if expiry_date.strftime("%Y%m%d") in self.df_holiday.index.tolist():
+            nearest_expiry_str = expiry_date.strftime('%Y%m%d')
+            for date in self.df_holiday.index.tolist():
+                if self.df_holiday.loc[date, '개장일'] == 'Y':
+                    expiry_dt = datetime.datetime.strptime(date, '%Y%m%d')
+                if nearest_expiry_str == date:
+                    break
+        past_expiry_dt = datetime.datetime.combine(past_date, datetime.time(15, 45,0))
+        expiry_date_dt = datetime.datetime.combine(expiry_dt, datetime.time(15, 45,0))
+
+        # past_expiry_dt = datetime.datetime.combine(past_expiry_date, datetime.time(15, 45, 0))
+        # expiry_dt = datetime.datetime.combine(expiry_dt, datetime.time(15, 45, 0))
+
         if next_day_name == '월':
             COND_MRKT = "WKM"
         elif next_day_name == '목':
             COND_MRKT = "WKI"
         else:
-            df_call = pd.DataFrame()
+            df_call_weekly = pd.DataFrame()
             df_put = pd.DataFrame()
-            return df_call, df_put, next_day_name, past_date, expiry_date
+            return df_call_weekly, df_put, next_day_name, past_expiry_dt, expiry_date_dt
         i = 0
         params = {
             "FID_COND_MRKT_DIV_CODE": "O",
@@ -1117,16 +1468,16 @@ class KoreaInvestment:
         while True :
             resp = self.inquiry_TR_get(path=path, tr_id="FHPIF05030100", params=params)
             if resp['msg1'] == '정상처리 되었습니다.' and resp['output1'] and resp['output2']:
-                df_call = pd.DataFrame(resp['output1'])
-                df_put = pd.DataFrame(resp['output2'])
-                if df_call.empty or df_put.empty : #만기일까지 계속 휴일인지 확인
+                df_call_weekly = pd.DataFrame(resp['output1'])
+                df_put_weekly = pd.DataFrame(resp['output2'])
+                if df_call_weekly.empty or df_put_weekly.empty : #만기일까지 계속 휴일인지 확인
                     pprint(resp)
                     print('display_opt_weekly 조회 할 수 없음 확인 필요')
-                    df_call = pd.DataFrame()
-                    df_put = pd.DataFrame()
-                    return df_call, df_put, COND_MRKT, past_date, expiry_date
+                    df_call_weekly = pd.DataFrame()
+                    df_put_weekly = pd.DataFrame()
+                    return df_call_weekly, df_put_weekly, COND_MRKT, past_expiry_dt, expiry_date_dt
                 else:
-                    df_call.rename(
+                    df_call_weekly.rename(
                         columns={'acpr': '행사가',
                                  'unch_prpr': '환산현재가',
                                  'optn_shrn_iscd': '종목코드',
@@ -1141,11 +1492,11 @@ class KoreaInvestment:
                                  'hts_otst_stpl_qty':'미결제약정',
                                  'acml_vol': '거래량',
                                  'acml_tr_pbmn': '거래대금'},inplace=True)
-                    df_call = df_call[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
+                    df_call_weekly = df_call_weekly[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
                                        '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','미결제약정','거래량','거래대금']]
-                    df_call.set_index(df_call['종목코드'], inplace=True)
+                    df_call_weekly.set_index(df_call_weekly['종목코드'], inplace=True)
 
-                    df_put.rename(
+                    df_put_weekly.rename(
                         columns={'acpr': '행사가',
                                  'unch_prpr': '환산현재가',
                                  'optn_shrn_iscd': '종목코드',
@@ -1157,11 +1508,12 @@ class KoreaInvestment:
                                  'total_bidp_rsqn': '매수호가잔량',
                                  'optn_bidp': '매수호가',
                                  'optn_askp': '매도호가',
+                                 'hts_otst_stpl_qty': '미결제약정',
                                  'acml_vol': '거래량',
                                  'acml_tr_pbmn': '거래대금'},inplace=True)
-                    df_put = df_put[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
-                                     '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','거래량','거래대금']]
-                    df_put.set_index(df_put['종목코드'], inplace=True)
+                    df_put_weekly = df_put_weekly[['행사가','환산현재가','종목코드','현재가','전일대비','전일대비부호',
+                                     '옵션전일대비율','매수호가','매도호가','매도호가잔량','매수호가잔량','미결제약정','거래량','거래대금']]
+                    df_put_weekly.set_index(df_put_weekly['종목코드'], inplace=True)
                     break
             elif resp['msg1'] == '초당 거래건수를 초과하였습니다.':
                 print(f'{datetime.datetime.strftime(datetime.datetime.now(),"%H:%M:%S")} display_opt_weekly   {resp}')
@@ -1173,19 +1525,19 @@ class KoreaInvestment:
                 if i >= 10:
                     print('display_opt_weekly  조회할 수 없음')
                     pprint(resp)
-                    df_call = pd.DataFrame()
-                    df_put = pd.DataFrame()
+                    df_call_weekly = pd.DataFrame()
+                    df_put_weekly = pd.DataFrame()
                     break
-        return df_call, df_put, COND_MRKT, past_date, expiry_date
+
+
+        return df_call_weekly, df_put_weekly, COND_MRKT, past_expiry_dt, expiry_date_dt
 
     def get_trading_dates(self, input_date):
         """
         주어진 날짜를 기준으로 다가올 월요일/목요일, 지난 월요일/목요일, 해당 월의 순서, 다가올 요일 정보를 반환합니다.
         두 번째 목요일인 경우 다가올 요일로 '만기'를 반환합니다.
-
         Args:
             input_date: datetime 객체 또는 'YYYY-MM-DD' 형식의 문자열
-
         Returns:
             tuple: (다가올 날짜, 지난 날짜, 월 순서 코드, 다가올 요일 또는 '만기')
         """
@@ -1267,10 +1619,8 @@ class KoreaInvestment:
     def get_nearest_futures_expiry(self,input_date):
         """
         주어진 날짜로부터 가장 가까운 미래의 선물 만기일(3,6,9,12월의 두 번째 목요일)을 찾습니다.
-
         Args:
             input_date: datetime 객체 또는 'YYYY-MM-DD' 형식의 문자열
-
         Returns:
             tuple: (만기일 datetime 객체, 만기일 문자열 'YY-MM-DD', 경과일 수)
         """
@@ -1327,17 +1677,26 @@ class KoreaInvestment:
             raise ValueError("1년 내에 가능한 미래 선물 만기일을 찾을 수 없습니다.")
 
         nearest_expiry = future_expiry_dates[0]
-        days_until_expiry = (nearest_expiry - input_date).days
+        # days_until_expiry = (nearest_expiry - input_date).days
 
         # 직전 만기일 찾기
         if not past_expiry_dates:
             previous_expiry = None
-            previous_expiry_str = None
+            # previous_expiry_str = None
         else:
             previous_expiry = past_expiry_dates[-1]  # 가장 최근 과거 만기일
-            previous_expiry_str = previous_expiry.strftime('%y-%m-%d')
-
-        return nearest_expiry, nearest_expiry.strftime('%y-%m-%d'), days_until_expiry, previous_expiry, previous_expiry_str
+            # previous_expiry_str = previous_expiry.strftime('%y-%m-%d')
+        if nearest_expiry.strftime("%Y%m%d") in self.df_holiday.index.tolist():
+            nearest_expiry_str = nearest_expiry.strftime('%Y%m%d')
+            for date in self.df_holiday.index.tolist():
+                if self.df_holiday.loc[date,'개장일'] == 'Y':
+                    expiry_dt = datetime.datetime.strptime(date,'%Y%m%d')
+                if nearest_expiry_str == date:
+                    break
+        # return expiry_dt, expiry_dt.strftime('%y-%m-%d'), days_until_expiry, previous_expiry, previous_expiry_str
+        expiry_dt = datetime.datetime.combine(expiry_dt, datetime.time(15, 45,0))  # 날짜+시간
+        previous_expiry = datetime.datetime.combine(previous_expiry, datetime.time(15, 45,0))  # 날짜+시간
+        return expiry_dt, previous_expiry
 
     def get_nearest_options_expiry(self, input_date):
         """
@@ -1437,6 +1796,7 @@ class KoreaInvestment:
                 pprint(resp)
                 if resp['msg1'] == '초당 거래건수를 초과하였습니다.':
                     QTest.qWait(1000)
+        # pprint(resp['output'])
         df = pd.DataFrame(resp['output'])
         df.rename(columns={'futs_shrn_iscd': '종목코드',
                            'hts_kor_isnm': '종목명',
@@ -1455,20 +1815,52 @@ class KoreaInvestment:
         df = df[['종목코드','종목명','현재가','전일대비','등락(%)','이론가','거래량','매도호가','매수호가','미결제약정','고가','저가']]
         df.set_index(df['종목코드'], inplace=True)
         df.drop(df.index[1:],axis=0,inplace=True) #코스피200 선물만 남기고 삭제
+        if mini == False:
+            df['종목명'] = '선물'
+        else:
+            df['종목명'] = '미니선물'
         return df
 
-    def investor_trend(self): #국내기관_외국인 매매종목가집계[국내주식-037]
-        """국내주식 시세분석/국내기관_외국인 매매종목가집계[국내주식-037]"""
+    def investor_trend(self,side): #국내기관_외국인 매매종목가집계[국내주식-037]
+        """국내주식 시세분석/국내기관_외국인 매매종목가집계[국내주식-037] [0440]"""
+        """입력시간은 외국인 09:30, 11:20, 13:20, 14:30 / 기관종합 10:00, 11:20, 13:20, 14:30"""
         path = "uapi/domestic-stock/v1/quotations/foreign-institution-total"
+        side = "0" if side == 'buy' else "1"
         params = {
             "FID_COND_MRKT_DIV_CODE": "V",
             "FID_COND_SCR_DIV_CODE": "16449",
-            "FID_INPUT_ISCD": "0001", # 0000:전체, 0001:코스피, 1001:코스닥
+            "FID_INPUT_ISCD": "0000", # 0000:전체, 0001:코스피, 1001:코스닥
             "FID_DIV_CLS_CODE": "1", # 0: 수량정열, 1: 금액정열
-            "FID_RANK_SORT_CLS_CODE": "0", # 0: 순매수상위, 1: 순매도상위
+            "FID_RANK_SORT_CLS_CODE": side, # 0: 순매수상위, 1: 순매도상위
             "FID_ETC_CLS_CODE": "0" # 0:전체 1:외국인 2:기관계 3:기타
         }
         resp = self.inquiry_TR_get(path=path, tr_id="FHPTJ04400000", params=params)
+        df = pd.DataFrame(resp['output'])
+        df.rename(
+            columns={'hts_kor_isnm': '종목명',
+                     'mksc_shrn_iscd': '종목코드',
+                     'ntby_qty': '순매수수량',
+                     'stck_prpr': '현재가',
+                     'prdy_vrss': '전일대비',
+                     'prdy_ctrt': '전일대비율',
+                     'acml_vol': '누적거래량',
+                     'frgn_ntby_tr_pbmn': '외국인순매수거래대금',
+                     'orgn_ntby_tr_pbmn': '기관계순매수거래대금',
+                     'ivtr_ntby_tr_pbmn': '투자신탁순매수거래대금'}, inplace=True)
+        df = df[['종목명', '종목코드', '순매수수량', '현재가', '전일대비', '전일대비율', '누적거래량', '외국인순매수거래대금', '기관계순매수거래대금', '투자신탁순매수거래대금']]
+        df=self.convert_column_types(df)
+        return df
+    def frgn_trade_estimate(self): #외국계 매매종목 가집계 [국내주식-161]
+        """외국계 매매종목 가집계 [국내주식-161] [0430]"""
+        path = "uapi/domestic-stock/v1/quotations/frgnmem-trade-estimate"
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "J",
+            "FID_COND_SCR_DIV_CODE": "16441",
+            "FID_INPUT_ISCD": "0000", # 0000:전체, 0001:코스피, 1001:코스닥
+            "FID_RANK_SORT_CLS_CODE": "0", # 0: 금액순, 1: 수량순
+            "FID_RANK_SORT_CLS_CODE_2": "0", # 0: 매수순, 1: 매도순
+        }
+        resp = self.inquiry_TR_get(path=path, tr_id="FHKST644100C0", params=params)
         return resp
     def investor_trend_stock(self,ticker):
         """주식현재가 투자자[v1_국내주식-012]""" # 일별
@@ -1498,8 +1890,12 @@ class KoreaInvestment:
                              'prsn_ntby_tr_pbmn': '개인순매수거래대금',
                              'frgn_ntby_tr_pbmn': '외국인순매수거래대금',
                              'orgn_ntby_tr_pbmn': '기관계순매수거래대금',
+                             'frgn_seln_tr_pbmn': '외국인매도거래대금',
+                             'orgn_seln_tr_pbmn': '기관계매도거래대금',
+                             'prsn_seln_tr_pbmn': '개인매도거래대금',
                              }, inplace=True)
-                df = df[['날짜','종가','전일대비','전일대비부호','개인순매수수량','외국인순매수수량','기관계순매수수량','개인순매수거래대금','외국인순매수거래대금','기관계순매수거래대금']]
+                df = df[['날짜','종가','전일대비','전일대비부호','개인순매수수량','외국인순매수수량','기관계순매수수량','개인순매수거래대금','외국인순매수거래대금',
+                         '기관계순매수거래대금','외국인매도거래대금','기관계매도거래대금','개인매도거래대금',]]
                 df = df[::-1]  # 거꾸로 뒤집기
                 df.index = df['날짜']
                 df = self.convert_column_types(df)
@@ -1517,8 +1913,6 @@ class KoreaInvestment:
             iscd2 = "F001" if market == '선물' \
                 else "OC01" if market == '콜옵션' \
                 else 'OP01' if market=='풋옵션' else ''
-        elif market == '주식선물':
-            iscd = "999"
             if market == '주식선물': iscd2 = "S001"
         elif market in ['콜_위클리_월','콜_위클리_목','풋_위클리_월','풋_위클리_목']:
             if market in ['콜_위클리_월','풋_위클리_월']:
@@ -1537,15 +1931,21 @@ class KoreaInvestment:
                 elif market == '풋_위클리_목':
                     iscd2 = "OP04"
                     market = "풋_위클리"
-        elif market == '코스피':
-            iscd = "KSP"
-            iscd2 = "0001"
-        elif market == "코스닥150선물":
-            iscd = "KQI"
-            iscd2 = "F002"
         elif market == "ETF" or market == "etf":
             iscd = "ETF"
             iscd2 = "T000"
+        elif market == '주식선물':
+            iscd = "999"
+        elif market.startswith('코스피'):
+            iscd = "KSP"
+            iscd2 = "0001"
+            # if market.endswith('종합'):
+            #     iscd2 = "0001"
+            # elif market.endswith('종합'):
+            #     iscd2 = "0001"
+        elif market == "코스닥선물":
+            iscd = "KQI"
+            iscd2 = "F002"
         headers = {
            "content-type": "application/json; charset=utf-8",
            "authorization": self.access_token,
@@ -1624,11 +2024,11 @@ class KoreaInvestment:
                 while True :
                     print(symbol, timeframe, early_day, lately_day, adj_price)
                     resp = self._fetch_ohlcv_domestic(symbol, timeframe, early_day, lately_day, adj_price)
+
                     if [item for item in resp['output2'] if item == {}]: #output2가 빈 딕셔너리를 보내면 탈출
                         break
                     elif resp['msg1'] == '정상처리 되었습니다.':
                         ohlcv.extend(resp['output2'])
-
                         start_day = resp['output2'][-1]['stck_bsop_date']
                         start_day = datetime.datetime.strptime(start_day,"%Y%m%d").date()
                         lately_day = start_day - datetime.timedelta(days=1)
@@ -2000,23 +2400,30 @@ class KoreaInvestment:
             i = 0
             while True:
                 data = self.fetch_balance_domestic()
-                if data['msg1'].startswith('조회 되었습니다') or data['msg1'].startswith('모의투자 조회가 완료') or data['msg1'].startswith('조회가 완료'):
+                if data['msg1'].startswith('조회되었습니다') or data['msg1'].startswith('모의투자 조회가 완료') or data['msg1'].startswith('조회가 완료'):
                     break
                 elif data['msg1'].startswith('조회할 내용이 없습니다'):
                     dict_amount["예수금"] = int(data['output2'][0]['dnca_tot_amt'])
                     dict_amount["총평가금액"] = int(data['output2'][0]['tot_evlu_amt'])
                     return dict_amount,pd.DataFrame()
                     break
+                elif data['msg1'].startswith('ERROR : INPUT INVALID_CHECK_ACNO'):
+                    print(f"fetch_balance 2: {data['msg1']}")
+                    return None, '계좌를 확인 해주세요'
+                    break
+                elif data['msg1'].startswith('기간이 만료된 token'):
+                    print(f"fetch_balance 3: {data['msg1']}")
+                    self.issue_access_token()
                 else:
                     # time.sleep(0.5)
                     QTest.qWait(1000)
                     i += 1
+                    print(f"fetch_balance 조회에러: {data['msg1']}  {[i]}")
                     if i > 10:
-                        print('fetch_balance 조회에러')
                         pprint(data['msg1'])
                         quit()
-
             if self.market == '주식':
+                print('주식')
                 output['output1'] = data['output1']
                 output['output2'] = data['output2']
 
@@ -2034,17 +2441,7 @@ class KoreaInvestment:
                     df_instock.set_index('종목코드', inplace=True)
                 return dict_amount, df_instock
             elif self.market == '선옵':
-                # output['output1'] = data['output1']
-                # output['output2'] = data['output2']
-
-                # while data['tr_cont'] == 'M':
-                #     fk100 = data['ctx_area_fk100']
-                #     nk100 = data['ctx_area_nk100']
-                #
-                #     data = self.fetch_balance_domestic(fk100, nk100)
-                #     output['output1'].extend(data['output1'])
-                #     output['output2'].extend(data['output2'])
-                #####################################
+                print('선옵')
                 dict_amount['예수금현금'] = int(data['output2']['dnca_cash'])
                 dict_amount['현금증거금'] = int(data['output2']['cash_mgna'])
                 dict_amount['증거금총액'] = int(data['output2']['mgna_tota'])
@@ -2061,12 +2458,10 @@ class KoreaInvestment:
                     df_instock = df_instock[['잔고수량','체결평균단가','평가금액','정산단가','지수종가','청산가능수량','매입금액',
                                              '평가손익','상품번호','상품명','상품유형코드','종목코드','매도매수구분명','매매손익금액']]
                     # df_instock.set_index('종목코드', inplace=True) #인덱스를 종목코드로 변경
-            # return output
                 if not df_instock.empty:
                     df_instock = self.convert_column_types(df_instock)
                     df_instock.index = df_instock['종목코드']
                     # df_instock = df_instock[df_instock['청산가능수량'] > 0]
-
             return dict_amount, df_instock
         if self.exchange == '해외':
             output = {}
@@ -2119,18 +2514,14 @@ class KoreaInvestment:
                 output['output1'].extend(data['output1'])
                 output['output2'].extend(data['output2'])
 
-
+        print('else')
 
 
     def fetch_balance_domestic(self, ctx_area_fk100: str = "", ctx_area_nk100: str = "") -> dict:
+        print(f"{self.market} {self.mock}")
+        tr= "VTFO6118R" if self.mock else "CTFO6118R"
         if self.market == '주식':
-            """국내주식주문/주식잔고조회
-            Args:
-                ctx_area_fk100 (str): 연속조회검색조건100
-                ctx_areak_nk100 (str): 연속조회키100
-            Returns:
-                dict: _description_
-            """
+            """국내주식주문/주식잔고조회"""
             path = "uapi/domestic-stock/v1/trading/inquire-balance"
             url = f"{self.base_url}/{path}"
             headers = {
@@ -2157,7 +2548,6 @@ class KoreaInvestment:
             res = requests.get(url, headers=headers, params=params)
             data = res.json()
             # data['tr_cont'] = res.headers['tr_cont']
-            return data
         elif self.market == '선옵':
             """국내선물옵션/선물옵션잔고조회 """
             path = "uapi/domestic-futureoption/v1/trading/inquire-balance"
@@ -2182,7 +2572,7 @@ class KoreaInvestment:
             res = requests.get(url, headers=headers, params=params)
             data = res.json()
             # data['tr_cont'] = res.headers['tr_cont']
-            return data
+        return data
 
 
     def fetch_present_balance(self, foreign_currency: bool=True) -> dict:
@@ -3039,7 +3429,6 @@ class KoreaInvestment:
             elif i == 10:
                 raise print(f'{symbol} : {i}번 이상 해도 조회 안됨 - _fetch_ohlcv_domestic')
             else:
-                # time.sleep(1)
                 QTest.qWait(1000)
             i += 1
         return res.json()
@@ -3093,7 +3482,45 @@ class KoreaInvestment:
             i += 1
         return res.json()
 
+    def save_data(self):
+        conn = sqlite3.connect('DB/DB_futopt_kis.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        try:
+            list_table = np.concatenate(cursor.fetchall()).tolist()
+        except:
+            list_table = []
+        now_dt = datetime.datetime.now()
 
+        self.check_holiday()
+        for target in ['선물', '미니선물', '본옵션', '위클리옵션', '야간선물', '야간미니선물', '야간본옵션', '야간위클리옵션']:
+        # for target in ['야간본옵션', '야간위클리옵션']:
+            dict_codes, past_expiry_dt, expiry_date, df_display,cond_mrkt = kis.get_expiry_date(target=target, now_dt=now_dt)
+            for symbol,price in dict_codes.items():
+                ticker_symbol = kis.get_futopt_symbol(target=target, symbol=symbol, expiry_date=expiry_date, price=price)
+                if ticker_symbol in list_table:  # 연속저장 (기존데이터가 있을 경우)
+                    df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn).set_index('날짜')
+                else:
+                    df_exist = pd.DataFrame()
+                if target.startswith('야간'):
+                    if  now_dt.time() > datetime.time(hour=15,minute=40):
+                        dt = datetime.datetime.combine(dt, datetime.time(15, 45,0))
+                    elif now_dt.time() < datetime.time(hour=8,minute=40):
+                        dt = now_dt-datetime.timedelta(days=1)
+                        dt = datetime.datetime.combine(dt, datetime.time(15, 45,0))
+                    else:
+                        dt = now_dt
+                    df = kis.get_futopt_df(target=target, ticker_symbol=ticker_symbol, symbol=symbol,
+                                           past_expiry_date=past_expiry_dt, expiry_date=expiry_date,
+                                           df_exist=df_exist, now_dt=dt)
+                else:
+                    df = kis.get_futopt_df(target=target, ticker_symbol=ticker_symbol, symbol=symbol,
+                                           past_expiry_date=past_expiry_dt, expiry_date=expiry_date,
+                                           df_exist=df_exist, now_dt=now_dt)
+                if not df.empty:
+                    df.to_sql(f"{ticker_symbol}", conn, if_exists='replace')
+        cursor.close()
+        conn.close()
 
 
     def fetch_ohlcv_overesea(self, symbol: str, timeframe:str='D',
@@ -3573,12 +4000,12 @@ class KoreaInvestment:
             return 100
         elif jang == "ETF" or jang == "etf":
             return 5
-        elif jang == '국내선옵':
-            if ticker[:3] == '101': #코스피200선물
+        elif jang == '선옵' or jang == '선물' or jang.endswith('옵션'):
+            if ticker[:3] == '101' or ticker == '선물': #코스피200선물
                 return 0.05
-            elif ticker[:3] == '105': #미니코스피200 선물
+            elif ticker[:3] == '105' or ticker == '미니선물': #미니코스피200 선물
                 return 0.02
-            elif ticker[:3] == '106': #코스닥선물
+            elif ticker[:3] == '106' or ticker == '코스닥선물': #코스닥선물
                 return 0.1
             elif (ticker[:3] == '201' or ticker[:3] == '301' or ticker[5:6]=='W') and price < 10: #코스피200 옵션 10포인트 미만
                 return 0.01
@@ -3648,7 +4075,7 @@ class KoreaInvestment:
                 raise
             idx = hoga_in[2:hoga_in.index('호가')]
             hoga = int(mark + idx)
-        if jang == '국내선옵': #선물/옵셥의 경우
+        if jang == '선옵': #선물/옵셥의 경우
             if type(hoga_in) == str:
                 for _ in range(abs(hoga)):
                     if hoga < 0:
@@ -3757,10 +4184,10 @@ class KoreaInvestment:
         dict_trend = {}
         dict_trend.update(self.investor_trend_time('코스피'))
         dict_trend.update(self.investor_trend_time('선물'))
-        # dict_trend.update(self.investor_trend_time('주식선물'))
+        dict_trend.update(self.investor_trend_time('주식선물'))
         dict_trend.update(self.investor_trend_time('콜옵션'))
         dict_trend.update(self.investor_trend_time('풋옵션'))
-        # dict_trend.update(self.investor_trend_time('코스닥150선물'))
+        dict_trend.update(self.investor_trend_time('코스닥선물'))
         dict_trend.update(self.investor_trend_time('ETF'))
         if COND_MRKT == "WKM":
             dict_trend.update(self.investor_trend_time('콜_위클리_월'))
@@ -3778,38 +4205,151 @@ class KoreaInvestment:
         else:
             df_trend = df
         return df_trend
+    def get_expiry_date(self,target,now_dt:datetime):
+        cond_mrkt = None
+        if target == '선물' or target == '야간선물':
+            df_display = self.display_fut()
+            market_code = "F"
+            # expiry_date, expiry_str, days_left,past_expiry_date,past_expiry_date_str = self.get_nearest_futures_expiry(now_dt)
+            expiry_dt, past_expiry_dt = self.get_nearest_futures_expiry(now_dt)
+            df_display.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
+            df_display['종목명'] = '선물'
+        elif target == '미니선물' or target == '야간미니선물':
+            market_code = "F"
+            df_display = self.display_fut(mini=True)
+            _, __, past_expiry_dt, expiry_dt = self.display_opt(now_dt)
+            df_display.rename(columns={'이론가': '이론가/행사가'}, inplace=True)
+            df_display['종목명'] = '미니선물'
+        elif target == '본옵션' or target == '야간본옵션':
+            df_call, df_put, past_expiry_dt, expiry_dt = self.display_opt(now_dt)
+            df_display = pd.concat([df_call,df_put])
+            market_code = "O"
+            df_display.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
+            df_display.loc[df_display['종목코드'].str.startswith('B'), '종목명'] = '콜옵션'
+            df_display.loc[df_display['종목코드'].str.startswith('C'), '종목명'] = '풋옵션'
+        elif target == '위클리옵션' or target == '야간위클리옵션':
+            market_code = "O"
+            df_call_weekly, df_put_weekly, cond_mrkt, past_expiry_dt, expiry_dt = self.display_opt_weekly(now_dt)
+            if cond_mrkt == '만기주':
+                df_call, df_put, past_expiry_dt, expiry_dt = self.display_opt(now_dt)
+                df_display = pd.concat([df_call,df_put])
+            else:
+                df_display = pd.concat([df_call_weekly,df_put_weekly])
+            df_display.rename(columns={'행사가': '이론가/행사가'}, inplace=True)
+            df_display.loc[df_display['종목코드'].str.startswith('B'), '종목명'] = '위클리콜옵션'
+            df_display.loc[df_display['종목코드'].str.startswith('C'), '종목명'] = '위클리풋옵션'
 
+        else:
+            print("get_expiry_date target 에러 ")
+            raise
+        try:
+            list_ticker = df_display.종목코드.tolist()
+            dict_codes = df_display.set_index('종목코드')['이론가/행사가'].to_dict()
+        except:
+            print("get_expiry_date 에러 ")
+            raise
+        data = self.fetch_domestic_price(market_code,list_ticker[0])
+        # print(f"{data['만기일']= }")
+        # expiry_dt = self.check_holiday(df_holiday,expiry_date)
+        # past_expiry_dt = datetime.datetime.combine(past_expiry_dt, datetime.time(15, 45,0))  # 날짜+시간
+        # expiry_dt = datetime.datetime.strptime(data['만기일'],'%Y%m%d').date()
+        # expiry_dt = datetime.datetime.combine(expiry_dt, datetime.time(15, 45,0))  # 날짜+시간
+        df_display['만기일'] = expiry_dt.strftime('%Y-%m-%d %H:%M:%S')
+        df_display['지난만기일'] = past_expiry_dt.strftime('%Y-%m-%d %H:%M:%S')
+        df_display = common_def.convert_column_types(df_display)
+
+        return dict_codes, past_expiry_dt, expiry_dt, df_display, cond_mrkt
+
+    def check_holiday(self):
+        conn = sqlite3.connect('DB/stg_trade.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        try:
+            list_table = np.concatenate(cursor.fetchall()).tolist()
+        except:
+            list_table = []
+        if 'holiday' in list_table:
+            self.df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn).set_index('날짜')
+            now_day = datetime.datetime.now()
+            expiry_date = now_day+datetime.timedelta(days=30)
+            if not datetime.datetime.strftime(expiry_date, '%Y%m%d') in self.df_holiday.index.tolist():
+                df_holiday_new = self.check_holiday_domestic_stock(expiry_date)
+                self.df_holiday = pd.concat([self.df_holiday, df_holiday_new], axis=0)
+                # 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
+                self.df_holiday = self.df_holiday[~self.df_holiday.index.duplicated(keep='last')]
+                self.df_holiday.to_sql('holiday', conn, if_exists='replace')
+        else:
+            now_day = datetime.datetime.now()
+            expiry_date = now_day+datetime.timedelta(days=100)
+            self.df_holiday = self.check_holiday_domestic_stock(expiry_date)
+            self.df_holiday.to_sql('holiday', conn, if_exists='replace')
+        cursor.close()
+        conn.close()
+        return self.check_holiday_now()
+        # return now_day
+
+    def check_holiday_now(self):
+        today = datetime.datetime.today()
+        yesterday = today - datetime.timedelta(days=1)
+        # df_holiday = self.check_holiday_domestic_stock()
+
+        now = datetime.datetime.now()
+        # now = datetime.datetime.now() - datetime.timedelta(hours=10)
+        now_day = now.strftime("%Y%m%d")
+        market_open = self.df_holiday.loc[now_day, '개장일']
+
+        night_start = now.replace(hour=16)
+        night_end = now.replace(hour=6)
+        if now > night_start:
+            if not market_open == 'Y':
+                holiday = '휴일'
+            else:
+                holiday = '야간'
+        elif now < night_end:
+            yester = yesterday.date().strftime("%Y%m%d")
+            if not self.df_holiday.loc[yester, '개장일'] == 'Y':
+                holiday = '휴일'
+            else:
+                holiday = '야간'
+        else:
+            if not market_open == 'Y':
+                holiday = '휴일'
+            else:
+                holiday = '주간'
+        return holiday
 if __name__ == "__main__":
-    kis = KoreaInvestment(market='국내선옵',mock=False)
-    현재시간 = datetime.datetime.now()
-    df = kis.add_trend(현재시간,pd.DataFrame(),'만기주')
-    print(df)
-    quit()
-    # ohlcv = kis.fetch_1m_ohlcv(symbol='101W12',limit=1000,ohlcv=[],now_day="20251107",
-    #                    now_time="100000")
-    # df = common_def.get_kis_ohlcv('국내선옵',ohlcv)
+    market = '국내선옵' #미니 A05605, 선물 A01606
+    kis = KoreaInvestment(market=market)
+    di, df = kis.fetch_balance()
+    kis.save_data()
+    pprint(kis.fetch_price('A01606',True))
 
-    # df_standard, df = common_def.detail_to_spread(df, '5분봉', '1분봉',False)
-    df_call, df_put, past_date, expiry_date = kis.display_opt(datetime.datetime.now())
-    print(df_call)
-    print(df_put)
-    print(past_date)
-    print(expiry_date)
-    # print(df)
-    # print(len(df))
 
-    quit()
-    if __name__ == "__main__":
-        broker_ws = KoreaInvestmentWS(key, secret, ["H0STCNT0", "H0STASP0"],
-                                      ["005930", "000660"],country,
-                                      mock, user_id="idjhh82")
-        broker_ws.start()
-        while True:
-            data_ = broker_ws.get()
-            if data_[0] == '체결':
-                print(data_[1])
-            elif data_[0] == '호가':
-                print(data_[1])
-            elif data_[0] == '체잔':
-                print(data_[1])
+    # from_dt = datetime.datetime(2026,5,1,6,0,0)
+    expiry_dt = datetime.datetime(2026,6,11,15,45,00)
+    # past_expiry_dt = datetime.datetime(2026,4,9,15,45,00)
+    # conn = sqlite3.connect('DB/DB_futopt_kis.db')
+    # kis.check_holiday(expiry_dt)
+    # symbol = 'A05605'
+    # output = kis.fetch_1m_ohlcv(symbol=symbol, now_dt=now_dt, from_dt=from_dt, expiry_dt=expiry_dt,
+    #                    past_expiry_dt=past_expiry_dt, ohlcv=[])
+    # df = kis.get_kis_ohlcv(output)
+
+
+    print('종료')
+    # os.system("shutdown /s /t 0")  # 윈도우 죵료
+
+    # if __name__ == "__main__":
+    #     broker_ws = KoreaInvestmentWS(key, secret, ["H0STCNT0", "H0STASP0"],
+    #                                   ["005930", "000660"],country,
+    #                                   mock, user_id="idjhh82")
+    #     broker_ws.start()
+    #     while True:
+    #         data_ = broker_ws.get()
+    #         if data_[0] == '체결':
+    #             print(data_[1])
+    #         elif data_[0] == '호가':
+    #             print(data_[1])
+    #         elif data_[0] == '체잔':
+    #             print(data_[1])
 

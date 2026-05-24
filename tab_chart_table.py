@@ -3,7 +3,11 @@ from PyQt5.QtWidgets import *
 #from PyQt5.QtGui import *
 import numpy as np
 #import pyqtgraph as pg
+from PIL import ImageGrab
+
 import sqlite3
+from PyQt5.QtCore import QThread, pyqtSlot, pyqtSignal, QObject, Qt
+
 from PyQt5.QtTest import QTest
 import pandas as pd
 # from pymongo import MongoClient
@@ -14,11 +18,11 @@ import os
 from pprint import pprint
 #import datetime
 import ATOM
+import datetime
 class Window(QWidget):
     # def __init__(self,df):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent=parent)
-
         self.set_UI()
         self.init_file()
         self.QPB_show.clicked.connect(self.push_show)
@@ -26,7 +30,8 @@ class Window(QWidget):
         self.QCB_market.activated[str].connect(lambda :self.select_market(self.QCB_market.currentText()))
         backtest = tab_backtest.Window(self)
         backtest.QCB_market.activated[str].connect(lambda :self.change_market(backtest.QCB_market.currentText()))
-
+        self.QLE_start.mousePressEvent = self.show_calendar_popup_start  # 클릭 시 팝업 호출
+        self.QLE_end.mousePressEvent = self.show_calendar_popup_end  # 클릭 시 팝업 호출
 
     def set_UI(self):
         self.setWindowTitle('chart table')
@@ -56,6 +61,13 @@ class Window(QWidget):
         self.QPB_save = QPushButton('차트저장')
         self.QPB_show = QPushButton('차트보기')
         self.QCB_market = QComboBox()
+        self.QCB_market.addItems(['','코인','국내주식','국내선옵','코인_리얼','주식_리얼','선옵_리얼'])
+        self.QLE_start = QLineEdit()
+        self.QLE_end = QLineEdit()
+        self.QLE_start.setText('2010-01-01')
+        self.QLE_end.setText(datetime.datetime.now().strftime('%Y-%m-%d'))
+        self.QLE_start.setReadOnly(True)  # 직접 입력 방지
+        self.QLE_end.setReadOnly(True)  # 직접 입력 방지
 
         # self.QW_main = QWidget()
         self.QHB_var = QHBoxLayout()
@@ -89,18 +101,21 @@ class Window(QWidget):
         self.QHB3.addWidget(self.QTE3_2)
         self.QHB3.addWidget(self.QTE3_3)
         self.QHB3.addWidget(self.QTE3_4)
+        self.QHB4.addWidget(self.QLE_start)
+        self.QHB4.addWidget(self.QLE_end)
         self.QHB4.addWidget(self.QPB_save)
         self.QHB4.addWidget(self.QPB_show)
         self.QHB4.addWidget(self.QCB_market)
         self.QVB_main.addLayout(self.QHB_var)
+        self.QVB_main.addLayout(self.QHB4)
         self.QVB_main.addLayout(self.QHB0)
         self.QVB_main.addLayout(self.QHB1)
         self.QVB_main.addLayout(self.QHB2)
         self.QVB_main.addLayout(self.QHB3)
-        self.QVB_main.addLayout(self.QHB4)
         self.setLayout(self.QVB_main)
 
-
+        self.QLE_start.setFixedWidth(100)
+        self.QLE_end.setFixedWidth(100)
         # StyleSheet_Qtextedit = "color: #B4B4B4; background-color: NightRider; selection-background-color: #B4B4B4;" \
         #                        "border-color: black; header-color: black;font: 11pt 나눔고딕; "
         StyleSheet_Qtextedit = "color: #B4B4B4; background-color: NightRider; selection-background-color: #B4B4B4;" \
@@ -135,7 +150,7 @@ class Window(QWidget):
         self.QTE3_4.setStyleSheet(StyleSheet_Qtextedit)
 
 
-        self.QCB_market.addItems(['','코인','국내주식','국내선옵','리얼차트'])
+
 
     def BTN_effect(self, QPB):
         QPB.setEnabled(False)
@@ -265,7 +280,17 @@ class Window(QWidget):
         self.df_chart_table = df_chart_table
         self.df = df
         return df_chart_table
-
+    def impo_table(self,df,market):
+        conn = sqlite3.connect("DB/chart_table.db")
+        df_chart_table = pd.read_sql(f"SELECT * FROM '{market}'", conn).set_index('index')
+        self.df_chart_table = df_chart_table
+        self.df = df
+        self.df_show = df
+        start_day = df.index[0].strftime('%Y-%m-%d')
+        end_day = df.index[-1].strftime('%Y-%m-%d')
+        self.QLE_start.setText(start_day)
+        self.QLE_end.setText(end_day)
+        conn.close()
     def df_to_show(self,df,market):
         conn = sqlite3.connect('DB/chart_table.db')
         self.df_chart_table = pd.read_sql(f"SELECT * FROM '{market}'", conn).set_index('index')
@@ -274,15 +299,21 @@ class Window(QWidget):
 
     def push_show(self):
         market = self.QCB_market.currentText()
-        self.input(self.df,market)
-        ticker = '123456789'
+        self.input(self.df,market) #차트쇼 누를때마다 알아서 저장
+        start_day = datetime.datetime.strptime(self.QLE_start.text(),'%Y-%m-%d')
+        end_day = datetime.datetime.strptime(self.QLE_end.text(),'%Y-%m-%d')
+        end_day = end_day+datetime.timedelta(days=1)
+        self.df_show = self.df.loc[(start_day <= self.df.index) & (self.df.index <= end_day)]
+
+        ticker = self.ticker
         self.chart_show(market,ticker)
 
     def init_file(self):
         import os
         file = '/DB/chart_table.db'
         if not os.path.isfile(os.getcwd()+file):
-            for market in ['코인','국내주식','국내선옵','리얼차트']:
+            print('init_file')
+            for market in ['코인','국내주식','국내선옵','리얼차트','코인_리얼','주식_리얼','선옵_리얼']:
                 self.save_table(market)
 
     def change_market(self,market):
@@ -290,22 +321,35 @@ class Window(QWidget):
         self.select_market(market)
 
     def chart_show(self,market,ticker):
-        self.df.index.rename('index', inplace=True)  # 인덱스명 변경
-        # print(self.df)
-        # print(self.df_chart_table)
-        dict_plot = ATOM_chart_numpy.chart_np(self.df, self.df_chart_table)
-
+        self.ticker = ticker
+        self.df_show.index.rename('index', inplace=True)  # 인덱스명 변경
+        dict_plot = ATOM_chart_numpy.chart_np(self.df_show, self.df_chart_table)
         # self.df.index = pd.to_datetime(self.df.index)  # db가 str 타입으로 저장 됨
 
         # df.index = df.index.astype(int)
         # self.chart_table.chart_show(df, dict_plot)
-
-        self.chart = ATOM_chart.Window(self.df, dict_plot,market, ticker)
-        self.chart.setGeometry(0, 30, 3840, 2100)
+        screenshot = ImageGrab.grab()
+        screen_size = screenshot.size
+        self.chart = ATOM_chart.Window(self.df_show, dict_plot, market, ticker)
+        self.chart.setGeometry(0, 30, screen_size[0], screen_size[1])
         self.chart.show()
 
 
         # sys.exit(app.exec_())
+    def show_calendar_popup_start(self, event):
+        """QLineEdit 클릭 시 달력 팝업 표시"""
+        popup = CalendarPopup(self)
+        popup.move(self.QLE_start.mapToGlobal(self.QLE_start.rect().bottomLeft()))  # 팝업 위치 설정
+
+        if popup.exec_():  # 팝업 실행
+            self.QLE_start.setText(popup.selected_date)  # 선택된 날짜를 QLineEdit에 설정
+    def show_calendar_popup_end(self, event):
+        """QLineEdit 클릭 시 달력 팝업 표시"""
+        popup = CalendarPopup(self)
+        popup.move(self.QLE_end.mapToGlobal(self.QLE_end.rect().bottomLeft()))  # 팝업 위치 설정
+
+        if popup.exec_():  # 팝업 실행
+            self.QLE_end.setText(popup.selected_date)  # 선택된 날짜를 QLineEdit에 설정
     def purple(self, text):
         return f'\033[38;2;215;95;215m{text}\033[0m'
     def red(self, text):
@@ -320,6 +364,26 @@ class Window(QWidget):
         return f'\033[33m{text}\033[0m'
     def green(self, text):
         return f'\033[32m{text}\033[0m'
+class CalendarPopup(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.Popup)  # 팝업 형태로 설정
+        self.setGeometry(0, 0, 300, 250)  # 팝업 크기 설정
+
+        # QCalendarWidget 생성
+        self.calendar = QCalendarWidget(self)
+        self.calendar.setGridVisible(True)
+        self.calendar.clicked.connect(self.date_selected)  # 날짜 클릭 이벤트 연결
+
+        # 레이아웃 설정
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.calendar)
+        self.selected_date = None
+
+    def date_selected(self, date):
+        """날짜가 선택되면 저장하고 팝업 닫기"""
+        self.selected_date = date.toString("yyyy-MM-dd")
+        self.accept()  # QDialog를 닫음
 if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)

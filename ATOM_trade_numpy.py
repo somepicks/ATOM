@@ -6,12 +6,11 @@ from pandas import to_numeric
 from PyQt5.QtWidgets import (QMainWindow,QGridLayout,QLineEdit,QLabel,QPushButton,QWidget,QVBoxLayout,
                              QTableWidget,QSplitter,QApplication,QCheckBox,QTextEdit,QTableWidgetItem,
                              QHeaderView,QComboBox,QDialog,QHBoxLayout)
-from PyQt5.QtCore import Qt,QThread,pyqtSignal,QWaitCondition,QMutex,QTimer
+from PyQt5.QtCore import Qt,QThread,pyqtSignal,QWaitCondition,QMutex,QTimer,QObject
 from PyQt5.QtTest import QTest
 from PyQt5.QtGui import QFontMetrics,QFont
 from PyQt5 import QtWidgets, QtCore
 import numpy as np
-import ccxt
 import math
 import chart_real
 from collections import deque
@@ -24,6 +23,15 @@ import sqlite3
 import KIS
 import talib
 import os
+import ccxt.pro as ccxtpro
+import ccxt
+import pickle
+import schedule
+import asyncio
+import telegram
+import common_def
+import json
+import subprocess
 
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
@@ -31,12 +39,6 @@ pd.set_option('display.width',1500)
 pd.set_option("display.unicode.east_asian_width", True)
 pd.set_option('mode.chained_assignment',  None) # SettingWithCopyWarning 경고를 끈다
 
-import schedule
-import asyncio
-import telegram
-import common_def
-import json
-import subprocess
 
 def priceSum(self, pre):
     try:
@@ -47,80 +49,80 @@ def priceSum(self, pre):
         return 0
 
 
-def ma(self, pre):
-    np_tik = self.np_arr[:, 7]
-    np_tik = np.convolve(np_tik, np.ones(pre), 'valid') / pre
-    if len(np_tik) < pre:
-        return np.append(np.zeros(pre - 1) + np.nan, np_tik[:])[:len(self.np_arr)]
-    data = np.append(np.zeros(pre - 1) + np.nan, np_tik[:])
-    return data
-def moving_average(np_arry, w):
-    return np.convolve(np_arry, np.ones(w), 'valid') / w
+# def ma(self, pre):
+#     np_tik = self.np_arr[:, 7]
+#     np_tik = np.convolve(np_tik, np.ones(pre), 'valid') / pre
+#     if len(np_tik) < pre:
+#         return np.append(np.zeros(pre - 1) + np.nan, np_tik[:])[:len(self.np_arr)]
+#     data = np.append(np.zeros(pre - 1) + np.nan, np_tik[:])
+#     return data
+# def moving_average(np_arry, w):
+#     return np.convolve(np_arry, np.ones(w), 'valid') / w
 
 
 def 구간최고시가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('시가')].max()
     else:
         # num = np.argmax(np_tik_length == 데이터길이 - pre)
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('시가')].max()
 def 구간최저시가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('시가')].min()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('시가')].min()
 def 구간최고고가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('고가')].max()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('고가')].max()
 def 구간최저고가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('고가')].min()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('고가')].min()
 def 구간최고저가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('저가')].max()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('저가')].max()
 def 구간최저저가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('저가')].min()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('저가')].min()
 def 구간최고종가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('종가')].max()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('종가')].max()
 def 구간최저종가(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('종가')].min()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('종가')].min()
 def 구간최저거래량(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('거래량')].min()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('거래량')].min()
 def 구간최고거래량(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('거래량')].max()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('거래량')].max()
 def 구간최저거래대금(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('거래대금')].min()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('거래대금')].min()
 def 구간최고거래대금(pre):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp):,list_columns.index('거래대금')].max()
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre):,list_columns.index('거래대금')].max()
 def 구간최고시가N(pre,N): #이거는 다시 한번 봐야 됨
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('시가')].max()
@@ -129,7 +131,7 @@ def 구간최고시가N(pre,N): #이거는 다시 한번 봐야 됨
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('시가')].max()
 def 구간최저시가N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('시가')].min()
@@ -138,7 +140,7 @@ def 구간최저시가N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('시가')].min()
 def 구간최고고가N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('고가')].max()
@@ -147,7 +149,7 @@ def 구간최고고가N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('고가')].max()
 def 구간최저고가N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('고가')].min()
@@ -156,7 +158,7 @@ def 구간최저고가N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('고가')].min()
 def 구간최고저가N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('저가')].max()
@@ -165,7 +167,7 @@ def 구간최고저가N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('저가')].max()
 def 구간최저저가N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('저가')].min()
@@ -174,7 +176,7 @@ def 구간최저저가N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('저가')].min()
 def 구간최고종가N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('종가')].max()
@@ -183,7 +185,7 @@ def 구간최고종가N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('종가')].max()
 def 구간최저종가N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('종가')].min()
@@ -192,7 +194,7 @@ def 구간최저종가N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('종가')].min()
 def 구간최고거래량N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('거래량')].max()
@@ -201,7 +203,7 @@ def 구간최고거래량N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('거래량')].max()
 def 구간최저거래량N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('거래량')].min()
@@ -210,7 +212,7 @@ def 구간최저거래량N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('거래량')].min()
 def 구간최고거래대금N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('거래대금')].max()
@@ -219,7 +221,7 @@ def 구간최고거래대금N(pre,N):
         end_idx = np.argmax(np_tik_length == 데이터길이 - N)
         return np_tik_ar[first_idx:end_idx,list_columns.index('거래대금')].max()
 def 구간최저거래대금N(pre,N):
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         pre_len = int(-pre * bong_stamp / bong_detail_stamp)
         div = int(bong_stamp / bong_detail_stamp*N)
         return np_tik_ar[pre_len-div:-div, list_columns.index('거래대금')].min()
@@ -283,256 +285,247 @@ def 거래대금CN(bong,pre):
 # np_tik이나 np_tik_ar로 돌리는거보다 np_df_tik이 더 빠름
 def 시가N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('시가')]
     else: #국내시장일 경우
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'시가')]
 def 고가N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('고가')]
     else: #국내시장일 경우(일봉)
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'고가')]
 def 저가N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('저가')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'저가')]
 def 종가N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('종가')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'종가')]
 def 이평5N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('이평5')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'이평5')]
 def 이평20N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('이평20')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'이평20')]
 def 이평60N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('이평60')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'이평60')]
 def 이평120N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('이평120')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'이평120')]
 def 이평240N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('이평240')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'이평240')]
 def 거래량N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('거래량')]
     else:
         # print(pre,' | ',np_tik_ar[np.argmax(np_tik_length == 데이터길이 - pre), list_columns.index(f'거래량')])
         return int(np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'거래량')])
 def 거래량이평3N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('거래량이평3')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'거래량이평3')]
 def 거래량이평20N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('거래량이평20')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'거래량이평20')]
 def 거래량이평60N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('거래량이평60')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'거래량이평60')]
 def RSI14N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('RSI14')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'RSI14')]
 def RSI18N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('RSI18')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'RSI18')]
 def RSI30N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('RSI30')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'RSI30')]
 def ATRN(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('ATR')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'ATR')]
 def TRANGEN(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('TRANGE')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'TRANGE')]
 def MACDN(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('MACD')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'MACD')]
 def MACD_SIGNALN(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('MACD_SIGNAL')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'MACD_SIGNAL')]
 def MACD_HISTN(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('MACD_HIST')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'MACD_HIST')]
 def 이격도20이평N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('이격도20이평')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'이격도20이평')]
 def 밴드상N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('밴드상')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'밴드상')]
 def 밴드중N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('밴드중')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'밴드중')]
 def 밴드하N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('밴드하')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'밴드하')]
 def 등락율N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('등락율')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'등락율')]
 def 변화율N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('변화율')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'변화율')]
 def 수익율N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('수익율')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'수익율')]
 def 고저평균대비등락율N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('고저평균대비등락율')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'고저평균대비등락율')]
 def 당일거래대금N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('당일거래대금')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'당일거래대금')]
 def 종료시간N(pre):
     if 데이터길이 <= pre: return np.nan
-    if market == '코인':
+    if market == 'bybit' or market == '업비트':
         return np_tik_ar[int(-pre * bong_stamp/bong_detail_stamp), list_columns.index('캔들종료시간')]
     else:
         return np_tik_ar[np.argmax(np_tik_length == 데이터길이-pre),list_columns.index(f'캔들종료시간')]
-def moving_average(np_arry, w):
-    return np.convolve(np_arry, np.ones(w), 'valid') / w
+# def moving_average(np_arry, w):
+#     return np.convolve(np_arry, np.ones(w), 'valid') / w
 
 # def 이평(pre):
 #     if 데이터길이 <= pre:
 #         return np.nan
 #     return np_tik_ar[row_tik - pre, list_columns.index('종가')]/pre
 
-# def stamp_to_str(stamp_time):
-#     date_time = stamp_to_datetime(stamp_time)
-#     return datetime.datetime.strftime(date_time,"%Y-%m-%d %H:%M:%S")
-# def stamp_to_datetime(stamp_time):
-#     int_time=stamp_to_int(stamp_time)
-#     return datetime.datetime.strptime(str(int_time),'%Y%m%d%H%M')
-# def stamp_to_int(stamp_time):
-#     dt = datetime.datetime.fromtimestamp(stamp_time)
-#     dt = dt.strftime('%Y%m%d%H%M')
-#     return int(dt)
+# class Trade_np(QThread):
+class Trade_np(QObject):
+    send_save_stg = pyqtSignal(dict)
+    send_stg = pyqtSignal(dict)
 
-class Trade_np(QThread):
-    qt_open = pyqtSignal(pd.DataFrame)
-    qt_closed = pyqtSignal(pd.DataFrame)
-    save_history = pyqtSignal(str,pd.DataFrame)
-    val_light = pyqtSignal(bool,pd.DataFrame,pd.DataFrame)
+    # def __init__(self, parent, market, simul, df_stg, chart_duration, tele,
+    #              dict_market_option,auto_finish,finish_time):
+    #     super().__init__(parent)
+    def __init__(self, dict_option, df_set):
+        super().__init__()
+        self.dict_option = dict_option
+        self.market = self.dict_option["market"]
+        self.simul = self.dict_option["mock"]
+        # self.df_trade = df_trade
+        # self.df_set = df_set.iloc[0]
+        self.dict_set = df_set.to_dict()['check']
 
-    shutdown_signal = pyqtSignal()
 
-    def __init__(self, parent, market, simul, df_stg, chart_duration, tele,
-                 dict_market_option,auto_finish,finish_time):
-        super().__init__(parent)
-    # def __init__(self,market,simul,df_stg):
-    #     super().__init__()
-        # self.conn_stg = conn_stg
-        self.market = market
-        self.simul = simul.isChecked()
-        self.df_stg = df_stg
-
-        # self.ex_kis = ex_kis
-        # self.ex_bybit = ex_bybit
-        # self.ex_pybit = ex_pybit
-        self.cond = QWaitCondition()
-        self.mutex = QMutex()
-        self._status = True
-        self.light = False
-        self.auto_finish = auto_finish
-        self.finish_time = finish_time
-        self.wait()
-        if chart_duration == '기간(일)': chart_duration = 1
-        self.duration = int(chart_duration)
-        self.dict_bong_stamp ={'1분봉': 1*60, '3분봉': 3*60, '5분봉': 5*60, '15분봉': 15*60, '30분봉': 30*60, '60분봉': 60*60, '4시간봉': 240*60, '일봉': 1440*60,
+        # self.cond = QWaitCondition()
+        # self.mutex = QMutex()
+        # self._status = True
+        # self.light = False
+        # self.wait()
+        # if chart_duration == '기간(일)': chart_duration = 1
+        # self.duration = int(chart_duration)
+        self.dict_bong_stamp ={'1분봉': 1*60, '3분봉': 3*60, '5분봉': 5*60, '15분봉': 15*60, '30분봉': 30*60, '1시간봉': 60*60, '4시간봉': 240*60, '일봉': 1440*60,
                            '주봉': 10080*60}
-        self.dict_bong = {'1분봉': '1m', '3분봉': '3m','5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '1h', '4시간봉':'4h','일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
+        self.dict_bong = {'1분봉': '1m', '3분봉': '3m','5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '1시간봉': '1h', '4시간봉':'4h','일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
+        self.dict_bong_int = {'1분봉': 1, '3분봉': 3, '5분봉': 5,'15분봉': 15, '30분봉': 30,'1시간봉': 60, '4시간봉': 4*60, '일봉': 24*60}
+        self.dict_bong_int_reverse = dict(zip(self.dict_bong_int.values(), self.dict_bong_int.keys()))
+
         self.dict_bong_reverse = dict(zip(self.dict_bong.values(), self.dict_bong.keys()))
-        self.dict_bong_timedelta = {'1분봉':datetime.timedelta(minutes=1), '3분봉':datetime.timedelta(minutes=3),
-                                    '5분봉':datetime.timedelta(minutes=5), '15분봉':datetime.timedelta(minutes=15),
-                                    '30분봉':datetime.timedelta(minutes=30), '60분봉':datetime.timedelta(minutes=60),
-                                    '4시간봉':datetime.timedelta(minutes=240), '일봉':datetime.timedelta(days=1)}
+        self.dict_bong_timedelta = {'1분봉':datetime.timedelta(minutes=1),
+                                    '3분봉':datetime.timedelta(minutes=3),
+                                    '5분봉':datetime.timedelta(minutes=5),
+                                    '15분봉':datetime.timedelta(minutes=15),
+                                    '30분봉':datetime.timedelta(minutes=30),
+                                    '1시간봉':datetime.timedelta(minutes=60),
+                                    '4시간봉':datetime.timedelta(minutes=240),
+                                    '일봉':datetime.timedelta(days=1)}
         self.dic_multiplier = {'101':250000,'201':250000,'301':250000,'209':250000,'309':250000,'2AF':250000,'3AF':250000, #코스피200
                                '105':50000,'205':50000,'305':50000, #미니코스피200
                                '106': 10000, '206': 10000, '306': 10000, #코스닥150
                                }
-        self.timer_light = QtCore.QTimer()
-        self.timer_light.start()
-        self.timer_light.setInterval(1000)  #10초에 한번씩 불러오기
-        self.bool_light = False
+        # self.timer_light = QtCore.QTimer()
+        # self.timer_light.start()
+        # self.timer_light.setInterval(1000)  #10초에 한번씩 불러오기
+        # self.bool_light = False
 
         self.fee_stock = 0.0140527#%
         self.tax_stock = 0.018
@@ -541,44 +534,45 @@ class Trade_np(QThread):
         self.fee_putopt2 = 0.09
         self.fee_bybit_market = 0.055
         self.fee_bybit_limit = 0.055
+        self.fee_upbit_market = 0.05
+        self.fee_upbit_limit = 0.05
         self.위탁증거금률 = 10  # 10%
-        self.tele = tele
-        self.dict_market_option = dict_market_option
 
-        self.list_tickers = self.dict_market_option['list_tickers']
+        for i in range(10):
+            globals()[f'매도{i}호가'] = f'매도{i}호가'
+        for i in range(10):
+            globals()[f'매수{i}호가'] = f'매수{i}호가'
+        # self.tele = tele
+        # self.dict_market_option = dict_market_option
+
+        # self.list_tickers = self.dict_market_option['list_tickers']
         # self.list_close_day = list_close_day
 
 
-        if self.tele == True:
-            conn = sqlite3.connect('DB/setting.db')
-            df_set = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
-            conn.close()
-            if df_set.loc['텔레그램_API', 'value'] == '' or df_set.loc['텔레그램_SECRET', 'value'] == '':
-                self.TOKEN = df_set.loc['텔레그램_API', 'value']
-                self.chat_id = df_set.loc['텔레그램_SECRET', 'value']
-                self.bot = telegram.Bot(token=self.TOKEN)
-            else:
-                print('텔레그램 API, SECRET 확인 필요')
+        # if self.tele == True:
+        #     conn = sqlite3.connect('DB/setting.db')
+        #     df_set = pd.read_sql(f"SELECT * FROM 'set'", conn).set_index('index')
+        #     conn.close()
+        #     if df_set.loc['텔레그램_API', 'value'] == '' or df_set.loc['텔레그램_SECRET', 'value'] == '':
+        #         self.TOKEN = df_set.loc['텔레그램_API', 'value']
+        #         self.chat_id = df_set.loc['텔레그램_SECRET', 'value']
+        #         self.bot = telegram.Bot(token=self.TOKEN)
+        #     else:
+        #         print('텔레그램 API, SECRET 확인 필요')
             # txt = '텔레그램 작동'
             # asyncio.run(self.bot.send_message(chat_id=self.chat_id, text=txt))
         # self.loop_run = Loop_trade.Trade_np(self)
 
-    def run(self):
-        self.df_trade = self.df_stg[self.df_stg['table'] != 0] # 현재 테이블에 저장된 전략만 갖고오기
-        print(f'거래에 사용할 전략: {self.df_trade.index.tolist()}')
+    def trade(self):
+        # self.df_trade = self.df_stg[self.df_stg['table'] != 0] # 현재 테이블에 저장된 전략만 갖고오기
         # self.list_stg_tickers = self.df_trade.loc[self.df_trade['진입대상']!='전체','ticker'].values.tolist()  #데이터프레임 조건 [진입대상이 전체가 아닌 'ticker'열 불러와 np→리스트 저장
         # self.list_stg_tickers.append('WLD') #전략에서 제외되는 코인 추가
         # self.list_stg_tickers = list(set(self.list_stg_tickers))
-        # print(f"거래대상이 '전체'인 전략에서 제외되는 종목: {self.list_stg_tickers}")
-        if self.simul == False:  # 실매매
-            print(f"{self.red('실매매')}")
-        elif self.simul == True: #모의매매
-            print(f"{self.cyan('모의매매')}")
 
         if self.market == '국내주식' or self.market == '국내선옵':
-            if self.dict_market_option['개장일'] == 'N' or self.dict_market_option['개장일'] == 'n':
+            if self.dict_option['개장일'] == 'N' or self.dict_option['개장일'] == 'n':
                 print(f"금일은 개장일이 아닙니다. {datetime.datetime.now().date().strftime('%Y%m%d')}")
-                if self.auto_finish == True:
+                if self.dict_option['자동시작'] == True:
                     self.shutdown_signal.emit()
             elif datetime.datetime.now().time() < datetime.datetime.strptime('00:55:00','%H:%M:%S').time(): #9시 전에 클릭하면 9시 정각에 실행
                 schedule.every().day.at("08:55:00").do(self.loop_init)
@@ -592,10 +586,9 @@ class Trade_np(QThread):
                 self.loop_init()
             print('국내 exit')
 
-        elif self.market == '코인':
-            # schedule.every().hour.at(":00").do(self.sorting_tickers) #매시각 정시마다 거래대금 순위 정렬해서 불러오기
+        elif self.market == 'bybit' or market == '업비트':
+            # schedule.every().hour.at(":00").do(self.sorting_ticker                            s) #매시각 정시마다 거래대금 순위 정렬해서 불러오기
             # schedule.every().hour.at(":30").do(self.sorting_tickers) #매시각 30분마다 거래대금 순위 정렬해서 불러오기
-            schedule.every().hour.at(":00").do(self.time_sync) #매시각 정시마다 거래대금 순위 정렬해서 불러오기
 
             dict_stg = self.loop_init()
             dt = datetime.datetime.now().replace(second=0, microsecond=0)
@@ -613,8 +606,8 @@ class Trade_np(QThread):
                 # self.bool_light = not self.bool_light
             print('코인 exit')
         self._status = False
-    def time_sync(self):
-        subprocess.Popen('python timesync.py')
+    # def time_sync(self):
+    #     subprocess.Popen('python timesync.py')
     def toggle_status(self):
         self._status = not self._status
         if self._status:
@@ -636,7 +629,7 @@ class Trade_np(QThread):
         진입시간 = 현재시간
         now_day = 현재시간.date().strftime("%Y%m%d")
         now_time = 현재시간.strftime("%H%M") + "00"  # 마지막에 초는 00으로
-        if self.market == '코인':
+        if self.market == 'bybit' or market == '업비트':
             장종료시간 = 현재시간 + datetime.timedelta(days=30)
             # self.ex_bybit, self.ex_pybit = common_def.make_exchange_bybit()
             balanceSpot = self.ex_bybit.fetch_balance()
@@ -678,16 +671,16 @@ class Trade_np(QThread):
                 bong_detail = '1분봉'
                 self.df_trade.loc[stg, '상세봉'] = '1분봉'
             dict_stg[stg] = {'전략명':stg, '진입대상':obj,'종목코드':'','봉':bong, '상세봉':bong_detail,
-                             '봉제한':1, '팩터':[], '비교대상':{'수급동향':False}, '현재시간':현재시간,
-                             '장종료시간':장종료시간, '진입시간':진입시간, '검색대상':[]}
+                             '봉길이':1, '팩터':[], '비교대상':{'수급동향':False}, '현재시간':현재시간,
+                             '장종료시간':장종료시간, '주문시간':진입시간, '검색대상':[]}
             if obj[0] == '{' and obj[-1] == '}' : # 대상이 여러개일 경우
                 obj = json.loads(obj)
                 dict_stg[stg]['진입대상'] = obj
             ticker = self.df_trade.loc[stg, 'ticker']
             df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
-            bong_since = df_same['봉제한'].max()
+            bong_since = df_same['봉길이'].max()
             dict_stg[stg]['종목코드'] = ticker
-            dict_stg[stg]['봉제한'] = bong_since
+            dict_stg[stg]['봉길이'] = bong_since
         self.sorting_make_df(dict_stg)
 
         for stg in self.df_trade.index:
@@ -702,8 +695,8 @@ class Trade_np(QThread):
             obj = dict_stg[stg]['진입대상']
             bong = dict_stg[stg]['봉']
             bong_detail = dict_stg[stg]['상세봉']
-            bong_since = dict_stg[stg]['봉제한']
-            df_stg = self.df_trade.drop(columns=["진입전략", "청산전략", "레버리지", "market", "table", "봉", "봉제한", "방향", "상세봉"]).loc[[stg]]
+            bong_since = dict_stg[stg]['봉길이']
+            df_stg = self.df_trade.drop(columns=["진입전략", "청산전략", "레버리지", "market", "table", "봉", "봉길이", "방향", "상세봉"]).loc[[stg]]
             df_stg.index = [now_time]
             globals()[f'전략_{stg}'] = df_stg
                 # self.dict_sorting_obj = self.sorting_tickers(stg,obj)
@@ -720,9 +713,9 @@ class Trade_np(QThread):
                 데이터길이 = df.loc[df.index[-1], '데이터길이']  # df는 상태봉이기 때문에  찾아서 다시 들어가야됨
                 idx_bong = df['데이터길이'].tolist().index(데이터길이)
                 if 상태 == '대기':
-                    self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
+                    self.df_trade.loc[stg, '주문시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
                     # idx = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상태'] == '대기') & (self.df_trade['상세봉'] == bong_detail)].index
-                    # self.df_trade.loc[idx, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 조건: 같은 종목, 같은 봉, 같은 봉제한인 테이블에 동시에 저장
+                    # self.df_trade.loc[idx, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 조건: 같은 종목, 같은 봉, 같은 봉길이인 테이블에 동시에 저장
                     self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])
                 # 매수주문이나 매도주문등이 된 상태에서 프로그램이 꺼질경우 체결이 되었는지 알 수 없기때문에 최초 한번 돌려줌
                 elif 상태 != '대기':
@@ -746,12 +739,12 @@ class Trade_np(QThread):
                     for i, ticker in enumerate(dict_stg[stg]['검색대상']):  # 조건 검색에 있는 종목만
                         df_same = self.df_trade[(self.df_trade['ticker'] == ticker) & (self.df_trade['봉'] == bong) & (self.df_trade['상세봉'] == bong_detail)]
                         if df_same.empty:
-                            bong_since = self.df_trade.loc[stg, '봉제한']
+                            bong_since = self.df_trade.loc[stg, '봉길이']
                         else:
-                            bong_since = df_same['봉제한'].max()
+                            bong_since = df_same['봉길이'].max()
                         df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
                         dict_stg[stg]['종목코드'] = ticker
-                        dict_stg[stg]['봉제한'] = bong_since
+                        dict_stg[stg]['봉길이'] = bong_since
                         dict_stg[stg]['비교대상']['수급동향'] = False
                         dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
                         # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
@@ -759,18 +752,18 @@ class Trade_np(QThread):
 
                         데이터길이 = df.loc[df.index[-1], '데이터길이']
                         idx_bong = df['데이터길이'].tolist().index(데이터길이)
-                        self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
+                        self.df_trade.loc[stg, '주문시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 변수로 사용하기 때문에 일단은 만들어둠
                         self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(df.index[idx_bong])  # 일단은 만들어둠
 
                         self.active_light()
                 else: #해당하는 종목이 없을 경우
                     df = pd.DataFrame()
-                    self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(현재시간)  # 변수로 사용하기 때문에 일단은 만들어둠
+                    self.df_trade.loc[stg, '주문시간'] = common_def.datetime_to_str(현재시간)  # 변수로 사용하기 때문에 일단은 만들어둠
                     self.df_trade.loc[stg, '현재봉시간'] = common_def.datetime_to_str(현재시간)  # 일단은 만들어둠
             if [x for x in df.columns.tolist() if '_y' in x or '_x' in x]:
                 print('에러0')
                 quit()#
-        if self.market == '코인':
+        if self.market == 'bybit' or market == '업비트':
             print(f"{self.blue('bybit 트레이딩 시작')}")
         elif self.market == '국내주식' or self.market == '국내선옵':
             print(f"{self.blue('kis 트레이딩 시작')}")
@@ -792,7 +785,7 @@ class Trade_np(QThread):
 
         elif 현재시간 >= one_minute:  # 모든종목 대상으로 캔들종료시간 초과 시 한번만 실행하도록
             check_time = True
-            if self.market == '코인':
+            if self.market == 'bybit' or market == '업비트':
                 self.sorting_make_df(dict_stg)
             elif self.market == '국내주식' or self.market == '국내선옵':
                 self.add_investor_trend(현재시간)
@@ -803,9 +796,9 @@ class Trade_np(QThread):
         for stg in self.df_trade.index:
             bong = dict_stg[stg]['봉']
             bong_detail = dict_stg[stg]['상세봉']
-            bong_since = dict_stg[stg]['봉제한']
+            bong_since = dict_stg[stg]['봉길이']
             obj = dict_stg[stg]['진입대상']
-            dict_stg[stg]['진입시간'] = common_def.str_to_datetime(self.df_trade.loc[stg, '진입시간'])
+            dict_stg[stg]['주문시간'] = common_def.str_to_datetime(self.df_trade.loc[stg, '주문시간'])
             dict_stg[stg]['현재시간'] = 현재시간
             # 상태 = self.df_trade.loc[stg, '상태']
             # bong_time = self.df_trade.loc[stg, '현재봉시간']
@@ -864,8 +857,8 @@ class Trade_np(QThread):
                             bong_time = self.df_trade.loc[stg, '현재봉시간']
                             배팅금액 = self.df_trade.loc[stg, '배팅금액']
                             dict_stg[stg]['비교대상']['수급동향'] = False
-                            # 비교대상에서 긴 봉제한을 갖고왔을 때 어떡게 df에 접목할지 고민 해봐야 함
-                            # dict_stg[stg]['봉제한'] = bong_since
+                            # 비교대상에서 긴 봉길이을 갖고왔을 때 어떡게 df에 접목할지 고민 해봐야 함
+                            # dict_stg[stg]['봉길이'] = bong_since
                             df = self.make_df(ticker,bong,bong_detail,bong_since,False,now_day,now_time)
                             dict_stg[stg] = self.check_compare_ticker(stg, ticker,dict_stg[stg])
                             # if dict_stg[stg]['비교대상']:  # 비교대상이 있을경우 데이터프레임생성
@@ -895,18 +888,198 @@ class Trade_np(QThread):
             globals()[f'전략_{stg}'] = pd.concat([globals()[f'전략_{stg}'], df_stg])
         # print(self.df_trade[['현재봉시간','캔들종료시간']])
         return one_minute, dict_stg
+    # @pyqtSignal(pd.DataFrame,dict)
+    def trading(self,df,dict_stg):
+        global np_tik_ar, list_columns, np_tik_idx, np_tik_length
+        global 매수가, 매도가, 시장가, 매수, 매도, 재진입금지
+        global 수익률, 최고수익률, 최저수익률
+        global 상세시가, 상세고가, 상세저가, 상세종가
+        global market, stg, 종목코드, 전략명
+        global bong_stamp, bong_detail_stamp, dict_bong_stamp
+        global 롱, long, 숏, short
+        global 분봉1, 분봉3, 분봉5, 분봉15, 분봉30, 분봉60, 시간봉4, 일봉, 주봉, 월봉
+        global 현재가, 시가, 고가, 저가, 종가, 거래량, NAV, 거래량이평3, 이격도20이평, 등락율, 시가총액, 이평, 주문가
+        global 장종료시간, 데이터길이, 진입시간, 현재시간, 시분초
+        global 분할상태, 매입율
+        global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리, 거래량상위, 등락률상위
+        global 거래대금상위, 시가총액상위, 시간외잔량상위, 체결강도상위, 관심종목등록상위
+        매수 = False
+        매도 = False
+        재진입금지 = False
+        시장가 = '시장가'
+        long = 'long'
+        short = 'short'
+        콜옵션 = '콜옵션'
+        풋옵션 = '풋옵션'
+        콜옵션_위클리 = '콜옵션_위클리'
+        풋옵션_위클리 = '풋옵션_위클리'
+        거래대금상위 = '거래대금상위'
+        시가총액상위 = '시가총액상위'
+        현재가 = df.loc[df.index[-1], '상세종가']
+        상태 = dict_stg['상태']
+        # 배팅금액 = dict_stg['배팅금액']
+        최저수익률 = dict_stg['최저수익률']
+        최고수익률 = dict_stg['최고수익률']
+        수익률 = dict_stg['수익률']
+        잔고 = dict_stg['잔고']
+        방향 = dict_stg['방향']
+        봉 = dict_stg['봉']
+        market = dict_stg['market']
+        전략명 = dict_stg['전략명']
+        # 현재시간 = datetime.datetime.now().replace(second=0, microsecond=0)
+        # 현재시간 = datetime.datetime.now().replace(microsecond=0)
+        현재시간 = dict_stg['현재시간']
+        시분초 = common_def.datetime_to_int_time(현재시간)
 
-    # def loop_trade(self, ticker, stg, df_detail, bong, bong_detail, 상태, current_time, candle_endtime, jang_endtime,data_length,배팅금액,enter_time):
+        # ticker = dict_stg['ticker']
+        bong_detail_stamp = 1*60 #1분봉 * 60초
+        bong_stamp = 봉*60
+        dict_bong_stamp = self.dict_bong_stamp
+
+        분할상태 = json.loads(dict_stg['분할상태'])
+        np_tik_ar = df.to_numpy()  # 전체 데이터를 np로 저장
+        np_tik_idx = df.index.to_numpy()  # 인덱스를 np로 저장
+        list_columns = df.columns.tolist()  # 컬럼명을 리스트로 저장
+        np_tik_length = df['데이터길이'].to_numpy()  # 인덱스를 np로 저장
+        현재봉시간 = df['현재봉시간'][-1]
+
+        for col in list_columns:  # 연산을 위해 컬럼의 값을 행별로 돌아가며 변수로 선언
+            globals()[f'{col}'] = np_tik_ar[-1, list_columns.index(f'{col}')]
+        # print(f"{전략명= }    {ticker=}   {봉=}  {봉길이=} {상태= }    {현재가=}    {MACD=}    {MACDN(1)=}    {dict_stg['매도전환']=}")
+        # dict_stg['현재가'] = 현재가
+        if dict_stg['ticker'] != '':
+            dict_stg['현재가'] = 현재가
+        if 상태 == '대기' or 상태 == '분할매수대기': # 미 보유 시 진입 주문
+            if dict_stg['매도전환'] != "재진입금지":
+                stg_buy = dict_stg['진입전략']
+                locals_dict_buy = {}
+                exec(stg_buy, None, locals_dict_buy) #전략연산
+                매수 = locals_dict_buy.get('매수')
+                if 매수 != False and 매수 != None :  # 매수 주문
+                    매수가 = locals_dict_buy.get('매수가')
+                    # dict_stg['ticker'] = 종목코드
+                    if type(매수가) == list and type(매수) == list: # 분할매수일 경우
+                        dict_stg = self.buy_on_scale(dict_stg, 매수, 매수가)
+                        # if 상태 == '분할매수대기':
+                            # 누적수익음 = self.cal_ror(stg, 현재가, 방향)  # 나중에 balance_account랑 합쳐야 됨
+                    else:
+                        dict_stg['상태'] = '매수주문'
+                        dict_stg['분할상태'] = json.dumps(분할상태, ensure_ascii=False)
+                        dict_stg = self.order_open(dict_stg, 매수, 매수가) #시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
+                    # dict_stg['주문시간'] = common_def.datetime_to_str(현재시간)
+                    주문취소시간 = 현재봉시간+datetime.timedelta(minutes=dict_stg['봉'])
+                    dict_stg['주문취소시간'] = common_def.datetime_to_str(주문취소시간)
+                    self.send_save_stg.emit(dict_stg)
+
+        elif 상태 == '매수주문' or 상태 == '분할매수주문' :
+            if 현재시간 > common_def.str_to_datetime(dict_stg['주문취소시간']): #주문취소
+                print('주문 취소')
+                dict_stg = self.order_cancel(dict_stg)
+
+                self.send_save_stg.emit(dict_stg)
+
+        elif 상태 == '매수' or 상태 == '분할매수' : # 보유 시
+            if dict_stg['매도전환'] == 'True': #매수가되면 분할매도 때문에 최초 분할 수량을 배정함
+                dict_stg = self.make_sell_division_qty(dict_stg) #분할 매도 시 분할 수량 나누기
+            # dict_stg['분할상태'] = json.dumps(['매수'], ensure_ascii=False) # chegyeol_sell에서 분할매도인지 아닌지 확인하기 위해 리스트원소를 1개로 초기화 해줌
+            # print(f"elif 상태 == '매수' or {stg= }    {종목코드= }   {분할상태= }    {dict_stg['매도전환']= }   {type(dict_stg['매도전환'])= }")
+            # self.df_trade.drop(['진입전략','청산전략'],axis=1,inplace=True)
+            # 진입가 = dict_stg['진입가']
+            stg_sell = dict_stg['청산전략']
+            locals_dict_sell = {}
+            exec(stg_sell, None, locals_dict_sell)
+            매도 = locals_dict_sell.get('매도')
+            if 매도 == True or type(매도)==list:  # 청산 주문
+                매도가 = locals_dict_sell.get('매도가')
+                재진입금지 = locals_dict_sell.get('재진입금지')
+                # print(f"{재진입금지= }")
+                if 재진입금지 == True:
+                    print('재진입금지')
+                    dict_stg['매도전환'] = "재진입금지"
+                # print(f"if 매도 == True or type(매도)==list: {종목코드= }   {분할상태= }   {매도=}    {매도가= }   {type(매도가)= }     {dict_stg['매도전환']= }")
+                if type(매도가) == list: # 분할매도일 경우
+                    상태 = self.sell_on_scale(stg, 매도, 매도가, 방향) #시장가 매도 일 경우 '매수'를 받기 때문에 반환받아야됨
+                else:
+                    상태 = '매도주문'
+                    dict_stg = self.order_close(dict_stg,매도가) #시장가 매도 일 경우 '매수'를 받기 때문에 반환받아야됨
+                dict_stg['상태'] = 상태
+                주문취소시간 = 현재봉시간 + datetime.timedelta(minutes=dict_stg['봉'])
+                dict_stg['주문취소시간'] = common_def.datetime_to_str(주문취소시간)
+                self.send_save_stg.emit(dict_stg)
+
+                # list_exit_sig = json.loads(dict_stg['청산신호시간'])
+                # list_exit_sig.append(common_def.datetime_to_str(현재시간))
+                # dict_stg['청산신호시간'] = json.dumps(list_exit_sig,ensure_ascii=False)
+        elif 상태 == '매도주문' or 상태 == '부분매도' or 상태 == '시장가매도' or \
+            상태 == '분할매도주문' or 상태 == '분할부분매도': # 청산 주문 시
+            if not dict_stg['주문취소시간']=='':
+                if 현재시간 > common_def.str_to_datetime(dict_stg['주문취소시간']): #주문취소
+                    dict_stg = self.order_cancel(dict_stg)
+                    if 상태 == '매도주문':
+                        dict_stg['상태'] = '매수'
+                    dict_stg['주문가'] = 0
+                    dict_stg['주문수량'] = 0
+                    dict_stg['id'] = ''
+                    self.send_save_stg.emit(dict_stg)
+                    return
+            # 수익금, 누적수익금 = self.cal_ror(stg, 현재가, 방향)
+            if 상태 == '분할매도주문' or 상태 == '분할부분매도' or 상태 == '분할매도취소': #분할매도일 경우
+                상태, 누적수익금 = self.chegyeol_sell_on_scale(stg, 종목코드, 방향, 현재시간, 상태)
+            stg_sell = dict_stg['청산전략']
+            locals_dict_sell = {}
+            exec(stg_sell, None, locals_dict_sell)
+            매도 = locals_dict_sell.get('매도') #매도주문 중 손절라인등으로 인해 시장가 매도가 나올 수 있으므로
+            매도가 = locals_dict_sell.get('매도가')
+            # 기존의 지정가주문을 취소한 후 처리해야하며 백테스트에서는 이부분이 반영이 되어있는지도 확인 필요.
+            # 매수에서는 이럴경우 어떡게 되어있는지도 확인 필요
+            if 매도 == True :
+                재진입금지 = locals_dict_sell.get('재진입금지')
+                if 재진입금지 == True:
+                    dict_stg['매도전환'] = '재진입금지'
+                if 매도가 == 시장가 and 상태 != '시장가매도' and 상태 != '매도': # 지정가로 매도주문이 나간상태인데 손절라인에 걸려서 시장가 매도 주문이 나가야할 경우
+                    print(f'{stg= }, {종목코드= } | 잔량 시장가 매도 - {datetime.datetime.now()}')
+                    주문수량 = dict_stg['주문수량']
+                    보유수량 = dict_stg['보유수량']
+                    if 상태 == '매도주문' or 상태 == '부분매도': #분할매도 아닐 경우
+                        id = dict_stg['id']
+                        dict_stg = self.order_cancel(stg, 종목코드, 상태, 주문수량, 보유수량, 방향,id, 0,'')
+                    else: #분할매도일 경우
+                        print('분할매도 시장가 손절')
+                        분할상태 = json.loads(dict_stg['분할상태'])
+                        분할보유수량 = json.loads(dict_stg['분할보유수량'])
+                        분할주문수량 = json.loads(dict_stg['분할주문수량'])
+                        분할id = json.loads(dict_stg['분할id'])
+                        잔여수량 = 0
+                        for num, 세부상태 in enumerate(분할상태):
+                            if 세부상태 == '매도주문' or 세부상태 == '시장가매도' or 세부상태 == '부분매도' :
+                                dict_stg = self.order_cancel(stg, 종목코드, 세부상태, 분할주문수량[num], 분할보유수량[num], 방향,분할id[num], 0,'')
+                                잔여수량 += 세부잔여수량
+                        print(f"if 매도 == True : {분할주문수량=}   {상태=}")
+                    상태 = '매도주문'
+                    상태, 매도가, id = self.order_close(stg, 매도가, 방향, 잔여수량, 상태)
+                    dict_stg['상태'] = 상태
+            # elif type(매도)==list: #활성화 하면 분할보유수량이 반영안됨
+            #     if type(매도가) == list:  # 분할매도일 경우
+            #         상태 = self.sell_on_scale(stg, 매도, 매도가, 방향)  # 시장가 매도 일 경우 '매수'를 받기 때문에 반환받아야됨
+
+        elif 상태 == '매도':
+            dict_stg = self.reset_data(dict_stg,현재봉시간)
+            self.send_save_stg.emit(dict_stg)
+        elif 상태 == '청산':
+            if 현재시간 > common_def.str_to_datetime(dict_stg['주문취소시간']): #리셋
+                dict_stg['상태'] = '대기'
+                self.send_save_stg.emit(dict_stg)
+
     def loop_trade(self, df_detail, dict_stg_stg, 상태, 배팅금액, data_length):
         global np_tik_ar, list_columns, np_tik_idx, np_tik_length
-        global 매수가, 매도가, 시장가, 레버리지, 매수, 매도, 재진입금지
+        global 매수가, 매도가, 시장가, 매수, 매도, 재진입금지
         global 수익률, 최고수익률, 최저수익률
         global 상세시가, 상세고가, 상세저가, 상세종가
         global market, stg, 종목코드, 전략명
         global dict_bong_stamp, bong_stamp, bong_detail_stamp
         global 롱, long, 숏, short
         global 분봉1, 분봉3, 분봉5, 분봉15, 분봉30, 분봉60, 시간봉4, 일봉, 주봉, 월봉
-        global 현재가, 시가, 고가, 저가, 종가, 거래량, NAV, 거래량이평3, 이격도20이평, 등락율, 시가총액, 이평, 진입가
+        global 현재가, 시가, 고가, 저가, 종가, 거래량, NAV, 거래량이평3, 이격도20이평, 등락율, 시가총액, 이평, 주문가
         global 장종료시간, 데이터길이, 진입시간, 현재시간, 시분초
         global 분할상태, 매입율
         global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리, 거래량상위, 등락률상위
@@ -922,7 +1095,7 @@ class Trade_np(QThread):
         현재시간 = dict_stg_stg['현재시간']
         # 캔들종료시간 = dict_stg_stg['캔들종료시간']
         장종료시간 = dict_stg_stg['장종료시간']
-        진입시간 = dict_stg_stg['진입시간']
+        진입시간 = dict_stg_stg['주문시간']
         bong = dict_stg_stg['봉']
         bong_detail = dict_stg_stg['상세봉']
         시분초 = common_def.datetime_to_int_time(현재시간)
@@ -955,7 +1128,7 @@ class Trade_np(QThread):
         수익률 = self.df_trade.loc[stg, '수익률']
         잔고 = self.df_trade.loc[stg, '잔고']
         방향 = self.df_trade.loc[stg, '방향']
-        레버리지 = self.df_trade.loc[stg, '레버리지']
+        # 레버리지 = self.df_trade.loc[stg, '레버리지']
 
         분할상태 = json.loads(self.df_trade.loc[stg, '분할상태'])
 
@@ -998,9 +1171,9 @@ class Trade_np(QThread):
                     else:
                         상태 = '매수주문'
                         self.df_trade.loc[stg, '분할상태'] = json.dumps(분할상태, ensure_ascii=False)
-                        상태, 수량, 진입가, 수수료, id = self.order_buy(stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태) #시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
+                        상태, 수량, 진입가, 수수료, id = self.order_open(stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태) #시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
                     self.df_trade.loc[stg, '상태'] = 상태
-                    self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(현재시간)
+                    self.df_trade.loc[stg, '주문시간'] = common_def.datetime_to_str(현재시간)
                     list_enter_sig = json.loads(self.df_trade.loc[stg, '진입신호시간'])
                     list_enter_sig.append(common_def.datetime_to_str(현재시간))
                     # list_enter_sig = [x for x in list_enter_sig if x] #리스트에 빈값""이 있으면 없애기
@@ -1083,7 +1256,7 @@ class Trade_np(QThread):
                 else:
                     보유수량 = self.df_trade.loc[stg, '보유수량']
                     상태 = '매도주문'
-                    상태, 매도가, id = self.order_sell(stg, 매도가, 방향, 보유수량, 상태) #시장가 매도 일 경우 '매수'를 받기 때문에 반환받아야됨
+                    상태, 매도가, id = self.order_close(stg, 매도가, 방향, 보유수량, 상태) #시장가 매도 일 경우 '매수'를 받기 때문에 반환받아야됨
                 self.df_trade.loc[stg,'상태'] = 상태
                 list_exit_sig = json.loads(self.df_trade.loc[stg, '청산신호시간'])
                 list_exit_sig.append(common_def.datetime_to_str(현재시간))
@@ -1178,7 +1351,7 @@ class Trade_np(QThread):
             df_stg = self.df_trade.loc[[stg]]
             self.qt_closed.emit(df_stg)
             self.df_trade.loc[stg, '상태'] = 상태
-            self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(현재시간)
+            self.df_trade.loc[stg, '주문시간'] = common_def.datetime_to_str(현재시간)
             self.df_trade.loc[stg, '진입가'] = 0
             self.df_trade.loc[stg, '체결수량'] = 0
             self.df_trade.loc[stg, '보유수량'] = 0
@@ -1239,7 +1412,7 @@ class Trade_np(QThread):
         총체결수량 = 0
         # i = 0
         dict_chegyeol=''
-        if self.market == '코인':
+        if self.market == 'bybit' or market == '업비트':
             보유수량 = float(보유수량)
             매입금액 = float(매입금액)
             if self.simul == False:  # 실매매시
@@ -1355,7 +1528,7 @@ class Trade_np(QThread):
             self.df_trade.loc[stg, '잔고'] = 잔고
             # 진입수수료 = round(체결금액 * fee / 100)
             # self.df_trade.loc[stg, '진입수수료'] = 진입수수료
-            self.df_trade.loc[stg, '진입시간'] = common_def.datetime_to_str(현재시간)
+            self.df_trade.loc[stg, '주문시간'] = common_def.datetime_to_str(현재시간)
             # self.df_trade.loc[stg, '매입금액'] = 체결금액
             거래승수 = self.dic_multiplier[ticker[:3]] if self.market == '국내선옵' else 1
             self.df_trade.loc[stg, '평가금액'] = round(보유수량 * 현재가 * 거래승수 - self.df_trade.loc[stg, '진입수수료'])
@@ -1388,7 +1561,7 @@ class Trade_np(QThread):
         거래승수 = self.dic_multiplier[ticker[:3]] if self.market == '국내선옵' else 1
         증거금률 = self.위탁증거금률 / 100 if trade_market == '선물' else 1/레버리지 if trade_market == 'bybit' else 1
         체결 = False # 체결이 됐을 때 만
-        if self.market == '코인':
+        if self.market == 'bybit' or market == '업비트':
             if self.simul == False:  # 실매매시
                 ord_open = self.fetch_open_orders(id, ticker)
                 if ord_open == None: # 체결일 경우
@@ -1397,7 +1570,7 @@ class Trade_np(QThread):
                     총체결수량 = float(ord_closed['filled'])
                     청산수수료 = float(ord_closed['fee']['cost'])
                     총체결금액 = float(ord_closed['cost'])
-                    # 주문수량 = order_closed['amount']
+                    # 주문수량 = create_order_closed['amount']
                     print(f"{청산가=}  {총체결수량=}  {청산수수료=}   {총체결금액=}")
                     if 주문수량 >= 총체결수량:
                         if 상태 != '시장가매도' and 총체결수량 > 0:
@@ -1504,13 +1677,13 @@ class Trade_np(QThread):
 
             print(f"if 상태 == '매도' or 상태 == '부분 {stg= }, {ticker= }, {청산가=}  {수익금= } = {평가금액= } - {매입금액= } - {청산수수료= } - {진입수수료= }= ")
             self.df_trade.loc[stg, '청산가'] = round(청산가,2) if self.market == '국내선옵' else 청산가
-            self.df_trade.loc[stg, '수익금'] = round(수익금,2) if self.market == '코인' else round(수익금)
+            self.df_trade.loc[stg, '수익금'] = round(수익금,2) if self.market == 'bybit' or market == '업비트' else round(수익금)
             self.df_trade.loc[stg, '수익률'] = 수익률
 
             누적수익금 = 누적수익금 + 수익금
             if 상태 == '매도':
                 # print(f"chegyeol_sell- if 상태 == '매도': {stg=} {ticker=} {체결수량= }, {상태= }, {평가금액= }, {청산금액= }, {보유수량= }, {현재가= }, {거래승수= }, {청산금액= }, {체결금액= }, {수익금= }, {누적수익금=}, {매입금액= }, {청산수수료= }, {진입수수료= }")
-                self.df_trade.loc[stg, '누적수익금'] = round(누적수익금,2) if self.market == '코인' else round(누적수익금)
+                self.df_trade.loc[stg, '누적수익금'] = round(누적수익금,2) if self.market == 'bybit' or market == '업비트' else round(누적수익금)
                 self.df_trade.loc[stg, '체결수량'] = 0
                 self.df_trade.loc[stg, '청산시간'] = common_def.datetime_to_str(현재시간)
                 # self.df_trade.loc[stg, '잔고'] = round(잔고 - (체결금액 / 레버리지) - 청산수수료, 4)
@@ -1531,14 +1704,14 @@ class Trade_np(QThread):
             # print(f"{보유수량= } , {현재가= }   {거래승수= }")
             if self.market == '국내주식': fee = self.fee_stock + self.tax_stock #
             elif self.market == '국내선옵': fee = self.fee_future if trade_market == '선물' else self.fee_putopt1 if 현재가 > 2.47 or 현재가 < 0.42 else self.fee_putopt2 #
-            elif self.market == '코인': fee = self.fee_bybit_market
+            elif self.market == 'bybit' or market == '업비트': fee = self.fee_bybit_market
             청산수수료 = 평가금액 * fee / 100
             if 방향 == 'long': 수익금 = 평가금액 - 매입금액 - 청산수수료 - 진입수수료
             elif 방향 == 'short': 수익금 = 매입금액 - 평가금액 - 청산수수료 - 진입수수료
             # print(f"chegyeol_sell_else: {stg=} {ticker= } {체결수량= }, {상태= }, {평가금액= }, {청산금액= }, {보유수량= }, {현재가= }, {거래승수= }, {청산금액= }, {수익금= }, {매입금액= }, {청산수수료= }, {진입수수료= }")
             # print(f"{수익금} = {평가금액} - {매입금액} - {청산수수료} - {진입수수료}= ")
-            self.df_trade.loc[stg, '수익금'] = round(수익금, 2) if self.market == '코인' else round(수익금)
-            # 누적수익금 = round(누적수익금, 2) if self.market == '코인' else round(누적수익금)
+            self.df_trade.loc[stg, '수익금'] = round(수익금, 2) if self.market == 'bybit' or market == '업비트' else round(수익금)
+            # 누적수익금 = round(누적수익금, 2) if self.market == 'bybit' or market == '업비트 else round(누적수익금)
             수익률 = round((수익금 / (매입금액 * 증거금률) * 100), 2)
             self.df_trade.loc[stg, '수익률'] = 수익률
             누적수익금 = 누적수익금 + 수익금
@@ -1548,7 +1721,7 @@ class Trade_np(QThread):
             #     평가금액 = self.df_trade.loc[stg, '보유수량'] * 현재가 * 거래승수
             #     if self.market == '국내주식': fee = self.fee_stock + self.tax_stock #
             #     elif self.market == '국내선옵': fee = self.fee_future if trade_market == '선물' else self.fee_putopt1 if 현재가 > 2.47 or 현재가 < 0.42 else self.fee_putopt2 #
-            #     elif self.market == '코인': fee = self.fee_bybit_market
+            #     elif self.market == 'bybit' or market == '업비트: fee = self.fee_bybit_market
             #     청산수수료 = 평가금액 * fee / 100
             #     if 방향 == 'long': 수익금 = 평가금액 - 매입금액 - 청산수수료 - 진입수수료
             #     elif 방향 == 'short': 수익금 = 매입금액 - 평가금액 - 청산수수료 - 진입수수료
@@ -1659,7 +1832,7 @@ class Trade_np(QThread):
                 진입가 = self.ex_kis.hogaPriceReturn_per(self.df_stock_info.loc[ticker, '시장구분'],ticker,진입가,0)
             if self.market == '국내선옵':
                 진입가 = self.ex_kis.hogaPriceReturn_per(self.market,ticker,진입가,0)
-            elif self.market == '코인':
+            elif self.market == 'bybit' or market == '업비트':
                 if np.isnan(진입가):
                     진입가 = 0
                 elif not 진입가 == 0:
@@ -1745,7 +1918,7 @@ class Trade_np(QThread):
                 print(f"******chegyeol_sell_on_scale::::  확인 요망 {stg= }   {ticker= }    {세부상태=}    {상태}")
         if self.market == '국내주식': fee = self.fee_stock + self.tax_stock #
         elif self.market == '국내선옵': fee = self.fee_future if trade_market == '선물' else self.fee_putopt1 if 현재가 > 2.47 or 현재가 < 0.42 else self.fee_putopt2 #
-        else: fee = self.fee_bybit_market # self.market == '코인':
+        else: fee = self.fee_bybit_market # self.market == 'bybit' or market == '업비트:
         평가금액 = sum(분할보유수량) * 현재가 * 거래승수
         남은청산수수료 = 평가금액 * fee / 100
         매입금액 = self.df_trade.loc[stg, '매입금액']
@@ -1755,7 +1928,7 @@ class Trade_np(QThread):
         elif 방향 == 'short':
             수익금 = 매입금액 - sum(분할평가금액) - sum(분할진입수수료) - 남은청산수수료   #  - 청산수수료도 빼야되는데 방법이 없음
         수익률 = round((수익금 / (매입금액 * 증거금률) * 100), 2)
-        self.df_trade.loc[stg, '수익금'] = round(수익금, 2) if self.market == '코인' else round(수익금)
+        self.df_trade.loc[stg, '수익금'] = round(수익금, 2) if self.market == 'bybit' or market == '업비트' else round(수익금)
         self.df_trade.loc[stg, '수익률'] = 수익률
         self.df_trade.loc[stg, '최고수익률'] = np.where(수익률 > self.df_trade.loc[stg, '최고수익률'],수익률, self.df_trade.loc[stg, '최고수익률'])
         self.df_trade.loc[stg, '최저수익률'] = np.where(수익률 < self.df_trade.loc[stg, '최저수익률'],수익률, self.df_trade.loc[stg, '최저수익률'])
@@ -1803,204 +1976,227 @@ class Trade_np(QThread):
         # print("==============================================================================")
         return 상태, 수익금
 
-    def order_cancel(self, stg, ticker, 상태, 주문수량, 보유수량, 방향,id, 총체결수량, dict_chegyeol):
+    def order_cancel(self, dict_stg):
         # id = self.df_trade.loc[stg, 'id']
-        if 상태 == '매수취소':
-            취소수량 = 주문수량-보유수량
-            상태 = '매수주문' if 보유수량 == 0 else '부분매수'
-        elif 상태 == '매도주문' or 상태 == '매도주문' or 상태 == '매도주문' :
-            취소수량 = 보유수량
-            pass
-        print(f"order_cancel {stg=} {ticker=}, {id=}, {취소수량=}, {상태= }, {총체결수량= }")
-        if self.market == '코인':
+        취소수량 = dict_stg['주문수량']
+        uuid = dict_stg['id']
+        if dict_stg['market'] == 'bybit' or dict_stg['market'] == '업비트':
             if self.simul == False:  # 실매매 시
-                self.ex_bybit.cancel_order(id, ticker + 'USDT', params={})
-            success = True
+                if dict_stg['market'] == 'bybit':
+                    self.dict_option['exchange'].cancel_order(uuid, dict_stg['ticker'] + 'USDT', params={})
+                else: #업비트
+                    try:
+                        self.dict_option['exchange'].cancel_order(uuid, dict_stg['ticker'] + '/KRW', params={})
+                        success = True
+                    except ccxt.ExchangeError as e:
+                        if "canceled_order" in str(e):
+                            print(f"이미 취소된 주문 - 무시 {uuid}   ticker: {dict_stg['ticker']},   전략명: {dict_stg['전략명']}")
+                            success = True
+                        elif "This is not a verified IP" in str(e):
+                            print(f"[order_cancel] verified IP - ip 확인필요 {uuid}   ticker: {dict_stg['ticker']},   전략명: {dict_stg['전략명']}")
+                            quit()
+                        elif "이미 체결된 주문입니다." in str(e):
+                            print(f"이미 체결된 주문 {uuid}   ticker: {dict_stg['ticker']},   전략명: {dict_stg['전략명']}")
+                            success = False
+                        elif "잘못된 요청" in str(e):
+                            print(f"잘못된 요청 {uuid}   ticker: {dict_stg['ticker']},   전략명: {dict_stg['전략명']}")
+                            success = False
+                        else:
+                            raise  # 다른 ExchangeError는 다시 던지기
+                    except ccxt.base.errors.ExchangeError as e:
+                        print('이상한 에러')
         elif self.market == '국내주식' or self.market == '국내선옵':
-            output = self.ex_kis.cancel_order(symbol=ticker,order_no=id,quantity=취소수량)
+            output = dict_stg['exchange'].cancel_order(symbol=dict_stg['ticker'],order_no=uuid,quantity=취소수량)
             if output == '모의투자 취소주문이 완료 되었습니다.' or output == '취소주문이 완료 되었습니다.':
                 success = True
             elif output == '모의투자 정정/취소할 수량이 없습니다.' or output == '정정/취소할 수량이 없습니다.':
                 success = False
-                print(f"order_cancel -{output= } {success= } {취소수량= } {주문수량= } {보유수량= }")
+                print(f"order_cancel -{output= } {success= } {취소수량= } {dict_stg['주문수량']= } {dict_stg['보유수량']= }")
             else:
                 print(f"def order_cancel(self, stg, 상태, 주문수량, 보유수량): - {output}")
 
         if success == True:
-            if 상태 == '매수주문' or 상태 == '매도주문': # 아직 체결이 되지않은 상태일 경우
-                self.color_text(state = 상태, stg=stg, ticker=ticker, 보유수량=취소수량)
-                if 상태 == '매수주문':  상태 = '대기'
-                elif 상태 == '매도주문':  상태 = '매도취소 시장가매도'
-                잔여수량 = self.df_trade.loc[stg, '보유수량']
-                print(f"if (상태 == '매수주문' or 상태 == '매도주문') and 주문수량 == 취소수량 : {상태=} {잔여수량= }")
-            elif 상태 == '부분매수' or 상태 == '부분매도':
-                self.color_text(state = 상태, stg=stg, ticker=ticker, 주문수량=취소수량 , 보유수량=보유수량, 상태=상태)
-                상태 = '매수'
-                잔여수량 = self.df_trade.loc[stg, '보유수량']
-            else:
-                print(f"order_cancel {상태= } {주문수량= }, {보유수량= }, {취소수량= }")
-                잔여수량 = self.df_trade.loc[stg, '보유수량']
-            if self.df_trade.loc[stg, '진입대상'] == '전체':
-                self.df_trade.loc[stg, 'ticker'] = ''
-        if success == False:
-            print('=========================')
-            print(self.df_trade)
-            print(f"order_cancel 에러 {상태= } {총체결수량= }  {id= }")
-            pprint(output)
-            print('***************************')
-            pprint(dict_chegyeol)
-            print('//////////////////////////////')
+            if dict_stg['상태'] == '매수주문':
+                dict_stg['상태'] = "매수주문취소"
+            if dict_stg['상태'] == '매도주문':
+                dict_stg['상태'] = "매도주문취소"
+            self.color_text(dict_stg)
+            if dict_stg['상태'] == '매수주문취소':
+                dict_stg['상태'] = "대기"
+            dict_stg['주문가'] = 0
+            dict_stg['주문수량'] = 0
+            dict_stg['id'] = ''
+        else:
             if self.market == '국내주식' or self.market == '국내선옵':
                 if 방향 == 'long': dict_chegyeol = self.ex_kis.fetch_closed_order(side='buy',ticker=ticker,id=id)
                 elif 방향 == 'short': dict_chegyeol = self.ex_kis.fetch_closed_order(side='sell',ticker=ticker,id=id)
                 pprint(dict_chegyeol)
+            dic_failed = dict_stg.copy()
+            dic_failed['상태'] = "취소실패"
+            self.color_text(dic_failed)
+        time.sleep(0.5)
+        return dict_stg
 
-
-            # if 상태 == '매수취소':
-            #     if self.market == '국내선옵':
-            #         if 방향 == 'long': dict_chegyeol = self.ex_kis.fetch_closed_order(side='buy', ticker=ticker, id=id)
-            #         elif 방향 == 'short': dict_chegyeol = self.ex_kis.fetch_closed_order(side='sell', ticker=ticker, id=id)
-            #         총체결수량 = int(dict_chegyeol['tot_ccld_qty'])
-            #         if 주문수량 == 총체결수량:
-            #
-            #     상태 == '매수주문'
-        time.sleep(1)
-        return 상태, 잔여수량
-
-    def order_price(self,ticker, price_in, 현재가, 방향, side): # side = 매수일 경우 '매수주문', 매도 = '매도주문'
+    def order_price(self,dict_stg, 가격): # side = 매수일 경우 '매수주문', 매도 = '매도주문'
+        if self.market == "국내선옵":
+            거래승수 = self.dic_multiplier[dict_stg['ticker'][:3]]
+            if self.market == '국내선옵' and 가격 == 시장가:  # 선물옵션의경우 시장가 매수 시 잔고만큼 가격 안되기 때문에 매도수 10호가로 주문
+                try:
+                    가격 = {현재가: '매수5호가'} if dict_stg['방향'] == 'long' else {현재가: '매도5호가'}
+                except:
+                    print(f"{현재가= }, {self.market= }, {가격= },  {dict_stg['방향']= }")
+                    raise
+        else:
+            거래승수 = 1
         slippage = 0.1 #슬리피지 0.1 %
-        if type(price_in) == dict:
-            방식 = 'limit'
-            hoga_price = list(price_in.keys())[0]
-            hoga_rate = price_in[hoga_price]
-            if self.market=='코인':
-                price_out = float(self.ex_bybit.price_to_precision(ticker+'USDT', hoga_price + (hoga_price * hoga_rate / 100)))
-                fee = self.fee_bybit_limit
+
+        if type(가격) == dict: #호가 지정일 경우
+            dict_stg['주문방식'] = 'limit'
+            hoga_price = list(가격.keys())[0]
+            hoga_rate = 가격[hoga_price]
+            if self.market=='bybit':
+                price_out = float(self.dict_option['exchange'].price_to_precision(dict_stg['ticker']+'USDT', hoga_price + (hoga_price * hoga_rate / 100)))
+                fee_rate = self.fee_bybit_limit
+            elif self.market=='업비트':
+                price_out = self.calculate_order(ticker=dict_stg['ticker'],current_price=hoga_price,
+                                     budget=dict_stg['배팅금액'],rate=hoga_rate/100,
+                                     ) #튜플로 반환 받음
+                fee_rate = self.fee_upbit_limit
             elif self.market=='국내주식' :
-                price_out = self.ex_kis.hogaPriceReturn(self.df_stock_info.loc[ticker, '시장구분'],ticker, hoga_price, hoga_rate)
-                fee = self.fee_stock
+                price_out = self.ex_kis.hogaPriceReturn(self.df_stock_info.loc[dict_stg['ticker'], '시장구분'],dict_stg['ticker'], hoga_price, hoga_rate)
+                fee_rate = self.fee_stock
             elif self.market == '국내선옵':
-                price_out = self.ex_kis.hogaPriceReturn(self.market,ticker, hoga_price, hoga_rate)
-                fee = self.fee_future if ticker[:1] == '1' else self.fee_putopt1 if price_out > 2.47 or price_out < 0.42 else self.fee_putopt2
-            상태 = side
+                price_out = self.ex_kis.hogaPriceReturn(self.market,dict_stg['ticker'], hoga_price, hoga_rate)
+                fee_rate = self.fee_future if dict_stg['ticker'][:1] == '1' else self.fee_putopt1 if price_out > 2.47 or price_out < 0.42 else self.fee_putopt2
 
-        elif price_in == 시장가:
-            방식 = 'market'
-            if 방향 == 'long' and side == '매수주문':
-                price_out = 현재가 + (slippage / 100 * 현재가)
-                상태 = '시장가매수'
-            elif 방향 == 'short' and side == '매수주문':
-                price_out = 현재가 - (slippage / 100 * 현재가)
-                상태 = '시장가매수'
-            elif 방향 == 'long' and side == '매도주문':
-                price_out = 현재가 - (slippage / 100 * 현재가)
-                상태 = '시장가매도'
-            elif 방향 == 'short' and side == '매도주문':
-                price_out = 현재가 + (slippage / 100 * 현재가)
-                상태 = '시장가매도'
+        elif 가격 == 시장가: #시장가일 경우
+            dict_stg['주문방식'] = 'market'
+            if dict_stg['방향'] == 'long':
+                if dict_stg['상태'] == '매수주문':
+                    price_out = 현재가 + (slippage / 100 * 현재가)
+                    dict_stg['상태'] = '시장가매수'
+                elif dict_stg['상태'] == '매도주문':
+                    price_out = 현재가 - (slippage / 100 * 현재가)
+                    dict_stg['상태'] = '시장가매도'
+            elif dict_stg['방향'] == 'short':
+                if dict_stg['상태'] == '매수주문':
+                    price_out = 현재가 - (slippage / 100 * 현재가)
+                    dict_stg['상태'] = '시장가매수'
+                elif dict_stg['상태'] == '매도주문':
+                    price_out = 현재가 + (slippage / 100 * 현재가)
+                    dict_stg['상태'] = '시장가매도'
             else:
-                print(f"{ticker= }, {현재가= }, {price_in= }")
+                print(f"order_price {dict_stg['ticker']= }, {현재가= }, {가격= }")
                 raise
-            if self.market == '코인':
-                price_out = float(self.ex_bybit.price_to_precision(ticker + 'USDT', price_out))
-                fee = self.fee_bybit_market
+            if self.market == 'bybit' :
+                price_out = float(self.dict_option["exchange"].price_to_precision(dict_stg['ticker'] + 'USDT', price_out))
+                fee_rate = self.fee_bybit_market
+            elif market == '업비트':
+                price_out = float(self.dict_option["exchange"].price_to_precision(dict_stg['ticker'] + '/KRW', price_out))
+                fee_rate = self.fee_upbit_market
             elif self.market=='국내주식':
-                price_out = self.ex_kis.hogaPriceReturn_per(self.df_stock_info.loc[ticker, '시장구분'],ticker, price_out, 0)
-                fee = self.fee_stock
+                price_out = self.ex_kis.hogaPriceReturn_per(self.df_stock_info.loc[dict_stg['ticker'], '시장구분'],dict_stg['ticker'], price_out, 0)
+                fee_rate = self.fee_stock
             elif self.market=='국내선옵':
-                price_out = self.ex_kis.hogaPriceReturn_per(self.market, ticker, price_out, 0)
-                fee = self.fee_future if ticker[:1] == '1' else self.fee_putopt1 if price_out > 2.47 or price_out < 0.42 else self.fee_putopt2
+                price_out = self.ex_kis.hogaPriceReturn_per(self.market, dict_stg['ticker'], price_out, 0)
+                fee_rate = self.fee_future if dict_stg['ticker'][:1] == '1' else self.fee_putopt1 if price_out > 2.47 or price_out < 0.42 else self.fee_putopt2
 
-        elif type(price_in) == float or type(price_in) == int:
-            방식 = 'limit'
-            if self.market=='코인':
-                price_out = float(self.ex_bybit.price_to_precision(ticker + 'USDT',price_in))
+        elif type(가격) == float or type(가격) == int: #지정가일 경우
+            dict_stg['주문방식'] = 'limit'
+            if self.market=='업비트':
+                fee_rate = self.fee_upbit_market
+            elif self.market=='bybit':
+                price_out = float(self.dict_option["exchange"].price_to_precision(dict_stg['ticker'] + 'USDT',가격))
                 if self.simul == True:  # 모의매매
-                    if 방향 == 'long' and price_out >= 현재가:
-                        price_out = 현재가 + (slippage / 100 * 현재가)
-                        fee = self.fee_bybit_market
-                    elif 방향 == 'long' and price_out < 현재가:
-                        fee = self.fee_bybit_limit
-                    elif 방향 == 'short' and price_out <= 현재가:
-                        price_out = 현재가 - (slippage / 100 * 현재가)
-                        fee = self.fee_bybit_market
-                    elif 방향 == 'short' and price_out > 현재가:
-                        fee = self.fee_bybit_limit
+                    if dict_stg['방향'] == 'long':
+                        if price_out >= 현재가:
+                            price_out = 현재가 + (slippage / 100 * 현재가)
+                            fee_rate = self.fee_bybit_market
+                        else:
+                            fee_rate = self.fee_bybit_limit
+                    elif dict_stg['방향'] == 'short':
+                        if price_out <= 현재가:
+                            price_out = 현재가 - (slippage / 100 * 현재가)
+                            fee_rate = self.fee_bybit_market
+                        else:
+                            fee_rate = self.fee_bybit_limit
                     else:
-                        print(f"{price_out=}, {price_in=}, {self.fee_bybit_limit=}, {self.fee_bybit_market=}")
+                        print(f"{price_out=}, {가격=}, {self.fee_bybit_limit=}, {self.fee_bybit_market=}")
                         raise
                 else: # 실매매
-                    fee = self.fee_bybit_market
+                    fee_rate = self.fee_bybit_market
             elif self.market=='국내주식':
-                price_out = self.ex_kis.hogaPriceReturn_per(self.df_stock_info.loc[ticker, '시장구분'],ticker, price_in, 0)
-                fee = self.fee_stock
+                price_out = self.ex_kis.hogaPriceReturn_per(self.df_stock_info.loc[dict_stg['ticker'], '시장구분'],dict_stg['ticker'], 가격, 0)
+                fee_rate = self.fee_stock
             elif self.market=='국내선옵':
-                price_out = self.ex_kis.hogaPriceReturn_per(self.market, ticker, price_in, 0)
-                fee = self.fee_future if ticker[:1] == '1' else self.fee_putopt1 if price_out > 2.47 or price_out < 0.42 else self.fee_putopt2
-            상태 = side
+                price_out = self.ex_kis.hogaPriceReturn_per(self.market, dict_stg['ticker'], 가격, 0)
+                fee_rate = self.fee_future if dict_stg['ticker'][:1] == '1' else self.fee_putopt1 if price_out > 2.47 or price_out < 0.42 else self.fee_putopt2
         else:
-            print(f'{ticker= }, {price_in= }, {type(price_in)= }진입주문가 설정 안됨')
+            print(f"{dict_stg['ticker']= }, {가격= }, {type(가격)= }진입주문가 설정 안됨")
             raise
-        return price_out, 방식, fee, 상태
+        dict_stg['tntnfhdbf'] = fee_rate
+        return dict_stg, price_out
 
-    def order_buy(self, stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태):
-        ticker = self.df_trade.loc[stg, 'ticker']
-        거래승수 = self.dic_multiplier[ticker[:3]] if self.market == '국내선옵' else 1
-        if self.market=='국내선옵' and 매수가 == 시장가: #선물옵션의경우 시장가 매수 시 잔고만큼 매수가 안되기 때문에 매도수 10호가로 주문
-            try:
-                매수가 = {현재가:'매수5호가'} if 방향 == 'long' else {현재가:'매도5호가'}
-            except:
-                print(f"{현재가= }, {self.market= }, {매수가= }, {방향= }")
-                raise
-        진입가, 진입방식, fee, 상태 = self.order_price(ticker, 매수가, 현재가, 방향, 상태)
-        매수가능금액 = 0
-        print(f"order_buy {stg= }, {ticker= }, {진입가= }, {현재가= }, {방향= },  {매수가= }, {진입방식= }, {fee= }, {상태= }")
-        if 진입가 == 0:
-            print(f"진입가 에러 {진입가= }  {현재가= }   {매수가= }")
+    def order_open(self, dict_stg, 매수, 매수가):
+        ticker = dict_stg['ticker']
+        배팅금액 = dict_stg['배팅금액']
+
+        dict_stg, 주문가 = self.order_price(dict_stg, 매수가)
+
+        if 주문가 == 0:
+            print(f"주문가 에러 {매수가= }  {주문가= }  {현재가= }")
             quit()
         try:
             if 매수 == True:
                 매수 = 100
-            금액 = 배팅금액 * (매수 / 100) * 레버리지
+            금액 = 배팅금액 * (매수 / 100) * dict_stg['레버리지']
         except:
             print(f"{type(배팅금액)= }")
             print(f"{type(매수)= }")
-            print(f"{type(레버리지)= }")
-            print(f"{stg= }, {ticker= }, 금액= {배팅금액 * (매수 / 100) * 레버리지} = {배팅금액= } * ({매수= } / 100) * {레버리지= } | {진입가= }, {진입방식= }, {fee= }, {상태= }")
-        if self.market == '코인':
+            print(f"{type(dict_stg['레버리지'])= }")
+            print(f"{stg= }, {ticker= }, 금액= {배팅금액 * (매수 / 100) * dict_stg['레버리지']} = {배팅금액= } * ({매수= } / 100) * {dict_stg['레버리지']= } | {주문가= }, ")
+
+        if self.market == 'bybit':
             #최소주문수량 구하기
-            res = self.ex_pybit.get_instruments_info(
+            res = self.dict_option['ex_pybit'].get_instruments_info(
                 category="linear",  # spot, linear, inverse, option
                 symbol=ticker+"USDT",  # BTC, BTCUSDT, BTCUSD
             )['result']['list'][0]
             min_qty = float(res['lotSizeFilter']['minOrderQty'])
 
-            수량 = (100 - (fee * 레버리지)) / 100 * 금액 / 진입가
+            수량 = (100 - (dict_stg['수수료율'] * dict_stg['레버리지'])) / 100 * 금액 / 주문가
 
             if 수량 < min_qty:
-                print(f"order_buy - 최소주문수량 미달 주문수량 변경 {수량=},  {min_qty= }")
+                print(f"order_open - 최소주문수량 미달 주문수량 변경 {수량=},  {min_qty= }")
                 수량 = min_qty
-            print(f"order_buy   -  {ticker=}  { 수량=}, ")
-            수량 = float(self.ex_bybit.amount_to_precision(ticker + 'USDT', 수량))
-            # print(f"{ticker= }, {수량= }, {fee= }, {레버리지=}, {금액= }, {진입가= }")
+            # print(f"order_open   -  {ticker=}  { 수량=}, ")
+            수량 = float(self.dict_option["exchange"].amount_to_precision(ticker + 'USDT', 수량))
+            # print(f"{ticker= }, {수량= }, {fee= }, {dict_stg['레버리지']=}, {금액= }, {주문가= }")
             if 수량 <= 0: raise print(f'수량 이상 {배팅금액= }')
-
             if self.simul == False: #실매매
                 try:
-                    self.ex_bybit.set_leverage(leverage=레버리지, symbol=ticker+'USDT')
+                    self.dict_option["exchange"].set_leverage(leverage=dict_stg['레버리지'], symbol=ticker+'USDT')
                 except:
                     pass
-                if 방향 == 'long':
-                    id = self.order_open(ticker=ticker+'USDT' ,price=진입가, qty=수량, side='buy', type=진입방식,leverage=레버리지)
-                elif 방향 == 'short':
-                    id = self.order_open(ticker=ticker+'USDT' ,price=진입가, qty=수량, side='sell', type=진입방식,leverage=레버리지)
+                if dict_stg['방향'] == 'long':
+                    id = self.create_order_open(ticker=ticker+'USDT' ,price=주문가, qty=수량, side='buy', ord_type=dict_stg['주문방식'],leverage=dict_stg['레버리지'])
+                elif dict_stg['방향'] == 'short':
+                    id = self.create_order_open(ticker=ticker+'USDT' ,price=주문가, qty=수량, side='sell', ord_type=dict_stg['주문방식'],leverage=dict_stg['레버리지'])
             else: #모의매매
                 id = ''
-
+        elif self.market == '업비트':
+            # 주문가격 = 주문가[0]
+            수량 = 주문가[1]
+            # 매입금액 = 수량 * 주문가격
+            if self.simul == False: #실매매
+                id = self.create_order_open(ticker=ticker + '/KRW', price=주문가[0], qty=수량, side='buy', ord_type=dict_stg['주문방식'],leverage=dict_stg['레버리지'])
+            else: #모의매매
+                id = ''
+            주문가 = 주문가[0]
         elif self.market=='국내주식' or self.market=='국내선옵':
             if self.market == '국내주식':
                 self.df_trade.loc[stg, 'market'] = self.df_stock_info.loc[ticker,'시장구분']
-                수량 = (100 - fee) / 100 * 금액 // 진입가
+                수량 = (100 - dict_stg['수수료율']) / 100 * 금액 // 주문가
             elif self.market=='국내선옵':
                 if self.df_trade.loc[stg, '진입대상'][0] == '{':
                     trade_market = '조건검색'
@@ -2014,20 +2210,20 @@ class Trade_np(QThread):
                     trade_market = '스프레드'
                 self.df_trade.loc[stg, 'market'] = trade_market
                 거래승수 = self.dic_multiplier[ticker[:3]]
-                매수가능금액 = round((100 - fee) / 100 * 금액)
-                계약가 = 진입가 * 거래승수
+                매수가능금액 = round((100 - dict_stg['수수료율']) / 100 * 금액)
+                계약가 = 주문가 * 거래승수
                 if trade_market == '선물':
                     계약당필요현금 = 계약가 * (self.위탁증거금률 / 100)
                     수량 = int(매수가능금액 // 계약당필요현금)
                 else:
-                    print(f"{stg= }, {ticker= }, {상태= }, {현재가= }, {매수가= }, {거래승수=}, {진입가=}, {계약가=}, {매수가능금액=}")
+                    print(f"{stg= }, {ticker= }, {상태= }, {현재가= }, {매수가= }, {거래승수=}, {주문가=}, {계약가=}, {매수가능금액=}")
                     수량 = int(매수가능금액 // 계약가)
             if 수량 <= 0:
-                print(f"order_buy 수량 에러 {stg= }, {ticker= }, {현재가= }, {매수가= }, {진입가= }, {수량= }, {방향= }, {배팅금액= }")
+                print(f"order_open 수량 에러 {stg= }, {ticker= }, {현재가= }, {매수가= }, {주문가= }, {수량= }, {방향= }, {배팅금액= }")
                 상태 = '대기'
                 수수료 = 0
                 id = ''
-                return 상태, 수량, 진입가, 수수료, id
+                return 상태, 수량, 주문가, 수수료, id
             # if self.market == '국내주식':
             #     진입가 =  int(진입가)
             #     if 진입방식 == 'market':
@@ -2057,70 +2253,71 @@ class Trade_np(QThread):
                 수량 = 0
                 진입가 = 0
                 id = ''
-        print(f"order_buy {stg= }, {ticker= }, {현재가= }, {매수가= }, {진입가= }, {수량= }, {방향= }, {배팅금액= } {금액=} {매수가능금액}")
+        dict_stg['주문수량'] = 수량
+        dict_stg['주문가'] = 주문가
+        # dict_stg['매입금액'] = 매입금액
+        # 수수료 = 진입가 * 수량 * fee / 100
+        # dict_stg['수수료'] = 수수료  #체결 됐을 때 한꺼번에 처리하는걸로
+        dict_stg['id'] = id
+        if dict_stg['상태'] == '매수주문' or dict_stg['상태'] == '시장가매수':
+            self.color_text(dict_stg)
+        return dict_stg
 
-        # self.df_trade.loc[stg, 'ticker'] = ticker
-
-        self.df_trade.loc[stg, '주문수량'] = 수량
-        self.df_trade.loc[stg, '진입가'] = 진입가
-        # self.df_trade.loc[stg, '기준잔고'] = 잔고
-        수수료 = 진입가 * 수량 * fee / 100
-        self.df_trade.loc[stg, '수수료'] = 수수료
-        self.df_trade.loc[stg, 'id'] = id
-        if 상태 == '매수주문' or 상태 == '시장가매수':
-            self.color_text(state='open 주문',진입방식=진입방식,stg=stg,ticker=ticker,방향=방향,진입가=진입가,주문수량=수량,레버리지=레버리지,현재봉시간=self.df_trade.loc[stg, '현재봉시간'],
-                            상태=상태, id=id, 체결금액=매수가능금액, 매입금액=진입가*수량*거래승수 )
-        return 상태, 수량, 진입가, 수수료, id
-
-    def order_sell(self, stg, 청산가, 방향, 수량, 상태): # order sell은 loop_trade 2군데서 주문이 발생하므로 주의
-        if 수량 == 0: return '매도'
-        ticker = self.df_trade.loc[stg, 'ticker']
-
-        매도가, 청산방식, fee, 상태 = self.order_price(ticker, 청산가, 현재가, 방향, 상태)
-        print(f"order_sell {stg= }, {ticker= }, {청산가= }, {현재가= }, {방향= }, {수량= }, {매도가= }, {청산방식= }, {fee= }, {상태= }")
-        if self.market == '코인':
+    def order_close(self, dict_stg, 매도가): # order sell은 loop_trade 2군데서 주문이 발생하므로 주의
+        # if dict_stg['보유수량'] == 0 : return '매도'
+        ticker = dict_stg['ticker']
+        dict_stg, 주문가 = self.order_price(dict_stg, 매도가)
+        pprint(dict_stg)
+        print(f"order_close  {ticker= }, {주문가= }, {현재가= }")
+        if self.market == 'bybit':
             if self.simul == False: #실매매
                 if 방향 == 'long':
-                    id = self.order_close(ticker=ticker+'USDT' ,price=매도가, qty=수량, side='sell', type=청산방식)
+                    id = self.create_order_close(ticker=ticker+'USDT' ,price=주문가, qty=수량, side='sell', ord_type=dict_stg['주문방식'])
                 elif 방향 == 'short':
-                    id = self.order_close(ticker=ticker+'USDT' ,price=매도가, qty=수량, side='buy', type=청산방식)
+                    id = self.create_order_close(ticker=ticker+'USDT' ,price=주문가, qty=수량, side='buy', ord_type=dict_stg['주문방식'])
                 else:
-                    raise print('order_sell 에러')
+                    raise print('order_close 에러')
             else: #모의매매
                 id = ''
-
+        elif self.market == '업비트':
+            수량 = 주문가[1]
+            # 매도금액 = 수량 * 주문가
+            if self.simul == False: #실매매
+                id = self.create_order_close(ticker=ticker + '/KRW', price=주문가[0], qty=수량, side='sell', ord_type=dict_stg['주문방식'])
+            else: #모의매매
+                id = ''
+            주문가 = 주문가[0]
         elif self.market=='국내주식' or self.market=='국내선옵':
             if self.market=='국내주식':
-                매도가 = int(매도가)
+                주문가 = int(주문가)
                 if 청산방식 == 'market':
                     id = self.ex_kis.create_market_sell_order(symbol=ticker, quantity=int(수량))
                 else:
-                    id = self.ex_kis.create_limit_sell_order(symbol=ticker, price=int(매도가), quantity=int(수량))
+                    id = self.ex_kis.create_limit_sell_order(symbol=ticker, price=int(주문가), quantity=int(수량))
             elif self.market == '국내선옵':
                 if 방향 == 'long':
                     if 청산방식 == 'market':
                         id = self.ex_kis.create_market_sell_order(symbol=ticker, quantity=int(수량),side='sell')
                     else:
-                        id = self.ex_kis.create_limit_sell_order(symbol=ticker, price=매도가, quantity=int(수량),side='sell')
+                        id = self.ex_kis.create_limit_sell_order(symbol=ticker, price=주문가, quantity=int(수량),side='sell')
                 elif 방향 == 'short':
                     if 청산방식 == 'market':
                         id = self.ex_kis.create_market_sell_order(symbol=ticker, quantity=int(수량),side='buy')
                     else:
-                        id = self.ex_kis.create_limit_sell_order(symbol=ticker, price=매도가, quantity=int(수량),side='buy')
+                        id = self.ex_kis.create_limit_sell_order(symbol=ticker, price=주문가, quantity=int(수량),side='buy')
 
-        self.df_trade.loc[stg, '청산가'] = 매도가
-        self.df_trade.loc[stg, '주문수량'] = 수량
-        self.df_trade.loc[stg, '체결수량'] = 0
-
-        self.df_trade.loc[stg, 'id'] = id
+        dict_stg['주문가'] = 주문가
+        dict_stg['주문수량'] = 수량
+        dict_stg['체결수량'] = 0
+        dict_stg['id'] = id
+        # dict_stg['청산신호시간'] = id
         # if 방향 == 'long':
         #     수익률 = round((매도가-self.df_trade.loc[stg, '진입가'])/self.df_trade.loc[stg, '진입가']*100,2)
         # elif 방향 == 'short':
         #     수익률 = round((self.df_trade.loc[stg, '진입가']-매도가)/self.df_trade.loc[stg, '진입가']*100,2)
-        print(f"{stg= }, {ticker= }, {방향= }, {청산방식= }, {매도가= }, {수량= }")
 
-        self.color_text(state='close 주문', 청산방식=청산방식, stg=stg, ticker=ticker, 방향=방향, 청산가=매도가, 주문수량=수량 ,잔고=self.df_trade.loc[stg,'잔고'],수익률=self.df_trade.loc[stg, '수익률'], 상태=상태, id=id)
-        return 상태, 매도가, id
+        self.color_text(dict_stg)
+        return dict_stg
 
     def buy_on_scale(self,stg, 매수, 매수가, 방향, 레버리지, 배팅금액, 상태):
         # print('buy_on_scale')
@@ -2132,7 +2329,7 @@ class Trade_np(QThread):
         for num in 매수:
             if 분할상태[num] == '대기':
                 세부상태 = '매수주문'
-                세부상태, 진입수량, 진입가, 수수료, id = self.order_buy(stg, int(분할매수[num]), 매수가[num], 방향, 레버리지, 배팅금액,세부상태)  # 시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
+                세부상태, 진입수량, 진입가, 수수료, id = self.order_open(stg, int(분할매수[num]), 매수가[num], 방향, 레버리지, 배팅금액,세부상태)  # 시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
                 분할상태[num] = 세부상태
                 분할주문수량[num] = 진입수량
                 분할진입가[num] = 진입가
@@ -2141,7 +2338,7 @@ class Trade_np(QThread):
         기존분할상태 = json.loads(self.df_trade.loc[stg, '분할상태'])
 
         # 기존의 분할상태와 주문이 들어간 후의 분할상태를 비교하여 바뀐것만 리스트로 반환
-        # order_buy에서 수량이 0으로 나올 경우에는 상태를 '대기'로 반환하기 때문에
+        # order_open에서 수량이 0으로 나올 경우에는 상태를 '대기'로 반환하기 때문에
         list_compare = [a for a, b in zip(분할상태, 기존분할상태) if a != b]
         if '매수주문'in 분할상태 or '시장가매수' in 분할상태:
             상태 = '분할매수주문'
@@ -2170,7 +2367,7 @@ class Trade_np(QThread):
         for num in 매도:
             if 분할상태[num] == '매수':
                 세부상태 = '매도주문'
-                세부상태, 청산가, id = self.order_sell(stg, 매도가[num], 방향, 분할주문수량[num], 세부상태)  # 시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
+                세부상태, 청산가, id = self.order_close(stg, 매도가[num], 방향, 분할주문수량[num], 세부상태)  # 시장가 매수 일 경우 '매수'를 받기 때문에 상태를 반환받아야됨
                 분할상태[num] = 세부상태
                 분할청산가[num] = 청산가
                 분할id[num] = id
@@ -2185,177 +2382,139 @@ class Trade_np(QThread):
         상태 = '분할매도주문'
         return 상태
 
-    def cal_ror(self, stg, 현재가, 방향): # 나중에 balance_account랑 합쳐야 됨
-        보유수량 = self.df_trade.loc[stg, '보유수량']
-        매입금액 = self.df_trade.loc[stg, '매입금액']
-        레버리지 = self.df_trade.loc[stg, '레버리지']
-        진입수수료 = self.df_trade.loc[stg, '진입수수료']
-        진입가 = self.df_trade.loc[stg, '진입가']
-        청산금액 = self.df_trade.loc[stg, '청산금액']
-        ticker = self.df_trade.loc[stg, 'ticker']
-        trade_market = self.df_trade.loc[stg, 'market']
-        증거금률 = self.위탁증거금률 / 100 if trade_market == '선물' else 1/레버리지 if trade_market == 'bybit' else 1
+    def make_sell_division_qty(self,dict_stg):
+        보유수량 = dict_stg['보유수량']
+        진입수수료 = dict_stg['진입수수료']
+        분할매도 = json.loads(dict_stg['분할매도'])
+        decimal_val = self.decimal_places(보유수량)
+        분할주문수량 = self.distribute_by_ratio(보유수량, 분할매도, decimal_val)
+        decimal_val = self.decimal_places(진입수수료)
+        분할진입수수료 = self.distribute_by_ratio(진입수수료, 분할매도, decimal_val)
 
-        if self.market == '코인':
-            fee = self.fee_bybit_market #매도수수료
-            # 체결금액 = 진입가 * 보유수량
-            평가금액 = 보유수량 * 현재가
-            청산수수료 = round(평가금액 * fee / 100, 4)
-        elif self.market=='국내주식':
-            fee = self.fee_stock + self.tax_stock
-            # 체결금액 = 진입가 * 보유수량
-            평가금액 = round(보유수량 * 현재가)
-            청산수수료 = 평가금액 * fee // 100
-        elif self.market == '국내선옵':
-            fee = self.fee_future if trade_market == '선물' else self.fee_putopt1 if 진입가 > 2.47 or 진입가 < 0.42 else self.fee_putopt2
-            거래승수 = self.dic_multiplier[ticker[:3]]
-            평가금액 = round(보유수량 * 현재가 * 거래승수)
-            청산수수료 = 평가금액 * fee // 100
+        empty_zero = [0 for x in range(len(분할주문수량))]
+        # 분할청산금액 = [0 for x in range(len(분할주문수량))]
+        empty_txt = ['' for x in range(len(분할주문수량))]
+        분할상태 = ['매수' for x in range(len(분할주문수량))]
+        for i, qty in enumerate(분할주문수량):  # 2개 진입했는데 분할이 3개 일 경우
+            if qty == 0:
+                분할상태[i] = '매도'
+        dict_stg['분할상태'] = json.dumps(분할상태, ensure_ascii=False)
+        dict_stg['분할주문수량'] = json.dumps(분할주문수량)
+        dict_stg['분할진입수수료'] = json.dumps(분할진입수수료)
+        dict_stg['분할보유수량'] = json.dumps(분할주문수량)
+        dict_stg['분할청산금액'] = json.dumps(empty_zero)
+        dict_stg['분할청산가'] = json.dumps(empty_zero)  # 코인 모의매매를 위해 필요
+        dict_stg['분할평가금액'] = json.dumps(empty_zero)  # 코인 모의매매를 위해 필요
+        dict_stg['분할id'] = json.dumps(empty_txt, ensure_ascii=False)
+        dict_stg['분할청산시간'] = json.dumps(empty_txt, ensure_ascii=False)
+        dict_stg['주문수량'] = sum(분할주문수량)
+        dict_stg['매도전환'] = '진입완료'
+        상태 = '매수'
+        dict_stg['상태'] = 상태
+        return dict_stg
 
-        if 방향 == 'long':
-            수익금 = (평가금액+청산금액) - 매입금액 - 진입수수료 - 청산수수료
-        elif 방향 == 'short':
-            수익금 = 매입금액 - (평가금액+청산금액) - 진입수수료 - 청산수수료
+    def reset_data(self,dict_stg,현재봉시간):
+        dict_stg['상태'] = '청산'
+        dict_stg['주문가'] = 0
+        dict_stg['보유수량'] = 0
+        dict_stg['청산시간'] = common_def.datetime_to_str(현재시간)
+        리셋시간 = 현재봉시간 + datetime.timedelta(minutes=dict_stg['봉'])
+        dict_stg['주문취소시간'] = common_def.datetime_to_str(리셋시간)
+        dict_stg['매입금액'] = 0
+        dict_stg['평가금액'] = 0
+        dict_stg['청산금액'] = 0
+        dict_stg['수익률'] = 0
+        dict_stg['최고수익률'] = 0
+        dict_stg['최저수익률'] = 0
+        dict_stg['수익금'] = 0
+        dict_stg['수수료'] = 0
+        dict_stg['수수료율'] = 0
+        dict_stg['현재가'] = 0
+        if dict_stg['매도전환'] != '재진입금지':
+            dict_stg['매도전환'] = 'False'
+        # dict_stg['배팅금액'] = dict_stg['잔고']
+        분할매수 = json.loads(dict_stg['분할매수'])
+        분할매도 = json.loads(dict_stg['분할매도'])
+        empty_zero = [0 for x in range(len(분할매수))]
+        division_zero_sell = [0 for x in range(len(분할매도))]
+        empty_txt = ["" for x in range(len(분할매수))]
+        list_state = ["대기" for x in range(len(분할매수))]
+        dict_stg['분할상태'] = json.dumps(list_state, ensure_ascii=False)
+        dict_stg['분할주문가'] = json.dumps(empty_zero)
+        dict_stg['분할청산가'] = json.dumps(division_zero_sell)
+        dict_stg['분할주문수량'] = json.dumps(empty_zero)
+        dict_stg['분할보유수량'] = json.dumps(empty_zero)
+        dict_stg['분할매입금액'] = json.dumps(empty_zero)
+        dict_stg['분할청산금액'] = json.dumps(empty_zero)
+        dict_stg['분할진입수수료'] = json.dumps(empty_zero)
+        dict_stg['분할id'] = json.dumps(empty_txt, ensure_ascii=False)
+        dict_stg['분할진입시간'] = json.dumps(empty_txt, ensure_ascii=False)
+        dict_stg['분할청산시간'] = json.dumps(empty_txt, ensure_ascii=False)
+        # dict_stg['진입신호시간'] = json.dumps([])
+        # dict_stg['청산신호시간'] = json.dumps([])
 
-        self.df_trade.loc[stg, '평가금액'] = round(평가금액)
-        self.df_trade.loc[stg, '수익금'] = round(수익금)
-        self.df_trade.loc[stg, '수수료'] = 진입수수료 + 청산수수료
+        if dict_stg['진입대상'][0] == '[' or dict_stg['진입대상'][0] == '{':
+            dict_stg['ticker'] = ''
+        return dict_stg
 
-        if 매입금액 == 0 or 수익금 == 0:
-            수익률 = 0
-        else:
-            수익률 = round((수익금 / (매입금액*증거금률) * 100) , 2)
+    # def cal_ror(self, dict_stg): # 나중에 balance_account랑 합쳐야 됨
+    #     보유수량 = dict_stg['보유수량']
+    #     매입금액 = dict_stg['매입금액']
+    #     레버리지 = dict_stg['레버리지']
+    #     진입수수료 = dict_stg['진입수수료']
+    #     평단가 = dict_stg['평단가']
+    #     청산금액 = dict_stg['청산금액']
+    #     ticker = dict_stg['ticker']
+    #     trade_market = dict_stg['market']
+    #     방향 = dict_stg['방향']
+    #     증거금률 = self.위탁증거금률 / 100 if trade_market == '선물' else 1/레버리지 if trade_market == 'bybit' else 1
+    #     if self.market == 'bybit':
+    #         평가금액 = 보유수량 * 현재가
+    #         청산수수료 = round(평가금액 * self.fee_bybit_market / 100, 4)
+    #     elif market == '업비트':
+    #         평가금액 = 보유수량 * 현재가
+    #         청산수수료 = round(평가금액 * self.fee_upbit_market / 100, 4)
+    #     elif self.market=='국내주식':
+    #         fee = self.fee_stock + self.tax_stock
+    #         평가금액 = round(보유수량 * 현재가)
+    #         청산수수료 = 평가금액 * fee // 100
+    #     elif self.market == '국내선옵':
+    #         fee = self.fee_future if trade_market == '선물' else self.fee_putopt1 if 평단가 > 2.47 or 평단가 < 0.42 else self.fee_putopt2
+    #         거래승수 = self.dic_multiplier[ticker[:3]]
+    #         평가금액 = round(보유수량 * 현재가 * 거래승수)
+    #         청산수수료 = 평가금액 * fee // 100
+    #
+    #     if 방향 == 'long':
+    #         수익금 = (평가금액 + 청산금액) - 매입금액 - 진입수수료 - 청산수수료
+    #     else:
+    #         수익금 = 매입금액 - (평가금액 + 청산금액) - 진입수수료 - 청산수수료
+    #
+    #     dict_stg['평가금액'] = round(평가금액)
+    #     dict_stg['수익금'] = round(수익금)
+    #     dict_stg['수수료'] = 진입수수료 + 청산수수료
+    #
+    #     if 매입금액 == 0 or 수익금 == 0:
+    #         수익률 = 0
+    #     else:
+    #         수익률 = round((수익금 / (매입금액*증거금률) * 100) , 2)
+    #
+    #     # if 수익률 < -10 or 수익률 > 20:
+    #     # print(f"cal_ror: {stg= }, {수익률= },{평가금액= }, {청산금액= }  {수익금= } / {매입금액= }, {레버리지= }, {보유수량= }, {현재가= }, {증거금률=} {진입수수료= }  {청산수수료= }")
+    #
+    #     dict_stg['수익률'] = 수익률
+    #     # 누적수익금 = dict_stg['누적수익금'] + 수익금
+    #     if 수익률 > dict_stg['최고수익률']:
+    #         dict_stg['최고수익률'] = 수익률
+    #         self.send_save_stg.emit(dict_stg)
+    #     elif 수익률 < dict_stg['최저수익률']:
+    #         dict_stg['최저수익률'] = 수익률
+    #         self.send_save_stg.emit(dict_stg)
+    #     else:
+    #         self.send_stg.emit(dict_stg)
+    #     # dict_stg['최고수익률'] = np.where(수익률 > dict_stg['최고수익률'], 수익률, dict_stg['최고수익률'])
+    #     # dict_stg['최저수익률'] = np.where(수익률 < dict_stg['최저수익률'], 수익률, dict_stg['최저수익률'])
+    #     return dict_stg
 
-        # if 수익률 < -10 or 수익률 > 20:
-        # print(f"cal_ror: {stg= }, {수익률= },{평가금액= }, {청산금액= }  {수익금= } / {매입금액= }, {레버리지= }, {보유수량= }, {현재가= }, {증거금률=} {진입수수료= }  {청산수수료= }")
-
-        self.df_trade.loc[stg, '수익률'] = 수익률
-        self.df_trade.loc[stg, '최고수익률'] = np.where(수익률 > self.df_trade.loc[stg, '최고수익률'],
-                                                수익률, self.df_trade.loc[stg, '최고수익률'])
-        self.df_trade.loc[stg, '최저수익률'] = np.where(수익률 < self.df_trade.loc[stg, '최저수익률'],
-                                            수익률, self.df_trade.loc[stg, '최저수익률'])
-        누적수익금 = self.df_trade.loc[stg, '누적수익금'] + 수익금
-        # print(f"cal_ror - {누적수익금= }    {self.df_trade.loc[stg, '누적수익금']= }     {수익금= },  {수익률= }")
-        return 누적수익금
-
-    def make_df(self,ticker, bong, bong_detail, bong_since, check_compare,now_day,now_time):
-        ticker_full_name = f"{ticker}_{bong}_{bong_detail}"
-        if self.market == '국내주식':
-            if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
-                ohlcv = globals()[ticker_full_name]
-                if bong == '일봉':
-                    if not ohlcv.empty:
-                        df = common_def.convert_df(ohlcv)
-                        dict_output = self.ex_kis.fetch_price(ticker)
-                        today = pd.to_datetime(datetime.datetime.now().date())
-                        df.loc[today,'시가'] = int(dict_output['stck_oprc'])
-                        df.loc[today,'고가'] = int(dict_output['stck_hgpr'])
-                        df.loc[today,'저가'] = int(dict_output['stck_lwpr'])
-                        df.loc[today,'종가'] = int(dict_output['stck_prpr'])
-                        df.loc[today,'거래대금'] = int(dict_output['acml_tr_pbmn'])
-                        df.loc[today,'거래량'] = int(dict_output['acml_vol'])
-                        df.loc[today,'전일대비거래량비율'] = float(dict_output['prdy_vrss_vol_rate'])
-                        df.loc[today,'외국인순매수수량'] = int(dict_output['frgn_ntby_qty'])
-                        df.loc[today,'프로그램매매순매수수량'] = int(dict_output['pgtr_ntby_qty'])
-                        df.loc[today,'PER'] = float(dict_output['per'])
-                        df.loc[today,'PBR'] = float(dict_output['pbr'])
-                        df.loc[today,'EPS'] = float(dict_output['eps'])
-                        df.loc[today,'BPS'] = float(dict_output['bps'])
-                        df.loc[today,'52주최고가'] = int(dict_output['w52_hgpr'])
-                    else:
-                        df = ohlcv
-                else:
-                    to = ohlcv[0]['stck_cntg_hour']
-                    output = self.ex_kis._fetch_1m_ohlcv(symbol=ticker,to=datetime.datetime.now().strftime("%H%M%S"),fake_tick=True)  # to = 현재시간, 허봉 포함
-                    output = output['output2']
-                    list_cntg_hour = [item['stck_cntg_hour'] for item in output]  # 딕셔너리의 시간을 리스트로 변환
-                    if to in list_cntg_hour:
-                        output = output[:list_cntg_hour.index(to) + 1]
-                        del ohlcv[0]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                        output.extend(ohlcv)
-                        ohlcv = output
-                        globals()[ticker_full_name] = ohlcv
-            else:  # 최초 생성 시
-                if bong == '일봉':
-                    date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
-                    date_old = datetime.datetime.strftime(date_old,'%Y%m%d')
-                    df = self.ex_kis.fetch_ohlcv(symbol=ticker,early_day=date_old)
-                    if not df.empty:
-                        globals()[ticker_full_name] = df.copy()
-                        df = common_def.convert_df(df)
-                else:
-                    # df = common_def.get_kis_ohlcv(self.market,ohlcv)
-                    if ticker_full_name.count('_') == 2:  # 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-                        df_standard, df = common_def.detail_to_spread(df, bong, bong_detail)
-                    else:  # 비교대상의 경우 'BTC_5분봉'
-                        df = common_def.detail_to_compare(df, bong, ticker_full_name)
-
-        elif self.market == '국내선옵':
-            if ticker_full_name in globals():  # 만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
-                ohlcv = globals()[ticker_full_name]
-            else: # 최초 생성 시
-                ohlcv = []
-            ohlcv = self.ex_kis.fetch_1m_ohlcv(symbol=ticker,limit=bong_since,ohlcv=ohlcv,now_day=now_day,now_time=now_time)
-            globals()[ticker_full_name] = ohlcv
-                # 시간 단축을 위해 데이터프레임에서 필요없는 팩터 지우기
-                # df_check = common_def.get_kis_ohlcv(self.market,ohlcv)
-                # df_standard, df_check = common_def.detail_to_spread(df_check, dict_stg['봉'], dict_stg['상세봉'])
-                # li_factor = []
-                # for factor in df_check.columns.tolist():
-                #     if not factor in str(dict_stg['진입전략'] + dict_stg['청산전략']):  # 실제 전략에 필요한 팩터만 남기고 데이터프레임에서 삭제
-                #         if not factor in ['상세시가', '상세고가', '상세저가', '상세종가', '시가', '고가', '저가', '종가', '종료시간',
-                #                           '현재시간', '장시작시간', '장종료시간']:  # 삭제에서 제외
-                #             df_check.drop(factor, axis=1, inplace=True)
-                #             li_factor.append(factor)
-
-            df = common_def.get_kis_ohlcv(self.market, ohlcv)
-            if not check_compare:  # 진입대상인지 비교대상인지 확인 - 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-                _, df = common_def.detail_to_spread(df, bong, bong_detail, False)
-                if ticker[:3] == '101':
-                    df['만기일'] = self.dict_market_option['만기일_선물']
-                elif ticker[:3] == '201' or ticker[:3] == '301':
-                    df['만기일'] = self.dict_market_option['만기일_옵션']
-                elif ticker[:3] == '209' or ticker[:3] == '309':
-                    df['만기일'] = self.dict_market_option['만기일_옵션위클리']
-                else:
-                    print('error - if not check_compare:')
-                    df = pd.DataFrame()
-            else:  # 비교대상의 경우 'BTC_5분봉'
-                df = common_def.detail_to_compare(df, ticker, bong)
-
-            return df
-
-        elif self.market =='코인':
-            if f'{ticker_full_name}' in globals(): #만들어진 df가 있을 경우 데이터는 종목_봉_생성봉에 따라 다름에 유의
-                ohlcv = globals()[f'{ticker_full_name}']
-                stamp_date_old = ohlcv[-1][0]/1000
-                # del globals()[f'{ticker_full_name}'][-1]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                # pprint(ohlcv)
-                # print('=============================')
-                del ohlcv[-1]  # 마지막행은 불완전했던 행 이였으므로 삭제
-                # pprint(ohlcv)
-                # quit()
-            else: #만들어진 df가 없을 경우 (최초 DF생성 시)
-                ohlcv = []
-                date_old = datetime.datetime.now().date() - datetime.timedelta(days=int(bong_since))
-                stamp_date_old = common_def.datetime_to_stamp(date_old)
-            ohlcv = common_def.get_bybit_ohlcv(self.ex_bybit, ohlcv, stamp_date_old, ticker_full_name, ticker, bong, bong_detail)
-            globals()[ticker_full_name] = ohlcv
-            df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
-            df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
-            df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
-            df['날짜'] = df['날짜'].dt.tz_localize(None)
-            df.set_index('날짜', inplace=True)
-            df.index = df.index - pd.Timedelta(hours=9)
-            if not check_compare: # 진입대상의 경우 'BTC_5분봉_1분봉'으로 표시되기 때문에
-                df_standard, df = common_def.detail_to_spread(df, bong, bong_detail, False)
-            else: # 비교대상의 경우 'BTC_5분봉'
-                df = common_def.detail_to_compare(df, ticker, bong)
-            df.index = df.index + pd.Timedelta(hours=9)
-            return df
-        else:
-            print(f"마켓 확인 {self.market= }")
-            return pd.DataFrame()
     def check_compare_ticker(self,stg,ticker,dict_stg_stg):
         stg_buy = self.df_trade.loc[stg, '진입전략']
         # 첫 번째 줄 진입대상 삭제
@@ -2364,11 +2523,8 @@ class Trade_np(QThread):
         stg_sell = self.df_trade.loc[stg, '청산전략']
         stg_sum = stg_buy + stg_sell
         list_compare = []
-        # print(stg_sum)
-        # print('===========')
         if self.market == '국내선옵':
             if '선물' in stg_sum:
-#                 print('선물')
                 # stg_sum = stg_sum.replace('선물', self.list_tickers[0])
                 list_compare.append('선물')
             if '풋옵션' in stg_sum and ticker[:1] == '2':
@@ -2463,10 +2619,94 @@ class Trade_np(QThread):
                         print(df)
                         df.index = list_idx
                         raise Exception('Exception')
-        # print(df)
-        # quit()
         return df
 
+    def calculate_order(self,ticker,current_price, budget, rate, price_unit=1000):
+        """
+        current_price: 현재가
+        budget: 예산 (30000)
+        rate: 주문 비율 (-0.05 = -5%)
+        price_unit: 호가 단위 (업비트 BTC = 1000원)
+        qty_decimal: 수량 소수점 자리수 (업비트 BTC = 7자리)
+        """
+        if current_price > 1_000_000 :
+            price_unit = 1000
+        elif current_price > 500000 :
+            price_unit = 500
+        elif current_price > 100000 :
+            price_unit = 100
+        elif current_price > 50000 :
+            price_unit = 50
+        elif current_price > 10_000 :
+            price_unit = 10
+        elif current_price > 5000 :
+            price_unit = 5
+        elif current_price > 1000 :
+            price_unit = 1
+        elif current_price > 100 :
+            price_unit = 1
+        elif current_price > 10 :
+            price_unit = 0.1
+        elif current_price > 1 :
+            price_unit = 0.01
+        elif current_price > 0.1 :
+            price_unit = 0.001
+        elif current_price > 0.01 :
+            price_unit = 0.0001
+        elif current_price > 0.001 :
+            price_unit = 0.00001
+        elif current_price > 0.0001 :
+            price_unit = 0.000001
+        elif current_price > 0.00001 :
+            price_unit = 0.0000001
+        else:
+            price_unit = 0.00000001
+
+        self.dict_option["exchange"].load_markets()
+        qty = budget / current_price
+        qty = float(self.dict_option["exchange"].amount_to_precision(ticker + '/KRW', qty))
+        qty_decimal = self.decimal_places(qty)
+
+        # 1. 목표 매수가 계산 (호가 단위로 내림)
+        target_price = current_price * (1 + rate)
+        target_price = math.floor(target_price / price_unit) * price_unit
+
+        # 2. 수량 계산 (소수점 7자리 내림)
+        qty = budget / target_price
+        qty = math.floor(qty * 10 ** qty_decimal) / 10 ** qty_decimal
+
+        # 3. 실제 주문금액
+        order_amount = target_price * qty
+
+        # 4. 주문금액이 1,000원 단위가 아니면 수량 조정
+        if order_amount % price_unit != 0:
+            # 방법 A: 수량을 올려서 1,000원 단위 맞추기
+            adjusted_qty = math.ceil(order_amount / price_unit) * price_unit / target_price
+            adjusted_qty = math.floor(adjusted_qty * 10 ** qty_decimal) / 10 ** qty_decimal
+            order_amount_adjusted = target_price * adjusted_qty
+
+            # 예산 초과 시 내림
+            if order_amount_adjusted > budget:
+                adjusted_qty = math.floor(order_amount / price_unit) * price_unit / target_price
+                adjusted_qty = math.floor(adjusted_qty * 10 ** qty_decimal) / 10 ** qty_decimal
+                order_amount_adjusted = target_price * adjusted_qty
+
+            qty = adjusted_qty
+            order_amount = order_amount_adjusted
+
+        # print(f"목표가(-5%): {target_price:,}원")
+        # print(f"수량: {qty}개")
+        # print(f"주문금액: {order_amount:,.0f}원")
+        # print(f"1,000원 단위 확인: {'✅' if order_amount % price_unit == 0 else '❌'}")
+        # print(f"예산 초과 여부: {'❌ 초과!' if order_amount > budget else '✅ 예산 내'}")
+
+        return (target_price, qty)
+
+    def decimal_places(self,n):
+        s = str(n)
+        if '.' in s:
+            return len(s.split('.')[1])
+        return 0
     def sorting_make_df(self, dict_stg):
         # list_cntg_hour = [item['진입대상'] for item in dict_stg]  # 딕셔너리의 시간을 리스트로 변환
         # print(list_cntg_hour)
@@ -2476,8 +2716,8 @@ class Trade_np(QThread):
             if type(val['진입대상']) == dict:
                 li_obj_type.append(list(val['진입대상'].keys())[0])
         if li_obj_type: #해당하는 조건이 있을 경우에만 진입
-            if self.market == '코인':
-                fetch_tickers = self.ex_bybit.fetch_tickers()
+            if self.market == 'bybit' or market == '업비트':
+                fetch_tickers = self.dict_option["exchange"].fetch_tickers()
                 df = self.bybit_set_tickers(fetch_tickers)
                 if '거래대금급등' in li_obj_type:
                     se_vol = self.se_vol - df['quoteVolume']
@@ -2535,7 +2775,7 @@ class Trade_np(QThread):
         value = obj[key]
         upper = float(value[value.index('~') + 1:])
         lower = float(value[:value.index('~')])
-        if self.market == '코인':
+        if self.market == 'bybit' or market == '업비트':
             if type(obj) == dict:
                 if key == '거래대금상위':
                     list_idx = self.df_quotevolum.index.tolist()
@@ -2628,46 +2868,47 @@ class Trade_np(QThread):
         else:
             print(f'{datetime.datetime.now()}  :  종료')
             quit()
-    def order_open(self, ticker, price, qty, side, type, leverage):
+    def create_order_open(self, ticker, price, qty, side, ord_type, leverage:int=1):
         try:
             if side == 'buy':  # open long
                 params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-                #type = 'limit', side = 'buy'
-                # res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
-                #                                  price=price, params=params)
             elif side == 'sell':  # open short
                 params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
             else:
-                print('에라 오픈')
+                print('에러 create_order_open')
                 raise
-            res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
+            res = self.dict_option['exchange'].create_order(symbol=ticker, type=ord_type, side=side, amount=qty,
                                              price=price, params=params)
         except:
-            print(f"에러 order_open  -  {ticker= }, {price= }, {qty= }, {side= }, {type= }, {leverage= }")
+            print(f"에러 create_order_open  -  {ticker= }, {price= }, {qty= }, {side= }, {ord_type= }, {leverage= }")
             if side == 'buy':  # open long
                 params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-                res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
+                try:
+                    res = self.dict_option['exchange'].create_order(symbol=ticker, type=ord_type, side=side, amount=qty,
                                                  price=price, params=params)
+                except Exception as e:
+                    print(f'create_order_open 이상한 에러  : {e}')
+
             elif side == 'sell':  # open short
                 params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-                res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty,
+                res = self.dict_option['exchange'].create_order(symbol=ticker, type=ord_type, side=side, amount=qty,
                                                  price=price, params=params)
             else:
                 print('에라 오픈')
                 raise
             quit()
 
-        # print(f"{self.yellow(f'{type} open 주문')} [{res['id']}] [{side}] - 진입가:{price}, 수량:{qty}, 레버리지: {leverage}, 배팅금액: {round(price * qty, 4)}")
+        # print(f"{self.yellow(f'{type} open 주문')} [{res['id']}] [{side}] - 평단가:{price}, 수량:{qty}, 레버리지: {leverage}, 배팅금액: {round(price * qty, 4)}")
         return res['id']
 
-    def order_close(self,ticker, price, qty, side, type):
+    def create_order_close(self,ticker, price, qty, side, ord_type):
         if side == 'buy':  # 지정가 close short
             params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-            res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty, price=price,
+            res = self.dict_option['exchange'].create_order(symbol=ticker, type=ord_type, side=side, amount=qty, price=price,
                                              params=params)
         elif side == 'sell':  # 지정가 close long
             params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-            res = self.ex_bybit.create_order(symbol=ticker, type=type, side=side, amount=qty, price=price,
+            res = self.dict_option['exchange'].create_order(symbol=ticker, type=ord_type, side=side, amount=qty, price=price,
                                              params=params)
         else:
             print('에라 close')
@@ -2678,7 +2919,7 @@ class Trade_np(QThread):
     def fetch_open_orders(self,id,ticker):  # 미체결주문 조회
         params = {}
         try:
-            res = self.ex_bybit.fetch_open_orders(symbol=ticker+'USDT', params=params)
+            res = self.dict_option['exchange'].fetch_open_orders(symbol=ticker+'USDT', params=params)
             for order in res:
                 if order['id'] == id:
                     return order
@@ -2692,7 +2933,7 @@ class Trade_np(QThread):
         params = {}
         try:
             # order = self.exchange.fetch_closed_orders(self.ticker, params=params)
-            res = self.ex_bybit.fetch_closed_orders(symbol=ticker+'USDT', params=params)
+            res = self.dict_option['exchange'].fetch_closed_orders(symbol=ticker+'USDT', params=params)
             for order in res:
                 if order['id'] == id:
                     return order
@@ -2705,7 +2946,7 @@ class Trade_np(QThread):
     def fetch_order_cancel(self,id,ticker):  # 체결주문 조회
         params = {}
         try:
-            res = self.ex_bybit.fetch_canceled_orders(symbol=ticker+'USDT', params=params)
+            res = self.dict_option['exchange'].fetch_canceled_orders(symbol=ticker+'USDT', params=params)
             for order in res:
                 if order['id'] == id:
                     return order
@@ -2796,48 +3037,51 @@ class Trade_np(QThread):
         df = pd.DataFrame.from_dict(data=fetch_tickers, orient='index')  # 딕셔너리로 데이터프레임  만들기 키값으로 행이름을 사용
         return df
 
-    def color_text(self,state:str,stg:str,ticker:str,방향:str="long",진입가=0,주문수량=0,체결수량=0,보유수량=0,진입방식:str="",청산가=0,청산방식:str="",수익금=0,레버리지=1,체결금액=0,매입금액=0,잔고=0,수익률:float=0.0,상태="",현재봉시간='',수수료=0,id=''):
-        진입가 = 진입가
-        청산가 = format(청산가,',')
-        수익금 = format(수익금,',')
-        체결금액 = format(체결금액,',')
-        잔고 = format(잔고,',')
-        매입금액 = format(매입금액,',')
-        수수료 = format(수수료,',')
-        if state == 'open 주문':
-            print(f"[{stg} - {ticker}] {self.yellow(f'{state}')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')}, {진입방식= }, {방향= }, {진입가= }, {주문수량= }, {레버리지= }, {현재봉시간= }, {상태= }, {id=}, 금액={매입금액}, 매수가능금액={체결금액}")
-            txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(datetime.datetime.now())}  {진입방식= }, {방향= }, {진입가= }, {주문수량= }, {레버리지= }, {상태= }")
-        elif state == 'close 주문':
-            print(f"[{stg} - {ticker}] {self.cyan(f'{state}')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')}  {청산방식= }, {방향= }, {청산가= }, {주문수량= }, {잔고= }, {수익률= }, {상태= }, {id=}")
-            txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(datetime.datetime.now())}  {청산방식= }, {방향= }, {청산가= }, {주문수량= }, {잔고= }, {수익률= }, {상태= }")
+    def color_text(self,dict_stg):
+        state = dict_stg['상태']
+        전략명 = dict_stg['전략명']
+        ticker = dict_stg['ticker']
+        주문방식 = dict_stg['주문방식']
+        보유수량 = dict_stg['보유수량']
+        방향 = dict_stg['방향']
+        주문가 = dict_stg['주문가']
+        주문수량 = dict_stg['주문수량']
+        uuid = dict_stg['id']
+        if state == '매수주문' or state == '시장가매수':
+            print(f"[{전략명} - {ticker}] {self.yellow(f'{state}')} | {self.green(f'{현재시간}')}, "
+                  f"주문방식:{주문방식}, 방향:{방향}, 주문가:{주문가}, 주문수량:{주문수량}, "
+                  f"레버리지:{dict_stg['레버리지']}, ID:{uuid}, 주문금액={dict_stg['매입금액']}")
+            txt = (f"[{전략명} - {ticker}] {state} | {현재시간},  주문방식:{주문방식}, 방향:{방향}, "
+                   f"주문가:{주문가}, 주문수량:{주문수량}, 레버리지:{dict_stg['레버리지']}, 상태:{dict_stg['상태']}")
+        elif state == '매도주문':
+            print(f"[{전략명} - {ticker}] {self.cyan(f'{state}')} | {self.green(f'{현재시간}')}  "
+                  f"{주문방식}, {방향= }, {청산가= }, {주문수량= }, {잔고= }, {수익률= }, {dict_stg['상태']= }, {id=}")
+            txt = (f"[{전략명} - {ticker}] {state} | {현재시간}  {주문방식}, {방향= }, "
+                   f"{청산가= }, {주문수량= }, {잔고= }, {수익률= }, {dict_stg['상태']= }")
         elif state == 'open 체결' or state == 'open 부분체결':
-            print(f"[{stg} - {ticker}] {self.blue(f'{state}')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')}  {방향= }, {진입가= }, {주문수량= }, {체결수량= }, {보유수량= }, {체결금액= }, {매입금액= }, {잔고= }, {수수료= }, {상태= }")
-            txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(datetime.datetime.now())}  {방향= }, {진입가= }, {체결수량= }, {보유수량= }, {체결금액= }, {매입금액= }, {잔고= }")
+            print(f"[{전략명} - {ticker}] {self.blue(f'{state}')} | {self.green(f'{현재시간}')}  "
+                  f"{방향= }, {주문가= }, {주문수량= }, {체결수량= }, {보유수량= }, "
+                  f"{체결금액= }, {dict_stg['매입금액']= }, {잔고= }, {수수료= }, {dict_stg['상태']= }")
+            txt = (f"[{전략명} - {ticker}] {state} | {현재시간}  {방향= }, {주문가= }, {체결수량= }, {보유수량= }, {체결금액= }, {dict_stg['매입금액']= }, {잔고= }")
         elif state == 'close 체결' or state == 'close 부분체결':
-            print(f"[{stg} - {ticker}] {self.fie(f'{state}')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')}  {방향= }, {청산가= }, {주문수량= }, {체결수량= }, {보유수량= }, {체결금액= }, {매입금액= }, {수익금= }, {수익률= }, {잔고= }, {수수료= }, {상태= }")
-            txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(datetime.datetime.now())}  {방향= }, {청산가= }, {체결수량= }, {보유수량= }, {체결금액= }, {수익금= }, {수익률= }, {잔고= }")
-        elif state == '매수주문' or state == '매도주문': #취소주문일 경우
-            print(f"[{stg} - {ticker}] {self.red(f'{state} 취소')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')} 취소수량= {보유수량}")
-            txt = (f"[{stg} - {ticker}] {state} 취소| {common_def.datetime_to_str(datetime.datetime.now())} | 취소수량= {보유수량}")
-        elif state == '부분매수':
+            print(f"[{전략명} - {ticker}] {self.fie(f'{state}')} | {self.green(f'{현재시간}')}  {방향= }, {청산가= }, {주문수량= }, {체결수량= }, {보유수량= }, {체결금액= }, {dict_stg['매입금액']= }, {수익금= }, {수익률= }, {잔고= }, {수수료= }, {dict_stg['상태']= }")
+            txt = (f"[{전략명} - {ticker}] {state} | {현재시간}  {dict_stg['방향']= }, {청산가= }, {체결수량= }, {보유수량= }, {체결금액= }, {수익금= }, {수익률= }, {잔고= }")
+        elif state == '매수주문취소' or state == '매도주문취소': #취소주문일 경우
+            print(f"[{전략명} - {ticker}] {self.red(f'{state}')} | {self.green(f'{현재시간}')} 취소수량= {주문수량}, id={dict_stg['id']}")
+            txt = (f"[{전략명} - {ticker}] {state} 취소| {현재시간} | 취소수량= {주문수량}")
+        elif state == '부분매수취소':
             state = '부분체결(open) 나머지 취소'
-            print(f"[{stg} - {ticker}] {self.red(f'{state}')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')}, {보유수량= }, 취소수량: {주문수량}, {상태= }")
-            txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(datetime.datetime.now())}, {보유수량= }, 취소수량: {주문수량}")
-        elif state == '부분매도':
+            print(f"[{전략명} - {ticker}] {self.red(f'{state}')} | {self.green(f'{현재시간}')}, {보유수량= }, 취소수량: {dict_stg['주문수량']}, {상태= }")
+            txt = (f"[{전략명} - {ticker}] {state} | {현재시간}, {보유수량= }, 취소수량: {dict_stg['주문수량']}")
+        elif state == '부분매도취소':
             state = '부분체결(close) 나머지 시장가매도 전환'
-            print(f"[{stg} - {ticker}] {self.red(f'{state}')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')}, {보유수량= }, 취소수량: {주문수량}, {상태= }")
-            txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(datetime.datetime.now())}, {보유수량= }, 취소수량: {주문수량}")
-        # elif state == '매수 부분 체결 나머지 취소' or state == '매도 부분 체결 나머지 취소':
-        #     print(f"[{stg} - {ticker}] {self.red(f'{state}')} | {self.green(f'{common_def.datetime_to_str(datetime.datetime.now())}')}, 취소수량: {체결수량}")
-        #     txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(datetime.datetime.now())}, 취소수량: {체결수량}")
-        # elif state == 'close 주문 미 체결':
-        #     print(f"[{stg} - {ticker}] {self.purple(f'{state}')} | {self.green(f'{common_def.datetime_to_str(현재시간)}')}, {방향= }, {진입가= }, 청산가= {체결금액}, 현재가= {레버리지= }  , {체결수량=}")
-        #     txt = (f"[{stg} - {ticker}] {state} | {common_def.datetime_to_str(현재시간)}, {방향= }, {진입가= }, 청산가= {체결금액}, 현재가= {레버리지= }  , {체결수량=}")
+            print(f"[{전략명} - {ticker}] {self.red(f'{state}')} | {self.green(f'{현재시간}')}, {보유수량= }, 취소수량: {dict_stg['주문수량']}, {상태= }")
+            txt = (f"[{전략명} - {ticker}] {state} | {현재시간}, {보유수량= }, 취소수량: {dict_stg['주문수량']}")
+        elif state == '취소실패':
+            print(f"[{전략명} - {ticker}] {self.red(f'{state}')} | {self.green(f'{현재시간}')} {uuid=}")
         else:
-            print('텍스트 조건 확인')
-            print(f'{state}')
-            txt = ('텍스트 조건 확인')
-        if self.tele == True:
+            print(f'[color_text] 텍스트 조건 확인 {state= }  {전략명=}  {ticker= }')
+        if self.dict_set['텔레그램'] == True:
             if state != 'open 부분체결' or state != 'close 부분체결':
                 self.bot = telegram.Bot(token=self.TOKEN)
                 # asyncio.run(self.bot.send_message(chat_id=self.chat_id, text=txt))
@@ -2875,8 +3119,145 @@ class Trade_np(QThread):
         return f'\033[33m{text}\033[0m'
     def green(self, text):
         return f'\033[32m{text}\033[0m'
+# 1. 웹소켓 수신 스레드
+# class WebSocketThread(QThread):
+#     price_updated = pyqtSignal(dict)
+#     order_filled = pyqtSignal(dict)
+#
+#     def __init__(self, dict_option, orders):
+#         super().__init__()
+#         self.running = True
+#         self.market = dict_option['market']
+#         self.list_ticker = ['BTC/KRW']
+#         self.dict_ord = dict(orders) if orders else {}
+#
+#         if self.market == "업비트":
+#             token_name = "DB/token.dat"
+#             if os.path.isfile(token_name):
+#                 with open(token_name, "rb") as f:
+#                     data = pickle.load(f)
+#             else:
+#                 data = {}
+#             api = data.get("업비트", {}).get('api', '')
+#             secret = data.get("업비트", {}).get('secret', '')
+#             self.ws_upbit = ccxtpro.upbit({'apiKey': api, 'secret': secret})
+#
+#     def run(self):
+#         if self.market == "업비트":
+#             asyncio.run(self.run_all())
+#         elif self.market == "국내선옵":
+#             asyncio.run(self.watch_ticker_futopt())
+#
+#     async def run_all(self):
+#         """모든 코루틴 동시 실행"""
+#         tasks = [self.watch_ticker_info()]
+#
+#         if self.dict_ord:
+#             symbols = list(set(self.dict_ord.values()))
+#             tasks += [self._watch_chegyeol(s) for s in symbols]
+#             tasks.append(self.rest_fallback())
+#
+#         await asyncio.gather(*tasks)
+#
+#     async def watch_ticker_info(self):
+#         while self.running:
+#             try:
+#                 dict_tickers = await self.ws_upbit.watch_tickers(self.list_ticker)
+#                 self.price_updated.emit(dict_tickers)
+#             except asyncio.CancelledError:
+#                 print("[WS] watch_ticker_info  watch_ticker 종료")
+#                 break
+#             except Exception as e:
+#                 print(f"[WS] watch_ticker_info  ticker 에러: {e}")
+#                 break
+#         await self.ws_upbit.close()
+#
+#     async def _watch_chegyeol(self, symbol):
+#         """심볼별 주문 체결 감지"""
+#         while self.running:
+#             try:
+#                 print(f"{symbol= }")
+#                 list_orders = await self.ws_upbit.watch_orders(symbol)
+#                 for order in list_orders:
+#                     order_info = order['info']
+#                     pprint(order_info)
+#                     if order_info['uuid'] in order.keys():
+#                         print(order_info['uuid'])
+#                         if order_info['state'] == 'done':
+#                             state = '체결'
+#                             amount = order_info['executed_volume']
+#                         elif order_info['state'] == 'trade':
+#                             state = '거래중'
+#                             amount = order_info['executed_volume']
+#                             print(order_info['volume'])
+#                         elif order_info['state'] == 'cancel':
+#                             state = '취소'
+#                             amount = order_info['executed_volume']
+#                             print(order_info['volume'])
+#                         dic_out = {order['id']:{'state':state,'amount':amount}}
+#                         self.order_filled.emit(dic_out)
+#             except asyncio.CancelledError:
+#                 print("[WS] _watch_chegyeol 종료")
+#                 break  # 정상 종료로 처리
+#             except Exception as e:
+#                 print(f"[WS] 에러: {e}")
+#                 break
+#
+#     async def rest_fallback(self):
+#         """30초마다 REST로 누락 확인"""
+#         while self.running:
+#             try:
+#                 await asyncio.sleep(30)
+#                 for order_id, symbol in list(self.dict_ord.items()):
+#                     order = await self.ws_upbit.fetch_order(order_id, symbol)
+#                     # pprint(order)
+#                     if order['status'] in ('closed', 'canceled'):
+#                         if order['status'] == 'closed':
+#                             state = '체결'
+#                         else:
+#                             state = '취소'
+#                         print(f"[REST] rest_fallback ✅ {order_id} {state} 완료")
+#                         self.dict_ord.pop(order_id, None)
+#                         dic_out = {order_id:{'state':state,'amount':order['amount']}}
+#
+#                         self.order_filled.emit(dic_out)
+#                     else:
+#                         print(f"[REST] rest_fallback ✅ {order_id} 업비트 미체결")
+#             except asyncio.CancelledError:
+#                 print("[REST] rest_fallback 종료")
+#                 break
+#             except Exception as e:
+#                 print(f"[REST] 에러: {e}")
+#
+#     def stop(self):
+#         self.running = False
 
-
+# 2. 차트 분석/전략 스레드
+# class StrategyThread(QThread):
+#     signal_detected = pyqtSignal(str)  # 매매 신호
+#
+#     def __init__(self):
+#         super().__init__()
+#         self.running = True
+#         self.current_price = 0
+#
+#     def run(self):
+#         """차트 분석 및 조건 연산"""
+#         while self.running:
+#             time.sleep(1)  # 1초마다 분석
+#
+#             # 복잡한 차트 연산 수행
+#             if self.current_price > 51000:
+#                 self.signal_detected.emit("매수 신호!")
+#             elif self.current_price < 49000:
+#                 self.signal_detected.emit("매도 신호!")
+#
+#     def update_price(self, price):
+#         """현재가 업데이트 (스레드 안전)"""
+#         self.current_price = price
+#
+#     def stop(self):
+#         self.running = False
 if __name__ == "__main__":
     import sys
     def ExceptionHook(exctype, value, traceback):
@@ -2884,20 +3265,22 @@ if __name__ == "__main__":
         sys.exit(1)
     sys.excepthook = ExceptionHook  # 예외 후크 설정 부분 (에러가 표시되지 않으면서 종료되는증상을 방지하기 위함)
 
-
-
     class simul_QCB():
         def isChecked(self):
             return True
     simul = simul_QCB()
+    conn_stg = sqlite3.connect('DB/stg_trade.db')
+    market = '업비트'
+    ticker = 'USDT'
 
-    market = '국내주식'
-    # market = '국내선옵'
-    # market = '코인'
     list_tickers = []
+    dict_option = {}
     if market == '국내주식':
-        conn_stg = sqlite3.connect('DB/stg_stock.db')
+        table_stg = "stg_stock"
+
     elif market == '국내선옵':
+        table_stg = "stg_futopt"
+
         def convert_column_types(df):
             for col in df.columns:
                 try:
@@ -2905,7 +3288,6 @@ if __name__ == "__main__":
                 except ValueError:
                     pass
             return df
-        conn_stg = sqlite3.connect('DB/stg_futopt.db')
         ex_kis = common_def.make_exchange_kis('모의선옵')
         date=datetime.datetime.now().replace(second=0, microsecond=0)
 
@@ -2985,24 +3367,49 @@ if __name__ == "__main__":
         # pd.set_option('display.max_rows',None)
         # print(df_combined)
         # pd.set_option('display.max_rows',False)
-    elif market == '코인':
-        conn_stg = sqlite3.connect('DB/stg_bybit.db')
+    elif market == 'bybit' or market == '업비트':
         list_tickers = ['BTC','ETH','XRP']
-        # COND_MRKT = "WKM"
-    df_stg = pd.read_sql(f"SELECT * FROM 'stg'", conn_stg).set_index('index')
-    # df_instock = pd.DataFrame()
-    tele = True
+        table_stg = "stg_upbit"
+        dict_option["exchange"] = common_def.make_exchange_upbit()
+        ohlcv = []
+        # date_old = datetime.datetime.now() - datetime.timedelta(minutes=dict_ticker_bong_limit[ticker])
+        # stamp_date_old = common_def.datetime_to_stamp(date_old)
+        # globals()[ticker] = common_def.get_coin_initial_data(market="업비트", dict_option=dict_option,
+        #                                                      ohlcv=ohlcv, since=stamp_date_old, ticker=ticker,
+        #                                                      limit=200, bong_detail="1분봉")  # 최대 200개 숫자 늘리면 안됨
+
+    dict_option["market"] = market
+    dict_option["mock"] = True
+    df_set = pd.read_sql(f"SELECT * FROM 'set'", conn_stg).set_index('index')
+    thread = Trade_np(dict_option= dict_option, df_set= df_set)
+
+    # df = thread.make_df(ticker=ticker, ohlcv=[],
+    #                          bong=5, check_compare=False)
+    df_stg = pd.read_sql(f"SELECT * FROM {table_stg}", conn_stg).set_index('index')
+    tele = False
     duration = 30
-    # trade = Trade_np(parent=None,market=market,ex_kis=None,ex_bybit=None,ex_pybit=, simul=simul,df_stg=df_stg,
-    #                  chart_duration=,tele=tele,dict_market_option=dict_market_option,auto_finish=,finish_time=
-    # ,,duration,tele,list_tickers,dict)
+    stg_data = df_stg.iloc[0]
+    print(stg_data)
+    dict_stg = stg_data.to_dict()
+    print(dict_stg)
+    시장가='시장가'
+    dict_stg,price,fee = thread.order_price(dict_stg, {1500:-0.2})
+    print(dict_stg)
+    print(price)
+    print(fee)
+    dict_stg,price,fee = thread.order_price(dict_stg, {104978000:-0.2})
+    print(dict_stg)
+    print(price)
+    print(fee)
+    # trade = thread.trading(df,dict_stg)
+    quit()
     # market, ex_kis, ex_bybit, ex_pybit, simul, df_stg, chart_duration, tele,
     # dict_market_option, auto_finish, finish_time
     # stg = '시가_풋'
-    ticker = '122630'
-    # dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '5분봉', '상세봉': '1분봉', '봉제한': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}
-    dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '일봉', '상세봉': '일봉', '봉제한': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}
-    df = trade.make_df(ticker,dict_stg_stg['봉'],dict_stg_stg['상세봉'],dict_stg_stg['봉제한'],False)
+    # ticker = '122630'
+    # dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '5분봉', '상세봉': '1분봉', '봉길이': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}
+    dict_stg_stg = {'진입대상': {'풋옵션': '1~2'}, 'ticker': '301W01332', '봉': '일봉', '상세봉': '일봉', '봉길이': np.int64(3), '팩터': [], '비교대상': {'수급동향': False}}
+    df = trade.make_df(ticker,dict_stg_stg['봉'],dict_stg_stg['상세봉'],dict_stg_stg['봉길이'],False)
     print(df)
     # trade.run()
     # dict_stg_stg = trade.check_compare_ticker(stg,ticker, dict_stg_stg)

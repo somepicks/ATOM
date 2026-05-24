@@ -7,11 +7,41 @@
     <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
       <change beforePath="$PROJECT_DIR$/.idea/ATOM.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ATOM.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ATOM_backtest_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_backtest_numpy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ATOM_chart.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_chart.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ATOM_chart_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_chart_numpy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ATOM_trade_numpy.py" beforeDir="false" afterPath="$PROJECT_DIR$/ATOM_trade_numpy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CYBOS_DB.py" beforeDir="false" afterPath="$PROJECT_DIR$/CYBOS_DB.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/DB_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_bybit.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/DB_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_futopt.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/DB_stock.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_stock.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/bt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/bt.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/chart_table.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/chart_table.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/setting.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/setting.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/stg_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_bybit.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/stg_stock.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_stock.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DB/strategy.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/strategy.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TA_Lib-0.4.28-cp311-cp311-win_amd64.whl" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/VSA.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/bybit_funding_fee.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/chart_real.py" beforeDir="false" afterPath="$PROJECT_DIR$/chart_real.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex_equals.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_equals.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex_get_df.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_get_df.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex_pyqt.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_pyqt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex_websocket.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex_websocket.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/get_df.py" beforeDir="false" afterPath="$PROJECT_DIR$/get_df.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_backtest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_backtest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_chart_table.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_chart_table.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/timesync.py" beforeDir="false" afterPath="$PROJECT_DIR$/timesync.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trend_investor.py" beforeDir="false" afterPath="$PROJECT_DIR$/trend_investor.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,6 +57,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="ROOT_SYNC" value="SYNC" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
   &quot;lastFilter&quot;: {}
@@ -54,24 +85,40 @@
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
     &quot;Python.ATOM.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ATOM_WS_KIS.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ATOM_backtest_numpy.executor&quot;: &quot;Run&quot;,
     &quot;Python.ATOM_trade_numpy.executor&quot;: &quot;Run&quot;,
     &quot;Python.CYBOS_DB.executor&quot;: &quot;Run&quot;,
+    &quot;Python.Funding_fee_strategy.executor&quot;: &quot;Run&quot;,
     &quot;Python.KIS.executor&quot;: &quot;Run&quot;,
+    &quot;Python.backtest_funding.executor&quot;: &quot;Run&quot;,
     &quot;Python.bybit_funding_fee.executor&quot;: &quot;Run&quot;,
+    &quot;Python.bybit_funding_fee_strategy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.chart_real.executor&quot;: &quot;Run&quot;,
     &quot;Python.common_def.executor&quot;: &quot;Run&quot;,
     &quot;Python.ex.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ex_equals.executor&quot;: &quot;Run&quot;,
     &quot;Python.ex_pyqt.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ex_scrap.executor&quot;: &quot;Run&quot;,
     &quot;Python.futopt_auto_sell.executor&quot;: &quot;Run&quot;,
+    &quot;Python.hangseng.executor&quot;: &quot;Run&quot;,
+    &quot;Python.jong_ga_betting.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
     &quot;Python.quanstax.executor&quot;: &quot;Run&quot;,
     &quot;Python.tab_backtest.executor&quot;: &quot;Run&quot;,
+    &quot;Python.tab_chart_table.executor&quot;: &quot;Run&quot;,
     &quot;Python.tab_set.executor&quot;: &quot;Run&quot;,
     &quot;Python.tab_trade.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_websocket.executor&quot;: &quot;Run&quot;,
+    &quot;Python.trend_investor.executor&quot;: &quot;Run&quot;,
+    &quot;Python.websocket_kis.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;D:/ATOM&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;two.files.diff.last.used.file&quot;: &quot;C:/Users/somep/Downloads/trend_investor.py&quot;
   }
 }</component>
   <component name="RecentsManager">
@@ -80,7 +127,7 @@
     </key>
   </component>
   <component name="RunManager" selected="Python.tab_trade">
-    <configuration name="bybit_funding_fee" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="ATOM_WS_KIS" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -93,7 +140,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/bybit_funding_fee.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ATOM_WS_KIS.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -102,7 +149,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="common_def" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="KIS" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -115,7 +162,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/common_def.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/KIS.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -146,28 +193,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="futopt_auto_sell" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="ATOM" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/futopt_auto_sell.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="tab_trade" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -190,13 +215,35 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="websocket_kis" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="ATOM" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/websocket_kis.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
         <item itemvalue="Python.tab_trade" />
-        <item itemvalue="Python.common_def" />
-        <item itemvalue="Python.bybit_funding_fee" />
+        <item itemvalue="Python.KIS" />
+        <item itemvalue="Python.websocket_kis" />
         <item itemvalue="Python.ex" />
-        <item itemvalue="Python.futopt_auto_sell" />
+        <item itemvalue="Python.ATOM_WS_KIS" />
       </list>
     </recent_temporary>
   </component>
@@ -472,7 +519,103 @@
       <option name="project" value="LOCAL" />
       <updated>1752755105963</updated>
     </task>
-    <option name="localTasksCounter" value="33" />
+    <task id="LOCAL-00033" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1753143726702</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1753143726702</updated>
+    </task>
+    <task id="LOCAL-00034" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1753742821476</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1753742821476</updated>
+    </task>
+    <task id="LOCAL-00035" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1753745798163</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1753745798163</updated>
+    </task>
+    <task id="LOCAL-00036" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1753746162790</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1753746162790</updated>
+    </task>
+    <task id="LOCAL-00037" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1754355936367</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1754355936367</updated>
+    </task>
+    <task id="LOCAL-00038" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1754401288438</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1754401288438</updated>
+    </task>
+    <task id="LOCAL-00039" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1758197532121</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1758197532121</updated>
+    </task>
+    <task id="LOCAL-00040" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1758202727327</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1758202727327</updated>
+    </task>
+    <task id="LOCAL-00041" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1758900250781</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1758900250781</updated>
+    </task>
+    <task id="LOCAL-00042" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1762861360843</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1762861360843</updated>
+    </task>
+    <task id="LOCAL-00043" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1763136355359</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1763136355359</updated>
+    </task>
+    <task id="LOCAL-00044" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1763470750013</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1763470750013</updated>
+    </task>
+    <option name="localTasksCounter" value="45" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

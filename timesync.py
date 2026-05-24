@@ -10,6 +10,7 @@ try:
         response = ntp_client.request('time.windows.com', version=3)
         dt = datetime.datetime.utcfromtimestamp(response.tx_time + response.delay)
         # dt = datetime.datetime.fromtimestamp(response.tx_time + response.delay, datetime.UTC)
+
         localtime = dt.astimezone(tz.tzlocal())
         offset = abs(response.offset)
         if offset >= 0.01:

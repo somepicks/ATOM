@@ -231,12 +231,12 @@ if __name__ == '__main__':
             print('대신증권 연결')
         else:
             print(instCpCybos.IsConnect)
-            raise '연결 실패 코드가 맞는지 32비트로 실행 되었는지 관리자 권한으로 실행했는지 확인 필요'
+            raise '연결 실패 코드가 맞는지 대신증권 플러스가 켜져있는지 32비트로 실행 되었는지 관리자 권한으로 실행했는지 확인 필요'
         # 봉이 변경될 때 마다 instChart를 새로 갱신해줘야됨
         if market == '국내주식':
             instChart = win32com.client.Dispatch("CpSysDib.StockChart")  # 주식 데이터 연결
             conn_DB = sqlite3.connect('DB/DB_stock.db')
-            ticker = 'A'+ticker
+            # ticker = 'A'+ticker
         else:
             instChart = win32com.client.Dispatch("CpSysDib.FutOptChart")  # 선물/옵션 데이터 연결
             conn_DB = sqlite3.connect('DB/DB_futopt.db')
@@ -270,22 +270,25 @@ if __name__ == '__main__':
     #     '월봉': ['M', 1, 'M']}
 
 
-    # market = '국내주식'
-    # ticker = '122630'  # 코덱스레버리지
-    # ticker = '252670'  # 코덱스인버스
-    # ticker = '전체'
-    # ticker = 'A005930' #삼성전자
-    # ticker = '201W2200'
-    # ticker = '201V2352'
-    market = '국내선옵'
-    # dict_ticker = {'코스피200선물': '10100', '미니코스피200선물':'10500','코스닥150선물':'10600','미국달러선물':'17500',
-    #                '3년국채선물': '16500','10년국채선물': '16700', '금연결선물': '18800'}
-    ticker = '10500'
-    bong = '1분봉'
+    # # KODEX WTI 원유선물: A261220
+    # # KODEX 미국S & P500: A219480
+    # # KODEX 미국나스닥100선물: A304940
+    # # KODEX 중국본토csi300: A283580
+    # ticker = '10100'  #선물
+    dict_ticker_fut = {'10100':'선물', '10500':'미니선물','10600':'코스닥150선물','17500':'미국달러선물',
+                   '16500':'3년국채선물','16700':'10년국채선물', '18800':'금연결선물'}
+    dict_ticker_stock = {'A122630':'KODEX 레버리지', 'A252670':'KODEX 200선물인버스2X','A005930':'삼성전자',}
+
+    market = '국내주식'
+    ticker = 'A005930'
+    # market = '국내선옵'
+    # ticker = '10600'
+    bong = '5분봉'
     start_day = 20100101
     end_day = datetime.now().strftime("%Y%m%d")
+    print(ticker)
     instChart, conn_DB, ticker = connect_cybos(market, ticker)
-
+    print(ticker)
     cursor = conn_DB.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
     try:
@@ -293,19 +296,19 @@ if __name__ == '__main__':
     except:
         table_list = []
 
-    # # KODEX WTI 원유선물: A261220
-    # # KODEX 미국S & P500: A219480
-    # # KODEX 미국나스닥100선물: A304940
-    # # KODEX 중국본토csi300: A283580
-    # ticker = '10100'  #선물
-
-
     # for bong in dict_bong.keys():
-    df_old = pd.DataFrame()
-    print(f"{ticker=} : {bong=} 저장..")
+    if market == '국내주식':
+        print(f"{ticker=}  {dict_ticker_stock[ticker]} : {bong=} 저장..")
+    else:
+        print(f"{ticker=}  {dict_ticker_fut[ticker]} : {bong=} 저장..")
 
-    if ticker in table_list:
-        df_old = pd.read_sql(f"SELECT * FROM '{ticker}'", conn_DB).set_index('날짜')
+    if market == '국내주식':
+        symbol = f'{dict_ticker_stock[ticker]}_{bong}'
+    elif market == '국내선옵':
+        symbol = f'{dict_ticker_fut[ticker]}_{bong}'
+    df_old = pd.DataFrame()
+    if symbol in table_list:
+        df_old = pd.read_sql(f"SELECT * FROM '{symbol}'", conn_DB).set_index('날짜')
         df_old.index = pd.to_datetime(df_old.index)  # datime형태로 변환
         start_day = df_old.index[-1].date() #인덱스의 마지막요소 추출
         start_day = datetime.strftime(start_day,'%Y%m%d')
@@ -318,9 +321,10 @@ if __name__ == '__main__':
     df = df[::-1]  # 거꾸로 뒤집기
     df = pd.concat([df_old, df])
     df = df.loc[~df.index.duplicated(keep='last')]  # 중복인덱스 제거
+    if market == '국내선옵':
+        df = round(df, 2)
+    df.to_sql(f"{symbol}", conn_DB, if_exists='replace')
 
-    df = round(df, 2)
-    df.to_sql(ticker, conn_DB, if_exists='replace')
     print(df)
     print('저장 완료')
     #데이터누락 발생 분으로 확인할 것

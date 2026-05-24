@@ -8,11 +8,13 @@ import chart_real
 import random
 import os
 import sys
+import datetime
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import color as cl
 from pprint import pprint
 class Window(QWidget):
     def __init__(self,df,dict_plot,market,ticker):
+        print('ATOM chart')
         super().__init__()
         # self.sub_chart = graph_real.Graph()
         # xValue = 0
@@ -54,7 +56,7 @@ class Window(QWidget):
         global p3_4
 
         # p0_0 = pg_graph.addPlot(row=0, col=0, title='p0_0', axisItems={bottomAxis_0})
-        if market == '코인':
+        if market == 'bybit':
             p0_0 = pg_graph.addPlot(row=0, col=0, title='p0_0', axisItems={'bottom': pg.DateAxisItem()})
             p1_0 = pg_graph.addPlot(row=1, col=0, title='p1_0', axisItems={'bottom': pg.DateAxisItem()})
             p2_0 = pg_graph.addPlot(row=2, col=0, title='p2_0', axisItems={'bottom': pg.DateAxisItem()})
@@ -183,8 +185,21 @@ class Window(QWidget):
             unix_ts = [x.timestamp() for x in pd.to_datetime(df.index)]
         elif market == '국내주식' or market == '국내선옵':
             # unix_ts = [x.timestamp() for x in pd.to_datetime(df.index)]  #기준
+            day = df.index[-1]-df.index[0]
 
-            list_x = [dt.strftime('%H:%M') if dt.minute % 60 == 0 else '' for dt in df.index]
+            if day < datetime.timedelta(days=7): #7일 이내일 경우
+                list_x = [dt.strftime('%H:%M') if dt.minute % 60 == 0 else '' for dt in df.index]
+            else:  #장기 시계열일 경우
+                list_x = []
+                prev_date = None
+                for dt in df.index:
+                    if prev_date is None or dt.date() != prev_date:
+                        list_x.append(dt.strftime('%m/%d'))
+                        prev_date = dt.date()
+                    elif dt.hour in [12] and dt.minute == 0:
+                        list_x.append(dt.strftime('%H:%M'))
+                    else:
+                        list_x.append('')
             # print(f"{len(df)=}")
             # list_num = np.arange(len(df))
             # unix_ts = dict(zip(list_num,list_x))
@@ -197,8 +212,17 @@ class Window(QWidget):
             # unix_ts = dict(enumerate(list_x))
             # self.bottomAxis0_0.setTicks([unix_ts.items()])
         # xValue = np.arange(len(df.index.tolist()))
+
         for plot_num in dict_plot.keys():  # {'p1_0_0':{'현재가':array([26600.,26600.,]))}, 'p1_0_1':.......}
-            # if plot_num == 'p0_0':
+            if plot_num == 'p0_0':
+                candle_data = list(zip(unix_ts,
+                                       df['시가'].values,
+                                       df['고가'].values,
+                                       df['저가'].values,
+                                       df['종가'].values))
+                candle_item = CandlestickItem(candle_data)
+                globals()[plot_num].addItem(candle_item)
+
             #     x_axis = unix_ts
             #     print('unix_ts',unix_ts)
             #     print('axis_change',plot_num)
@@ -209,50 +233,50 @@ class Window(QWidget):
                 # try:
                     # if not data.size == np.count_nonzero(np.isnan(data)):  # data가 전부 nan으로 되어있지 않을 경우만
                     # #     print('is not nan')
-                        if factor == '매수가' or factor == '매도가' or factor == '전략매수' or factor == '전략매도' \
-                                or factor == '진입신호' or factor == '청산신호':
-                            if '매수가' in factor:
-                                globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=(200, 0, 0),
-                                                         symbolPen=(51, 255, 51), symbol='t1', symbolSize=10,
-                                                         name="진입")  # 마커
-                            elif '매도가' in factor:
-                                globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=(0, 0, 200),
-                                                         symbolPen=(51, 255, 51), symbol='t', symbolSize=10, name="청산")
-                            elif '진입신호' in factor:
-                                globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.pink, symbolPen='w',
-                                                         symbol='t2', symbolSize=10, name="진입신호")
-                            elif '청산신호' in factor:
-                                globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.cyan,
-                                                         symbolPen=(51, 255, 51), symbol='t3', symbolSize=10,
-                                                         name="청산신호")
-                            elif '전략매수' in factor:
-                                globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.red_1,
-                                                         symbolPen=cl.red_1, symbol='d', symbolSize=10, name="전략매수")
-                            elif '전략매도' in factor:
-                                globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.ygreen_2,
-                                                         symbolPen=cl.ygreen_2, symbol='d', symbolSize=10, name="전략매도")
-                        # elif '_' in factor: #언더바 색깔 다르게
-                        #     globals()[plot_num].plot(x=unix_ts, y=data, pen=cl.dash_k,
-                        #                              name=factor.replace('<', "＜"))  # 마커
+                if factor == '매수가' or factor == '매도가' or factor == '전략매수' or factor == '전략매도' \
+                        or factor == '진입신호' or factor == '청산신호':
+                    if '매수가' in factor: # 종가의 진입시점을 보려면 차트의 맨 처음이 종가여야됨
+                        globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=(200, 0, 0),
+                                                 symbolPen=(51, 255, 51), symbol='t1', symbolSize=10,
+                                                 name="진입")  # 마커
+                    elif '매도가' in factor:
+                        globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=(0, 0, 200),
+                                             symbolPen=(51, 255, 51), symbol='t', symbolSize=10, name="청산")
+                    elif '진입신호' in factor:
+                        globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.pink, symbolPen='w',
+                                                 symbol='t2', symbolSize=10, name="진입신호")
+                    elif '청산신호' in factor:
+                        globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.cyan,
+                                                 symbolPen=(51, 255, 51), symbol='t3', symbolSize=10,
+                                                 name="청산신호")
+                    elif '전략매수' in factor:
+                        globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.red_1,
+                                                 symbolPen=cl.red_1, symbol='d', symbolSize=10, name="전략매수")
+                    elif '전략매도' in factor:
+                        globals()[plot_num].plot(x=unix_ts, y=data, pen=None, symbolBrush=cl.ygreen_2,
+                                                 symbolPen=cl.ygreen_2, symbol='d', symbolSize=10, name="전략매도")
+                # elif '_' in factor: #언더바 색깔 다르게
+                #     globals()[plot_num].plot(x=unix_ts, y=data, pen=cl.dash_k,
+                #                              name=factor.replace('<', "＜"))  # 마커
 
+                else:
+                    # try:
+                        if '.cl' in factor:
+                            colors = 'cl=' + factor[factor.rindex('.cl') + 1:]  # cl.red 를 cl=cl.red 로 바꿈
+                            locals_dict_vars = {}
+                            exec(colors, None,
+                                 locals_dict_vars)  # 그냥 exec로 하면 안됨 #https://jvvp.tistory.com/1162
+                            globals()[plot_num].plot(x=unix_ts, y=data, pen=locals_dict_vars.get('cl'),
+                                                     name=factor[:factor.index('.cl')])  # 마커
+                        elif '.fill' in factor:
+                            level = int(factor[factor.index('.fill') + 6:-1])
+                            globals()[plot_num].plot(x=unix_ts, y=data, pen=cl.cyan, fillLevel=level,
+                                                     brush=(50, 50, 200, 200),
+                                                     name=factor.replace('<', "＜"))  # 마커
                         else:
-                            # try:
-                                if '.cl' in factor:
-                                    colors = 'cl=' + factor[factor.rindex('.cl') + 1:]  # cl.red 를 cl=cl.red 로 바꿈
-                                    locals_dict_vars = {}
-                                    exec(colors, None,
-                                         locals_dict_vars)  # 그냥 exec로 하면 안됨 #https://jvvp.tistory.com/1162
-                                    globals()[plot_num].plot(x=unix_ts, y=data, pen=locals_dict_vars.get('cl'),
-                                                             name=factor[:factor.index('.cl')])  # 마커
-                                elif '.fill' in factor:
-                                    level = int(factor[factor.index('.fill') + 6:-1])
-                                    globals()[plot_num].plot(x=unix_ts, y=data, pen=cl.cyan, fillLevel=level,
-                                                             brush=(50, 50, 200, 200),
-                                                             name=factor.replace('<', "＜"))  # 마커
-                                else:
-                                    globals()[plot_num].plot(x=unix_ts, y=data, pen=random.choice(cl.li),
-                                                             name=factor.replace('<', "＜"))  # 마커 < 로 할 경우 짤림
-                                    #
+                            globals()[plot_num].plot(x=unix_ts, y=data, pen=random.choice(cl.li),
+                                                     name=factor.replace('<', "＜"))  # 마커 < 로 할 경우 짤림
+                            #
                             # except:
                             #     print(f'에러 - {factor}')
                             #     pass
@@ -532,6 +556,45 @@ class Window(QWidget):
             self.hLine_p3_4.setPos(mousePoint.y())  # 주석처리하면 세로만 나옴
             self.setPos_vline(mousePoint)
 
+
+class CandlestickItem(pg.GraphicsObject):
+    """캔들스틱 차트를 그리기 위한 커스텀 아이템"""
+
+    def __init__(self, data):
+        pg.GraphicsObject.__init__(self)
+        self.data = data
+        self.generatePicture()
+
+    def generatePicture(self):
+        self.picture = pg.QtGui.QPicture()
+        p = pg.QtGui.QPainter(self.picture)
+
+        w = 0.5  # 캔들 너비 0.3
+        for i, (t, open_, high, low, close) in enumerate(self.data):
+            # 상승/하락에 따른 색상 결정
+            if close >= open_:
+                p.setPen(pg.mkPen('g'))
+                p.setBrush(pg.mkBrush('g'))
+            else:
+                p.setPen(pg.mkPen('r'))
+                p.setBrush(pg.mkBrush('r'))
+
+            # 고가-저가 세로선
+            p.drawLine(pg.QtCore.QPointF(i, low), pg.QtCore.QPointF(i, high))
+
+            # 캔들 몸통
+            if close != open_:
+                p.drawRect(pg.QtCore.QRectF(i - w / 2, open_, w, close - open_))
+            else:
+                p.drawLine(pg.QtCore.QPointF(i - w / 2, open_), pg.QtCore.QPointF(i + w / 2, open_))
+
+        p.end()
+
+    def paint(self, p, *args):
+        p.drawPicture(0, 0, self.picture)
+
+    def boundingRect(self):
+        return pg.QtCore.QRectF(self.picture.boundingRect())
 
 def main():
     pg.setConfigOption('background', 'k')

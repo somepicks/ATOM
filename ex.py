@@ -15,6 +15,10 @@ import uuid
 import sqlite3
 from pprint import pprint
 from PyQt5.QtTest import QTest
+import asyncio
+import KIS
+from common_def import make_exchange_upbit, make_exchange_upbit_pro
+
 pd.set_option('display.max_columns',None) #모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width',1500)
@@ -402,7 +406,59 @@ def order_open(exchange,market, category, ticker, side, orderType, price, qty, l
             res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty, price=price, params=params)
     # print(f"{self.yellow(f'{type} open 주문')} [{res['id']}] [{side}] - 진입가:{price}, 수량:{qty}, 레버리지: {leverage}, 배팅금액: {round(price * qty, 4)}")
     return res
-
+def order_close(exchange, market, category, ticker, side, orderType, price, qty): #ccxt
+    if market == 'bybit':
+        if category == 'spot':
+            params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            symbol = ticker + '/USDT'
+        elif category == 'inverse':
+            params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            symbol = ticker + 'USD'
+        elif category == 'linear':
+            symbol = ticker + 'USDT'
+            if side == 'buy':
+                params = {'positionIdx': 2}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            elif side == 'sell':  # 지정가 open short
+                params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+        res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty,
+                                         price=price, params=params)
+    elif market == 'binance':
+        if category == 'spot':
+            params = {}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            symbol = ticker + '/USDT'
+            leverage = 1
+        elif category == 'inverse':
+            params = {'positionIdx': 0}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
+            symbol = ticker + 'USD_PERP'
+            leverage = 1
+        elif category == 'linear':
+            symbol = ticker + 'USDT'
+            params = {'positionSide': 'LONG'}
+            if side == 'buy':
+                pass
+            elif side == 'sell':  # 지정가 open short
+                pass
+        try:
+            if category == 'spot' or category == 'inverse':
+                exchange.set_leverage(leverage=leverage, symbol=f'{ticker}/USDT')
+            elif category == 'linear':
+                exchange.set_leverage(leverage=leverage, symbol=f'{ticker}/USDT')
+        except Exception as e:
+            print(f"레버리지 set 오류 발생 [order_open]: {e} ")
+        try:
+            if category == 'spot' or category == 'inverse':
+                exchange.set_margin_mode('isolated',f'{ticker}/USDT')
+            elif category == 'linear':
+                exchange.set_margin_mode('isolated',f'{ticker}/USDT')
+        except Exception as e:
+            print(f"주문 중 오류 발생 [order_open]: {e} ")
+        if category == 'spot' or category == 'inverse':
+            print(f"{market=}  {category=}  {symbol=}  {orderType=}  {side=}  {qty=}  {price=}  {params=}  ")
+            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty, price=price, params=params)
+        elif category == 'linear':
+            res = exchange.create_order(symbol=symbol, type=orderType, side=side, amount=qty, price=price, params=params)
+    # print(f"{self.yellow(f'{type} open 주문')} [{res['id']}] [{side}] - 진입가:{price}, 수량:{qty}, 레버리지: {leverage}, 배팅금액: {round(price * qty, 4)}")
+    return res
 # nd.array to text  when Insert DB
 def adapt_array(arr):
   """
@@ -467,423 +523,80 @@ def bybit_set_tickers(fetch_tickers):
 
 ################################################################
 
-import pandas as pd
-# 종목코드 불러오기
-stock_code = pd.read_html('http://kind.krx.co.kr/corpgeneral/corpList.do?method=download', header=0)[0]
-print(stock_code)
-quit()
-stock_code = stock_code[['회사명','종목코드']]
-# rename(columns = {'원래 이름' : '바꿀 이름'}) 칼럼 이름 바꾸기
-stock_code = stock_code.rename(columns = {'회사명':'company','종목코드':'code'})
-# 종목코드가 6자리이기 때문에 6자리를 맞춰주기 위해 설정해줌
-stock_code.code = stock_code.code.map('{:06}'.format) #6자리가 아닌 수를 앞에 0으로 채우기 위함
-stock_code.tail(3)
-import bs4
-from urllib.request import urlopen # url의 소스코드를 긁어오는 기능
-company_name = []
-for i in range(1,21):
-  page = i
-  url = 'https://finance.naver.com/sise/entryJongmok.nhn?&page={page}'.format(page = page)
-  source = urlopen(url).read()
-  source = bs4.BeautifulSoup(source,'lxml')
-  source = source.find_all('a',target = '_parent')
-  for j in range(len(source)):
-    name = source[j].text
-    company_name.append(name)
-code = []
-for i in company_name:
-  for j in range(len(stock_code)):
-    if stock_code['company'][j] == i:
-      code.append(stock_code['code'][j])
-      break
-pprint(code)
-pprint(len(code))
-quit()
-
-from pykrx import stock
-df = stock.get_etf_trading_volume_and_value("20251001", "20251028", "122630", "거래대금", "순매수")
-print(df)
-quit()
+import math
 
 
-di = {'1':'모의투자 조회할 내역(자료)이 없습니다'}
-print(di['1'].startswith('모의투자 조회할 내역(자료)'))
-# di['2'] = di['1']
-print(di)
-di['2'] = di.pop('1')
-print(di)
-quit()
-market = 'binance'
-ticker = 'UNI'
-if market == 'binance':
-    binance_key = 'fYs2tykmSutKiF3ZQySbDz387rqzIDJa88VszteWjqpgDlMtbejg2REN0wdgLc9e'
-    binance_secret = 'ddsuJMwqbMd5SQSnOkCzYF6BU5pWytmufN8p0tUM3qzlnS4HYZ1w5ZhlnFCuQos6'
+def calculate_order(current_price, budget, rate, qty_decimal, price_unit=1000):
+    """
+    current_price: 현재가
+    budget: 예산 (30000)
+    rate: 주문 비율 (-0.05 = -5%)
+    price_unit: 호가 단위 (업비트 BTC = 1000원)
+    qty_decimal: 수량 소수점 자리수 (업비트 BTC = 7자리)
+    """
 
-    binance_futures = ccxt.binance(config={
-        'apiKey': binance_key,
-        'secret': binance_secret,
-        'enableRateLimit': True,
-        'options': {
-            # 'position_mode': True,  #롱 & 숏을 동시에 유지하면서 리스크 관리(헷징)할 때
-            'defaultType': 'future'
-        },
-    })
-    binance = ccxt.binance(config={
-        'apiKey': binance_key,
-        'secret': binance_secret,
-        'enableRateLimit': True,
-        'options': {'position_mode': True, },
-    })
-    binance_m = ccxt.binance({
-                'apiKey': binance_key,
-                'secret': binance_secret,
-                #                 'sandbox': sandbox,
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'delivery'  # COIN-M Futures
-                }})
-    res = binance.fetch_open_orders(symbol='UNI/USD')
-    pprint(res)
-    quit()
-    import asyncio
-    import ccxt.pro as ccxtpro
+    # 1. 목표 매수가 계산 (호가 단위로 내림)
+    target_price = current_price * (1 + rate)
+    target_price = math.floor(target_price / price_unit) * price_unit
 
-    symbol = "BTC/USDT"
+    # 2. 수량 계산 (소수점 7자리 내림)
+    qty = budget / target_price
+    qty = math.floor(qty * 10 ** qty_decimal) / 10 ** qty_decimal
 
+    # 3. 실제 주문금액
+    order_amount = target_price * qty
 
-    async def future_trades_socket():
-        bs = ccxtpro.binance({
-            'apiKey': binance_key,
-            'secret': binance_secret,
-            'enableRateLimit': True,
-            'options': {
-                'defaultType': 'future'
-            }
-        })
+    # 4. 주문금액이 1,000원 단위가 아니면 수량 조정
+    if order_amount % price_unit != 0:
+        # 방법 A: 수량을 올려서 1,000원 단위 맞추기
+        adjusted_qty = math.ceil(order_amount / price_unit) * price_unit / target_price
+        adjusted_qty = math.floor(adjusted_qty * 10 ** qty_decimal) / 10 ** qty_decimal
+        order_amount_adjusted = target_price * adjusted_qty
 
-        while True:
-            trades = await bs.watch_trades(symbol=symbol)
-            pprint(trades)
-    asyncio.run(future_trades_socket())
-    quit()
-elif market == 'bybit':
-    api_key = "k3l5BpTorsRTHvPmAj"
-    api_secret = "bdajEM0VJJLXCbKw0i9VfGemAlfRGga4C5jc"
-    bybit = ccxt.bybit(config={
-        'apiKey': api_key,
-        'secret': api_secret,
-        'enableRateLimit': True,
-        'options': {'position_mode': True, },
-    })
-    dict_duration = {'1주일': 7, '1개월': 30, '2개월': 60, '3개월': 90, '6개월': 180, '1년': 365, '2년': 365 * 2, '3년': 365 * 3}
-    since = datetime.datetime.now() - datetime.timedelta(days=dict_duration['1년'])
-    since = datetime_to_stamp(since) * 1000  # 밀리초 곱하기
-    ticker = 'BTC'
-    symbol = ticker+'USD'
-    out_lately = bybit.fetch_funding_rate_history(symbol=symbol,since=None)
-    # pprint(out_lately)
-    from_time = (out_lately[0]['timestamp'] // 1000) * 1000
-    df = pd.DataFrame(out_lately)
-    print(df)
-    print('=======================================================================')
-    print(df.loc[df.index[-1],'timestamp']-df.loc[df.index[0],'timestamp'])
-    print(5731200000/(8 * 3600*1000))
+        # 예산 초과 시 내림
+        if order_amount_adjusted > budget:
+            adjusted_qty = math.floor(order_amount / price_unit) * price_unit / target_price
+            adjusted_qty = math.floor(adjusted_qty * 10 ** qty_decimal) / 10 ** qty_decimal
+            order_amount_adjusted = target_price * adjusted_qty
+
+        qty = adjusted_qty
+        order_amount = order_amount_adjusted
+
+    print(f"목표가(-5%): {target_price:,}원")
+    print(f"수량: {qty}개")
+    print(f"주문금액: {order_amount:,.0f}원")
+    print(f"1,000원 단위 확인: {'✅' if order_amount % price_unit == 0 else '❌'}")
+    print(f"예산 초과 여부: {'❌ 초과!' if order_amount > budget else '✅ 예산 내'}")
+
+    return target_price, qty, order_amount
+def decimal_places(n):
+    s = str(n)
+    if '.' in s:
+        return len(s.split('.')[1])
+    return 0
 
 
 
-quit()
-# res = fetch_order(bybit,'bybit','MNT','1978820750840524288','spot',5.2)
-# res = fetch_order(binance,'binance','XRP','12367717649','inverse',98)
+import ccxt.pro as ccxtpro
+import asyncio
 
-# bet_usdt = used_usdt / 20
-# bet_usdt = math.ceil(bet_usdt)  # 소수점일경우 올림해서 정수로 변환
-# print(f"{used_inverse=}  {price= }   {used_usdt= }  |  |  {bet_usdt= }")
-# if min_amount_future > min_cont:
-#     if min_amount_future > bet_usdt * future_leverage:  # 최소주문수량보다 작으면 (레버리지 3일경우 future = 3.3으로 되어야 함
-#         bet_usdt = min_amount_future / future_leverage
-#     bet = bet_usdt
-# else:
-#     if min_cont > bet_usdt:
-#         bet = min_cont
-#     else:
-#         bet = bet_usdt
-#
-# bet = bet/min_cont
-# bet = math.ceil(bet)  # 소수점일경우 올림해서 정수로 변환
-# print(f"{bet= }")
-# category = 'inverse'
-# res = order_open(exchange=exchange, market=market, category=category, ticker=ticker, side='buy',
-#                  orderType='market', price=price, qty=bet)
-# id = res['id']
-# bet = 6
-# while True:
-#     res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='12522097533',category='inverse',qty=bet)
-#     if res['체결'] == True:
-#         break
-#     else:
-#         time.sleep(1)
-# # print(f"{res=}")
-# if market == 'binance':
-#     res = binance.fetch_balance(params={"type": 'delivery'})
-#     free_qty = res[ticker]['free']*0.99 #전부 옮기려니 안됨
-# elif market == 'bybit':
-#     res = bybit.fetch_balance()
-#     used_inverse = res['used'][ticker]
-# # 'ADA': {'free': 98.59136072, 'total': 1595.02949928, 'used': 1496.43813856},
-# transfer_to(exchange=exchange,market='binance',ticker=ticker,amount=free_qty,departure='inverse',
-#             destination='spot')
-# time.sleep(1)
-# res = order_open(exchange=exchange,market=market,category='spot',ticker=ticker,side='sell',
-#                  orderType='market',price=price,qty=free_qty)
-# pprint(res)
-# # id = res['id']
-# while True:
-#     res = fetch_order(exchange=exchange,market='binance',ticker=ticker,id='7158174004',category='spot',qty=free_qty)
-#     if res['체결'] == True:
-#         break
-#     else:
-#         time.sleep(1)
-# usdt = res['체결금액']
-# usdt = 136.04584
-# price = 2429.36
-# print(f"{usdt = }")
-# qty = (usdt*future_leverage)/price
-# qty = amount_to_precision(binance,'binance','linear',ticker,qty)
-# # transfer_to(exchange=exchange,market='binance',ticker='USDT',amount=usdt,departure='spot',destination='linear')
-# print(qty)
-# quit()
-# res = order_open(exchange=binance, market=market, category='linear', ticker=ticker, side='buy',
-#                  orderType='market', price=price, qty=qty, leverage=3)
-# id = res['id']
-print(f"{id= }")
-res = binance.fetch_closed_orders(symbol='ETH/USD')
-pprint(res)
-quit()
-while True:
-    res = fetch_order(exchange=binance_futures,market='binance',ticker=ticker,id='8389765910084028367',category='linear',qty=0.1161)
-    if res['체결'] == True:
-        break
-    else:
-        time.sleep(1)
 
-quit()
+async def watch_ticker():
+    exchange = ccxtpro.upbit()
 
-from pybit.unified_trading import HTTP, WebSocket
-# Bybit API 키 설정
-
-dict_bong_stamp = {'1분봉': 1 * 60, '3분봉': 3 * 60, '5분봉': 5 * 60, '15분봉': 15 * 60, '30분봉': 30 * 60,
-                   '60분봉': 60 * 60, '4시간봉': 240 * 60, '일봉': 1440 * 60,
-                   '주봉': 10080 * 60}
-dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '1h', '4시간봉': '4h',
-             '일봉': 'd', '주봉': 'W', '월봉': 'M'}  # 국내시장의 경우 일봉을 기본으로하기 때문에 일봉은 제외
-ohlcv = []
-i=0
-ticker = 'BTC'
-bong = '4시간봉'
-
-bong_since = 10 #10일 전 데이터부터 추출
-present = datetime.datetime.now()
-date_old = present.date() - datetime.timedelta(days=int(bong_since))
-stamp_date_old = datetime_to_stamp(date_old)
-
-list_ohlcv = binance.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong],
-                                          limit=10000, since=int(stamp_date_old * 1000))  # 밀리초로 전달
-while True:
-    try:
-        list_ohlcv = binance.fetch_ohlcv(symbol=ticker + 'USDT', timeframe=dict_bong[bong],
-                                          limit=10000, since=int(stamp_date_old * 1000))  # 밀리초로 전달
-        # pprint(list_ohlcv)
-        ohlcv = ohlcv + list_ohlcv
-        stamp_date_old = list_ohlcv[-1][0] / 1000 + dict_bong_stamp[bong]  # 다음봉 시간 계산
-
-        if stamp_date_old > time.time():
-            print('asdf')
+    while True:
+        try:
+            ticker = await exchange.watch_ticker('BTC/KRW')
+            print(f"BTC 현재가: {ticker['last']:,}원")
+        except Exception as e:
+            print(f"에러: {e}")
             break
-    except:
-        time.sleep(1)
-        i += 1
-        if i > 9:
-            print(f' {ticker=}, {bong=}, {i}회 이상 fetch_ohlcv 조회 에러')
-            break
-df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
-df['날짜'] = pd.to_datetime(df['날짜'], utc=True, unit='ms')
-df['날짜'] = df['날짜'].dt.tz_convert("Asia/Seoul")
-df['날짜'] = df['날짜'].dt.tz_localize(None)
-df.set_index('날짜', inplace=True)
-df = common_def.convert_df(df)
-# df.index = df.index - pd.Timedelta(hours=9)
-print(df)
-print(df.loc[df.index[-1],'RSI14'])
-print(df.loc[df.index[-2],'RSI14'])
-quit()
+
+    await exchange.close()
 
 
 
 
-# spot
-balanceSpot = binance.fetch_balance()['total']
-spot = pd.DataFrame(list(balanceSpot.items()), columns=['name', 'balance'])
-spot = spot[spot['balance'] > 0]
-print(spot)
-print('============')
-
-# coin-m
-balanceCoinm = binance.fetch_balance(params={"type": 'delivery'})['total']
-Coinm = pd.DataFrame(list(balanceCoinm.items()), columns=['name', 'balance'])
-Coinm = Coinm[Coinm['balance'] > 0]
-print(Coinm)
-print('============')
-
-
-
-# spot and coin-m
-total = pd.concat([spot, Coinm])
-total = total[total['balance'] > 0]
-pprint(total)
-print('============')
-quit()
-############################################################
-# 중복데이터 정리
-dfBn = total.drop_duplicates("name", keep=False)
-
-df1 = total[total.duplicated('name', keep = 'first')]
-df2 = total[total.duplicated('name', keep = 'last')]
-
-
-# 분리된 데이터 더하기
-nameBn = []
-amountBn = []
-for coin in df1['name']:
-    nameBn.append(coin)
-    am = df1[df1['name'] == coin]['balance'].values[0] + df2[df2['name'] == coin]['balance'].values[0]
-    amountBn.append(am)
-
-dfz = []
-dfz.append(nameBn)
-dfz.append(amountBn)
-dfz = pd.DataFrame(dfz)
-dfz =dfz.transpose()
-dfz.columns = ['name', 'balance']
-# dfBn: 중복 제거, dfz: 중복된 것들
-dfBn = pd.concat([dfz, dfBn])
-pprint(dfBn)
-print('============')
-
-############################################################
-# 비상장/소액 제거하기
-nameBn = []
-usdBn = []
-amountBn = []
-priceBn = []
-
-# 페어 및 가격 가져오기
-markets = binance.fetch_tickers()
-keys = markets.keys()
-
-for coin in dfBn['name']:
-    amount = dfBn[dfBn['name'] == coin]['balance'].values[0]
-    coin2 = coin + "/USDT"
-    for pair in keys:
-        if pair == coin2: # usdt 페어 있는 경우만
-            price = markets[pair]['last']
-            usd = price * amount
-            if usd > 10: # 10$ 이상만
-                nameBn.append(coin)
-                usdBn.append(usd)
-                amountBn.append(amount)
-                priceBn.append(price)
-
-dfBn = [nameBn, usdBn, amountBn, priceBn]
-dfBn = pd.DataFrame(dfBn)
-dfBn = dfBn.transpose()
-dfBn.columns = ['Name', 'Amount', 'Price', 'USD']
-pprint(dfBn)
-print('============')
-############################################################
-# spot usdt + futures usds
-spot_usdt = balanceSpot['USDT']
-
-balanceUsds = binance.fetch_balance(params={"type": "future"})
-future_usd = balanceUsds['total']['USDT'] + balanceUsds['total']['BUSD']
-
-total_usd = spot_usdt + future_usd
-dfBn.loc[len(dfBn)+1] = ['USD', total_usd, 1, total_usd]
-
-binance_usd = dfBn.sum(axis=0)['USD']
-
-print(dfBn)
-print("Total USD: {0:,.2f} USD".format(binance_usd))
-quit()
-
-
-# res = ex_binance.fetch_ticker('BTC/USDT')['close']
-# balance = binance.fetch_balance()
-# balance_binance = {}
-# for currency, data in balance['total'].items():
-#     if data > 0 and currency in balance:
-#         balance_binance[currency] = balance[currency]
-# pprint(binance)
-# pprint(balance_binance)
-# res = binance.fetch_ticker('BTC/USDT')
-# pprint(res)
-# res = binance.create_order(symbol='BTC/USD', type='limit', side='sell', amount=1,
-#                                              price=85000, params={})
-# response = exchange.sapi_post_futures_transfer({
-#             "asset": 'XRP',
-#             "amount": 100,
-#             "type": 3  # 3: Spot -> COIN-M Futures
-# 1	Spot → USDT-M Futures
-# 2	USDT-M Futures → Spot
-# 3	Spot → COIN-M Futures
-# 4	COIN-M Futures → Spot
-#         })
-# print(response)
-
-
-
-# 예제 데이터프레임 생성
-li_col = ['날짜', '요일', '금융기관업무일', '입출금가능일', '개장일', '지불일']
-df = pd.DataFrame(columns=li_col)
-df.index = df['날짜']
-
-# 데이터프레임 합치기
-df1 = pd.DataFrame({'A': [1, 2, 3]}, index=[0, 1, 2])
-df2 = pd.DataFrame({'A': [4, 5, 6]}, index=[1, 2, 3])
-df = pd.concat([df1, df2])
-
-# 인덱스 중복 제거 (위쪽 행 삭제, 마지막 행 유지)
-df = df[~df.index.duplicated(keep='last')]
-d = datetime.datetime.now().date()
-i = 1
-i -= 1
-def pad_list(lst):
-    """길이가 10보다 작으면 앞쪽을 0으로 채워 10으로 맞춤"""
-    return [0] * (10 - len(lst)) + lst if len(lst) < 10 else lst
-
-# 테스트 예제
-data1 = [1, 2, 3, 4]  # 길이 4 → 앞쪽에 6개 0 추가
-data2 = [5, 6, 7, 8, 9, 10, 11]  # 길이 7 → 앞쪽에 3개 0 추가
-data3 = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21]  # 길이 10 → 그대로 유지
-
-# 적용
-print(pad_list(data1))  # [0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
-print(pad_list(data2))  # [0, 0, 0, 5, 6, 7, 8, 9, 10, 11]
-print(pad_list(data3))  # [12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
-quit()
-test_dates = [
-    "2025-01-01",  # 3월 만기일이 가장 가까움
-    "2025-03-15",  # 3월 만기일 이후, 6월 만기일이 가장 가까움
-    "2025-06-15",  # 6월 만기일 이후, 9월 만기일이 가장 가까움
-    "2025-09-15",  # 9월 만기일 이후, 12월 만기일이 가장 가까움
-    "2025-12-15",  # 12월 만기일 이후, 다음 해 3월 만기일이 가장 가까움
-]
-
-for date in test_dates:
-    nearest, date_str, days = get_nearest_futures_expiry(date)
-    print(f"입력 날짜: {date}")
-    print(f"다음 선물 만기일: {nearest.strftime('%Y-%m-%d')} ({date_str})")
-    print(f"만기일까지 남은 일수: {days}일")
-    print("-" * 30)
 
 
 def get_nearest_options_expiry(input_date):
@@ -961,200 +674,8 @@ def get_options_expiry_date(year, month):
     second_thursday = first_thursday + datetime.timedelta(days=7)
 
     return second_thursday
-today = datetime.date.today()
-nearest_expiry, expiry_str, days_left = get_nearest_options_expiry(today)
-print(f"오늘 날짜: {today.strftime('%Y-%m-%d')}")
-print(f"다음 옵션 만기일: {nearest_expiry.strftime('%Y-%m-%d')} ({expiry_str})")
-print(f"만기일까지 남은 일수: {days_left}일")
-print("-" * 30)
-
-# 테스트 날짜로 확인
-test_dates = [
-    "2025-01-01",  # 1월 만기일 전
-    "2025-01-10",  # 1월 만기일 후, 2월 만기일 전
-    "2025-02-20",  # 2월 만기일 후, 3월 만기일 전
-]
-
-for date in test_dates:
-    nearest, date_str, days = get_nearest_options_expiry(date)
-    print(f"입력 날짜: {date}")
-    print(f"다음 옵션 만기일: {nearest.strftime('%Y-%m-%d')} ({date_str})")
-    print(f"만기일까지 남은 일수: {days}일")
-    print("-" * 30)
 
 
-quit()
-# globals()[f"{stg}"] =
-# today = "20250301"
-# expiry_day = "20250304"
-# df_holiday = df_holiday[today:expiry_day]
-# print((df_holiday['개장일']=="N").all())
-수익률 = 11
-최고수익률 = 17.78
-print((최고수익률-(최고수익률-수익률))/최고수익률*100)
-quit()
-conn = sqlite3.connect('DB/DB_futopt.db')
-ticker_symbol = '콜옵션_355'
-df_exist = pd.read_sql(f"SELECT * FROM '{ticker_symbol}'", conn).set_index('날짜')
-print(df_exist.dtypes)
-print(df_exist)
-df_exist.index = pd.to_datetime(df_exist.index)
-quit()
-for i in range(10):
-    if i ==5:
-        continue
-    print(i)
-quit()
-print('===================')
-마디가 = [0.04,0.09,0.16,0.29,0.39,0.46,0.57,0.75,0.89,1.07,1.51,1.8,2.16,2.59,3.07,3.52,4.34,5.13]
-# print(f"{마디가= }")
-진입가 = 0.5
-익절가 = [x for x in 마디가 if 진입가 < x ]
-print(f"{익절가= }")
-print(f"{익절가[2]= }")
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
-
-# 현재 날짜 가져오기
-today = datetime.today()
-
-# 지난달의 첫째 날 계산
-first_day_of_last_month = today.replace(day=1) - relativedelta(months=1)
-
-# 지난달의 일수 구하기
-days_in_last_month = (today.replace(day=1) - first_day_of_last_month).days
-
-print(f"{first_day_of_last_month.year}년 {first_day_of_last_month.month}월의 일수: {days_in_last_month}일")
-print()
-# 손절가 = max([x for x in 마디가 if 진입가 * 0.9 > x ])
-# print(f"{손절가= }")
-# print(f"{익절가[1]= }")
-
-
-my_list = [1, 2, 3, 4, 5]
-
-for i,item in enumerate(reversed(my_list)):
-    print(i,item)
-
-quit()
-values = [['2', 2, 3], ['4', 5, 6], ['1', 8, 9]]
-index = ['one', 'two', 'three']
-columns = ['시가_ETH_외인', '고가_ETH_기관', '저가_ETH_개인']
-import json
-df = pd.DataFrame(index=index,columns=columns,data=values)
-
-li_col = df.columns.to_list()
-
-if '외인' in df.columns.to_list():
-    print(1)
-
-values = [[1, 2, 3], [4, 5, 6], [1, 8, 9]]
-index = ['1', '2', '3']
-columns = ['시가_ETH_5분봉', '고가_ETH_5분봉', '저가_ETH_5분봉']
-df1 = pd.DataFrame(index=index,columns=columns,data=values)
-# print(df1)
-# print(df1.iloc[1:2])
-conn = sqlite3.connect('DB/stg_futopt.db')
-df_closed = pd.read_sql(f"SELECT * FROM 'history'", conn).set_index('index')
-df_stg = pd.read_sql(f"SELECT * FROM 'stg'", conn).set_index('index')
-today = datetime.datetime(2025,1,7)
-# print(datetime.datetime.now())
-df_closed['청산시간'] = pd.to_datetime(df_closed['청산시간'], utc=True)
-df_closed = df_closed[df_closed['청산시간'].dt.date == today.date()]
-# print(df_closed)
-# print(df_stg)
-# df = pd.concat([df_closed,df_stg],axis=1,ignore_index=False)
-# print(df)
-# sum_closed = df_closed['매입금액'].sum()
-win = len(df_closed.loc[df_closed['수익금'] > 0])
-
-
-quit()
-print(df['청산시간'])
-df['청산시간'] = pd.to_datetime(df['청산시간'], utc=True)
-# print(df)
-# print(df['청산시간'])
-print('=================')
-today_rows = df[df['청산시간'].dt.date == today.date()]
-print(today_rows)
-
-quit()
-# ex_bybit.fetch_closed_orders(symbol=ticker,since=)
-# params = {'positionIdx': 1}  # 0 One-Way Mode, 1 Buy-side, 2 Sell-side
-# res = ex_bybit.create_order(symbol=ticker, type='limit', side='buy', amount=10,
-#                                  price=0.5109, params=params)
-
-
-
-stg_file = 'DB/stg_futopt.db'
-conn_stg = sqlite3.connect(stg_file)
-df_history = pd.read_sql(f"SELECT * FROM 'history'", conn_stg).set_index('index')
-stg = '횡보풋'
-df_stg = df_history.loc[df_history['전략명'] == stg]
-list_col = df_stg.columns.tolist()
-print(list_col)
-dict_buy = {}
-dict_sell = {}
-for i, idx in enumerate(df_stg.index):
-    buy_time = json.loads(df_stg.iloc[i, list_col.index('분할진입시간')])
-    buy_price = json.loads(df_stg.iloc[i, list_col.index('분할진입가')])
-    if buy_time: #분할일 경우
-        for j,time in enumerate(buy_time):
-            if time != '':
-                time = time[:-2]+'00'
-                time = common_def.str_to_datetime(time)
-                dict_buy[time] = buy_price[j]
-    else:
-        buy_time = df_stg.iloc[i, list_col.index('진입시간')]
-        buy_price = df_stg.iloc[i, list_col.index('진입가')]
-        if buy_price != 0:
-            buy_time = buy_time[:-2] + '00'
-            buy_time = common_def.str_to_datetime(buy_time)
-            dict_buy[buy_time] = buy_price
-    sell_time = json.loads(df_stg.iloc[i, list_col.index('분할청산시간')])
-    sell_price = json.loads(df_stg.iloc[i, list_col.index('분할청산가')])
-    if sell_time:
-        for j,time in enumerate(sell_time):
-            if time != '':
-                time = time[:-2]+'00'
-                time = common_def.str_to_datetime(time)
-                dict_sell[time] = sell_price[j]
-    else:
-        sell_time = df_stg.iloc[i, list_col.index('청산시간')]
-        sell_price = df_stg.iloc[i, list_col.index('청산가')]
-        if sell_price != 0:
-            sell_time = sell_time[:-2] + '00'
-            sell_time = common_def.str_to_datetime(sell_time)
-            dict_sell[sell_time] = sell_price
-print(dict_buy)
-print(dict_sell)
-import ccxt
-# Bybit API 키와 비밀 키 설정
-
-
-
-
-# print('==============================================')
-# pprint(bybit.fetch_balance(params={'type':'linear'}))
-# print('==============================================')
-# # pprint(bybit.fetch_balance(params={'type':'spot'}))
-# print('==============================================')
-# pprint(fetch_balance(accountType='UNIFIED',ticker='USDT',balance='잔고'))
-# print('==============================================')
-# li = ['ticker', '주문시간', '체결시간', '주문수량',
-#       'uuid', '수수료', '매수금액', '주문가', '상태', '구분', '펀딩비',
-#       'spot비율', 'short비율']
-# df = pd.DataFrame(columns=li)
-# li = []
-#
-# df.loc['1','ticker'] = json.dumps(li)
-# print(df)
-# li = json.loads(df.loc['1', 'ticker'])
-# print(f"{li= }    {type(li)= }")
-# print('=====================================')
-# li.append('123')
-# print(f"{li= }    {type(li)= }")
-# df.loc['1','ticker'] = json.dumps(li)
 def decimal_places(number):
     # 정수인지 확인하여 0을 반환합니다.
     if isinstance(number, int) or number.is_integer():
@@ -1183,30 +704,23 @@ def distribute_by_ratio(number, ratios, decimal_places=0):  # distribute_by_rati
         results[0] = round(results[0] + difference, decimal_places)
 
     return results
-print(distribute_by_ratio(2,[30,30,30],0))
-print(decimal_places(2.5))
 
-print(sys.maxsize)
-if 9223372036854775807 < 9223372036854775806:
-    print('asdf')
-
-import pandas as pd
 
 # 예제 데이터프레임
-data = {
-    'col1': [1, 1, 1, 1],
-    'col2': [2, 3, 2, 2],
-    'col3': [5, 5, 5, 5]
-}
-df = pd.DataFrame(data)
-
-# 특정 열이 모두 특정 숫자로 되어 있는지 확인
-column_name = 'col1'  # 확인할 열 이름
-specific_number = 1   # 특정 숫자
-
-is_all_specific = (df['col1'] == specific_number).all()
-if (df['col1'] == df.loc[df.index[0],'col1']).all():
-    print(f"{column_name} 열이 모두 {specific_number}인가요? {is_all_specific}")
+# data = {
+#     'col1': [1, 1, 1, 1],
+#     'col2': [2, 3, 2, 2],
+#     'col3': [5, 5, 5, 5]
+# }
+# df = pd.DataFrame(data)
+#
+# # 특정 열이 모두 특정 숫자로 되어 있는지 확인
+# column_name = 'col1'  # 확인할 열 이름
+# specific_number = 1   # 특정 숫자
+#
+# is_all_specific = (df['col1'] == specific_number).all()
+# if (df['col1'] == df.loc[df.index[0],'col1']).all():
+#     print(f"{column_name} 열이 모두 {specific_number}인가요? {is_all_specific}")
 
 from dateutil.relativedelta import relativedelta
 def nth_weekday(the_date, nth_week, week_day):
@@ -1225,28 +739,6 @@ def get_recent_due(mydate:datetime)->datetime:
         nextmonth_duedate = nth_weekday(mydate+relativedelta(months=1),2, 3)
         return nextmonth_duedate
 
-
-# x = [x for x in 마디값 if 중심가 * 1.1 > x ]
-콜옵션_월간 = '콜옵션_월간'
-
-today = datetime.datetime(2024,11,14)
-today = datetime.datetime.today()
-# from datetime import datetime, timedelta
-
-# from datetime import datetime
-# from dateutil.relativedelta import relativedelta
-
-# datetime.datetime(2021,12,1).isocalendar()
-# datetime.datetime(2021,12,1).isocalendar()[1]
-# print(datetime.datetime(2022,3,1).isocalendar()[1])
-
-# n = datetime.datetime.now()
-# n.isocalendar()
-# print(n.isocalendar()[1])
-
-
-# from datetime import datetime.date
-
 def get_week_of_month(input_date):
     # 이번 달 1일의 요일 계산
     first_day_of_month = input_date.replace(day=1)
@@ -1256,10 +748,41 @@ def get_week_of_month(input_date):
     adjusted_day = input_date.day + first_day_weekday
     return (adjusted_day - 1) // 7
 
-# 오늘 날짜 가져오기
-# today = datetime.today()
-today = datetime.datetime(2024,12,21)
-week_of_month = get_week_of_month(today)
-dt=datetime.datetime.now().replace(second=0, microsecond=0)
-print(dt)
-print(type(dt))
+# ticker = '야간선물'
+# conn = sqlite3.connect('DB/DB_futopt_kis.db')
+# df = pd.read_sql(f"SELECT * FROM {ticker}", conn).set_index('날짜')
+# print(df)
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+
+
+class Worker(QObject):
+    @pyqtSlot(int)
+    def recv_number(self, value):
+        print("받은 값:", value)
+
+class MainWindow(QMainWindow):
+    sig_send_number = pyqtSignal(int)
+    def __init__(self):
+        super().__init__()
+        self.worker = Worker()
+        # Main → Worker 연결
+        self.sig_send_number.connect(self.worker.recv_number)
+        # 값 전달
+        self.sig_send_number.emit(777)
+
+di = {'A01606': '1164.49'}
+li = list(di.keys())[0]
+
+while True:
+    t = datetime.datetime.now().replace(microsecond=0)
+    tt= t.time().second
+    if tt == 44:
+        print(t)
+# app = QApplication(sys.argv)
+#
+# window = MainWindow()
+# window.show()
+#
+# app.exec_()

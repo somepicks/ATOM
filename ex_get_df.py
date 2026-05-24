@@ -18,7 +18,7 @@ from PyQt5.QtCore import Qt,QThread,pyqtSignal,QWaitCondition,QMutex
 import KIS
 # from pykrx import stock
 from pprint import pprint
-import polars as pl
+# import polars as pl
 import common_def
 
 
@@ -151,7 +151,7 @@ def get_df_multi(market, ticker, bong, bong_detail, QLE_start, QLE_end, dict_bon
             trade_market = '선물'
         else:
             raise
-    elif market == '코인':
+    elif market == 'bybit':
         db_file = 'DB/DB_bybit.db'
         trade_market = 'bybit'
     else:
@@ -198,7 +198,7 @@ def get_df_multi(market, ticker, bong, bong_detail, QLE_start, QLE_end, dict_bon
                 if bong_detail != '일봉' and bong_detail != '주봉' and bong_detail != '월봉':
                     df_detail.index = df_detail.index - timedelta(minutes=dict_bong_stamp[bong_detail])  # 대신증권 데이터의 경우 분봉시간이 봉 마감시간으로 나오기 때문에 빼줘야됨
                 df_detail = leak_to_fill(df_detail, dict_bong_stamp[bong_detail])  # 누락되는 분봉 채우기
-            elif market == '코인':
+            elif market == 'bybit':
                 pass
             # df_detail.to_sql('detail',sqlite3.connect('DB/bt.db'), if_exists='replace')
             # quit()
@@ -319,7 +319,7 @@ def get_df_multi(market, ticker, bong, bong_detail, QLE_start, QLE_end, dict_bon
                     df_detail = df_detail.combine_first(df_extra)
 
 
-        elif market == '코인':
+        elif market == 'bybit':
             df_detail.rename(columns={'시가': '상세시가', '고가': '상세고가', '저가': '상세저가', '종가': '상세종가', '거래량': '상세거래량'},
                              inplace=True)
 
@@ -358,7 +358,7 @@ def get_df_multi(market, ticker, bong, bong_detail, QLE_start, QLE_end, dict_bon
         st = time.time()
         print('멀티봉 생성 중..')
         for bong_add in dict_bong_reverse.keys():
-            if market == '코인':  # bybit일 경우
+            if market == 'bybit':  # bybit일 경우
                 df_add = pd.read_sql(f"SELECT * FROM '{ticker}_{bong_add}'", con_db).set_index('날짜')
                 df_add.index = pd.to_datetime(df_add.index)  # datime형태로 변환
                 df_add = df_add[df_add.index >= start_day]
@@ -586,6 +586,7 @@ def replace_tabs_with_spaces(text):  # 스페이스랑 탭 혼용 시 에러 방
 
 def make_start_stop(df_detail, detail_stamp):
     # detail 1분봉 누락분에 대해서 메꿀 수 있는 방법
+    # 시작 시간과 종료 시간 확인
     df_detail['장시작시간'] = np.nan
     serise_start_t = df_detail.groupby(df_detail.index.date).transform(
         lambda x: x.index[0]).장시작시간  # 날짜별 마지막 시간을 같은행에 넣기
@@ -593,7 +594,29 @@ def make_start_stop(df_detail, detail_stamp):
     df_detail['장종료시간'] = np.nan
     serise_end_t = df_detail.groupby(df_detail.index.date).transform(lambda x: x.index[-1]).장종료시간  # 날짜별 마지막 시간을 같은행에 넣기
     df_detail['장종료시간'] = serise_end_t
-    # 시작 시간과 종료 시간 확인
+
+    ###########################################################################
+    # 백터화 된 방법으로 변경
+    # 날짜 추출
+    dates = pd.Series(df_detail.index.date, index=df_detail.index)
+
+    # 첫/마지막 인덱스
+    first_idx = dates.drop_duplicates(keep='first').index
+    last_idx = dates.drop_duplicates(keep='last').index
+
+    # 딕셔너리 생성
+    date_to_times = {
+        'first': dict(zip(df_detail.loc[first_idx].index.date,
+                          df_detail.loc[first_idx].index)),
+        'last': dict(zip(df_detail.loc[last_idx].index.date,
+                         df_detail.loc[last_idx].index))
+    }
+
+    # 매핑
+    date_array = pd.Series(df_detail.index.date)
+    df_detail['장시작시간'] = date_array.map(date_to_times['first']).values
+    df_detail['장종료시간'] = date_array.map(date_to_times['last']).values
+    ###########################################################################
     start_time = df_detail.index.min()
     end_time = df_detail.index.max()
     # 전체 1분 단위의 시간 인덱스 생성
@@ -646,7 +669,7 @@ def make_start_stop(df_detail, detail_stamp):
     return df_detail
 
 def resample_polars(market,df, bong, rule, name):
-    if market == '코인':
+    if market == 'bybit':
         df = df.group_by_dynamic(index_column="날짜", every=rule, closed="left").agg([
                                  pl.col("상세시가").first().alias("상세시가"),
                                  pl.col("상세고가").max().alias("상세고가"),
@@ -664,7 +687,7 @@ def resample_polars(market,df, bong, rule, name):
                                  pl.col("상세거래대금").sum().alias("상세거래대금")
                                  ])
     if bong == name:  # 기준봉일 경우
-        if market == '코인':
+        if market == 'bybit':
             df = df.rename({'상세시가':'시가', '상세고가':'고가', '상세저가':'저가', '상세종가':'종가',
                                '상세거래량':'거래량'})  # 컬럼명 변경
 
@@ -674,7 +697,7 @@ def resample_polars(market,df, bong, rule, name):
     #     df = convert_df_day(df)
     #
     else:
-        if market == '코인':
+        if market == 'bybit':
             df=df.rename({'상세시가': f'시가_{name}', '상세고가': f'고가_{name}', '상세저가': f'저가_{name}', '상세종가': f'종가_{name}',
                          '상세거래량': f'거래량_{name}'})  # 컬럼명 변경
         elif market == '국내주식' or market == '국내선옵':
@@ -690,7 +713,7 @@ def detail_parse(market,tikcer,bong,bong_detail):
                        '주봉': 10080, '월봉':302400}
     dict_bong = {'1분봉': '1m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '60m', '4시간봉': '4h', '일봉': 'd',
                  '주봉': 'W', '월봉': 'M'}
-    if market == '코인':
+    if market == 'bybit':
         dbname = "DB/DB_bybit.db"  # sqlite3 db file path
     conn = sqlite3.connect(dbname)
     ticker_detail = f"{ticker}_{dict_bong[bong_detail]}"
@@ -789,100 +812,28 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    # ticker = 'ETH'
-    # market = '코인'
+
     # ticker = '122630'
     # market = '국내주식'
-    ticker = '10100'
-    market = '국내선옵'
+    # ticker = '10100'
+    # market = '국내선옵'
     # ticker = '코스피200선물'
+    ticker = 'BTC'
+    market = 'bybit'
 
-    bong = '5분봉'
+    bong = '4시간봉'
     bong_detail = '1분봉'
     min = min_QCB(True)
 
-    frdate = '2010-01-01'
-    todate = datetime.now().strftime('%Y-%m-%d')
-    # frdate = '2022-06-28'
-    # todate = '2024-01-03'
 
-
-    if market == '코인':
-        conn_DB = sqlite3.connect('DB/DB_bybit.db')
-        exchange = make_exchange_bybit()
-        stocks_info = pd.DataFrame()
-
-    elif market == '국내주식' or market == '국내선옵':
-        conn_DB = sqlite3.connect('DB/DB_stock.db')
-        stocks_info = pd.read_sql(f"SELECT * FROM 'stocks_info'", conn_DB).set_index('종목코드')
-        exchange = make_exchange_kis()
-
-    else:
-        conn_DB = ''
-        stocks_info = pd.DataFrame()
-
-    dict_bong_stamp = {'1분봉': 1, '3분봉': 3, '5분봉': 5, '15분봉': 15, '30분봉': 30, '60분봉': 60, '4시간봉': 240, '일봉': 1440,
-                       '주봉': 10080}
-
-    st = time.time()
-    # df, df_detail, trade_market, dict_bong, dict_bong_reverse = \
-    #     get_df_multi(market, ticker, bong, bong_detail, frdate, todate, dict_bong_stamp, stocks_info)  # 30분봉, 1시간봉, 4시간봉 사용
-    # #
-    # print(f"데이터로딩 걸린시간   {time.time()-st}")
-    # print(df_detail.columns.tolist())
-    # if '시가_x' in df_detail.columns.tolist():
-    #     print('데이터프레임 확인')
-    #     quit()
-    # #
-    # df_detail = df_detail[df_detail.index < datetime.strptime("20220101","%Y%m%d")]
-    # df_detail.to_sql('bt_numpy_detail', sqlite3.connect('DB/bt.db'), if_exists='replace')
-    # df.to_sql('bt_numpy', sqlite3.connect('DB/bt.db'), if_exists='replace')
-    #
-    # ##############
-    #
-    dict_bong = {'1분봉': '1m', '5분봉': '5m', '15분봉': '15m', '30분봉': '30m', '60분봉': '60m', '4시간봉': '4h', '일봉': 'd',
-                 '주봉': 'W', '월봉': 'M'}
-
-    ticker_detail = ticker + '_' + dict_bong[bong_detail]
-    df_detail = pd.read_sql(f"SELECT * FROM '{ticker_detail}'", conn_DB).set_index('날짜')
-    # df_detail['날짜'] = pd.to_datetime(df_detail['날짜'])  # datime형태로 변환
-    df_detail.index = pd.to_datetime(df_detail.index)  # datime형태로 변환
-    st = time.time()
-    if market == '코인':
-        df_detail['날짜'] = df_detail['날짜'] - pd.Timedelta(hours=9)
-        # df_detail = df_detail[df_detail.index >= datetime.strptime("20200326","%Y%m%d")]
-        df, df_detail = common_def.detail_to_spread(df_detail,bong,bong_detail)
-        df_detail.index = df_detail.index + pd.Timedelta(hours=9)
-        for day in pd.date_range(start=df_detail.index[0], end=df_detail.index[-1]):
-            start_time = pd.Timestamp(day).replace(hour=9, minute=0, second=0)
-            end_time = start_time + pd.Timedelta(days=1) - pd.Timedelta(minutes=dict_bong_stamp[bong_detail])
-            df_detail.loc[start_time:end_time, '장시작시간'] = start_time
-            df_detail.loc[start_time:end_time, '장종료시간'] = end_time
-            df_detail['종료시간'] = np.nan  # 넣어야됨
-
-    elif market == '국내주식' or market == '국내선옵':
-        df_detail.index = df_detail.index - pd.Timedelta(minutes=dict_bong_stamp[bong_detail])
-        # df_detail = df_detail[df_detail.index >= datetime.strptime("20200326","%Y%m%d")]
-        df, df_detail = common_def.detail_to_spread(df_detail,bong,bong_detail)
-        print(df)
-        df_detail = make_start_stop(df_detail,dict_bong_stamp[bong_detail])
-        if bong == '일봉':
-            df_detail['종료시간'] = df_detail['장종료시간'].copy()
-        elif bong != '일봉' and bong != '주봉' and bong != '월봉':
-            # 기준봉 디테일봉 모두 분봉일 경우 종료시간 만들기
-            df_detail['종료시간'] = df_detail.index
-            df_detail_end_time = df_detail['종료시간'].resample(f'{dict_bong_stamp[bong]}min').last()
-            del df_detail['종료시간']
-            df_detail = pd.merge(df_detail, df_detail_end_time, left_index=True, right_index=True, how='left')
-            # df_detail.fillna(method='ffill', inplace=True)
-            df_detail.ffill(inplace=True)
 
 
     print(f"걸린시간: {time.time()-st}")
     # df_detail = df_detail[df_detail.index < datetime.strptime("20220101","%Y%m%d")]
-    df_detail.to_sql('bt', sqlite3.connect('DB/bt.db'), if_exists='replace')
+    # df_detail.to_sql('bt', sqlite3.connect('DB/bt.db'), if_exists='replace')
 
     # df_detail = detail_parse(market,ticker,bong,bong_detail)
 
+    print(df)
     print(df_detail)
 
