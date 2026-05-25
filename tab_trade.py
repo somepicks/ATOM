@@ -337,11 +337,11 @@ class Window(QMainWindow):
         today = datetime.datetime.now()
         ticker_fut, past_expiry_fut, expiry_fut, df_fut,_ = self.dict_option["exchange"].get_expiry_date(target='선물',now_dt=today)
         _, past_expiry_fut_mini, expiry_fut_mini, df_fut_mini,_ = self.dict_option["exchange"].get_expiry_date(target='미니선물',now_dt=today)
-        _, past_expiry_opt_week, expiry_opt_week, df_opt, cond_mrkt = self.dict_option["exchange"].get_expiry_date(target='위클리옵션',now_dt=today)
-        if cond_mrkt == '만기주':
+        _, past_expiry_opt_week, expiry_opt_week, df_opt, self.cond_mrkt = self.dict_option["exchange"].get_expiry_date(target='위클리옵션',now_dt=today)
+        if self.cond_mrkt == '만기주':
             _, past_expiry_opt, expiry_opt, df_opt,_ = self.dict_option["exchange"].get_expiry_date(target='본옵션',now_dt=today)
         # 공통된 컬럼명 찾기
-        self.dict_option['cond_mrkt'] = cond_mrkt
+        self.dict_option['cond_mrkt'] = self.cond_mrkt
         common_columns = list(set(df_fut.columns).intersection(df_opt.columns)) #공통된 컬럼 찾기
         df_fut = df_fut[common_columns]
         df_fut_mini = df_fut_mini[common_columns]
@@ -356,7 +356,7 @@ class Window(QMainWindow):
 
         # df_opt = df_opt.loc[df_opt['현재가']<5]
         # df_opt_week = df_opt_week.loc[df_opt_week['현재가']<5]
-        if cond_mrkt == '만기주':
+        if self.cond_mrkt == '만기주':
             df_call = df_opt[df_opt['종목명'] == '콜옵션']
             df_put = df_opt[df_opt['종목명'] == '풋옵션']
         else:
@@ -1143,116 +1143,88 @@ class Window(QMainWindow):
         if self.bool_light == False:
             self.QPB_start.setStyleSheet("background-color: #cccccc;")
     def make_dict_ticker_bong(self):
-        self.dict_ticker_bong_limit = {}
+        dict_ticker_bong_limit = {}
         df_tickers = self.df_trade.copy()
         for idx, row in df_tickers.iterrows():
-            if row['ticker'] in self.dict_ticker_bong_limit.keys():
-                if self.dict_ticker_bong_limit[row['ticker']] < row['봉'] * row['봉길이']:
-                    self.dict_ticker_bong_limit[row['ticker']] = row['봉'] * row['봉길이']
+            if row['ticker'] in dict_ticker_bong_limit.keys():
+                if dict_ticker_bong_limit[row['ticker']] < row['봉'] * row['봉길이']:
+                    dict_ticker_bong_limit[row['ticker']] = row['봉'] * row['봉길이']
             else:
-                self.dict_ticker_bong_limit[row['ticker']] = row['봉'] * row['봉길이']
+                dict_ticker_bong_limit[row['ticker']] = row['봉'] * row['봉길이']
             list_compare = json.loads(row['비교대상'])
             for li in list_compare:
                 ticker = li[:li.index('_')]
                 df_tickers.loc[li, 'ticker'] = ticker
                 bong = li[li.index('_') + 1:]
                 df_tickers.loc[li, '봉'] = self.dict_bong_int[bong]
-                if ticker in self.dict_ticker_bong_limit.keys():
+                if ticker in dict_ticker_bong_limit.keys():
 
-                    if self.dict_ticker_bong_limit[ticker] < row['봉'] * row['봉길이']:
-                        self.dict_ticker_bong_limit[ticker] = row['봉'] * row['봉길이']
+                    if dict_ticker_bong_limit[ticker] < row['봉'] * row['봉길이']:
+                        dict_ticker_bong_limit[ticker] = row['봉'] * row['봉길이']
                     else:
                         df_tickers.loc[li, '봉길이'] = 0
                 else:
-                    self.dict_ticker_bong_limit[ticker] = row['봉'] * row['봉길이']
+                    dict_ticker_bong_limit[ticker] = row['봉'] * row['봉길이']
                     df_tickers.loc[li, '봉길이'] = row['봉'] * row['봉길이']
-
+        return dict_ticker_bong_limit
     def signal_start(self):
         self.df_stg = pd.read_sql(f"SELECT * FROM {self.stg_market}", self.conn_stg).set_index('index')
         self.df_trade = self.df_stg[self.df_stg['table'] != 0] # 현재 테이블에 저장된 전략만 갖고오기
         now_dt = datetime.datetime.now().replace(second=0, microsecond=0)
-        # today = now_time.date()
-        # finish_time = datetime.datetime.combine(datetime.date.today(), time_only)
-        # self.dict_ticker_bong = {} # 전략에 필요한 전체 종목과 봉 데이터 만들기용 {'BTC':[5,60]} BTC-5분봉,1시간봉
-        #진입대상열과 봉 열이 같은행은 봉길이이 높은값을 남기고 나머지 행은 삭제
-        # df_filtered = df_tickers.sort_values('봉길이', ascending=False).drop_duplicates(['ticker', '봉'], keep='first')
-        # df_filtered = df_filtered[['ticker','봉','봉길이']]
-        # li_ticker = set(df_filtered['ticker'].tolist())
-        # for ticker in li_ticker:
-        #     list_bong = []
-        #     self.dict_ticker_bong[ticker] = list_bong
-        #     for idx, row in df_filtered.iterrows():
-        #         if row['ticker'] == ticker:
-        #             list_bong.append(row["봉"])
-        #             self.dict_ticker_bong[ticker] = list_bong
+
         self.bool_light = False
         self.thread = ATOM_trade_numpy.Trade_np(self.dict_option, self.df_set)
-        # self.thread.send_stg.connect(self.update_stg)
         self.thread.send_save_stg.connect(self.update_save_stg)
         self.thread.send_stg.connect(self.update_stg)
         self.send_trading.connect(self.thread.trading)
         dict_orders = self.make_dict_orders()
-        self.make_dict_ticker_bong()
-
-
-
-        if self.market == "국내선옵" or self.market == '국내선옵':
-            print("self.market == '업비트'")
-            if self.market == "국내주식":
-                # self.timer.timeout.connect(self.do_trade_domestic_stock)
+        self.dict_ticker_bong_limit = self.make_dict_ticker_bong()
+        if self.market == '국내주식' or self.market == '국내선옵':
+            if self.market == '국내주식':
                 for ticker in self.dict_ticker_bong_limit.keys():
                     globals()[ticker] = self.dict_option['exchange'].fetch_1m_ohlcv(symbol=ticker, from_dt=datetime,
                                                 now_dt=now_dt, past_expiry_dt=now_dt,ohlcv=[])
-                    # df = self.dict_option['exchange'].get_kis_ohlcv(market=self.market, ohlcv=ohlcv)
             elif self.market == '국내선옵':
                 print(f"1 {self.dict_ticker_bong_limit=}")
-                # today = datetime.datetime.today()
-                # self.dict_futopt_tickers ={}
-                # self.dict_option["주간야간"] = '야간'
                 print(f"2 {self.dict_ticker_bong_limit= }")
-                if self.dict_option["주간야간"] == '주간':
+                self.dict_option['주간야간'] = '주간'
+
+                if self.dict_option['주간야간'] == '주간':
                     self.dict_ticker_bong_limit = {k: v for k, v in self.dict_ticker_bong_limit.items() if not k.startswith('야간')}
-                elif self.dict_option["주간야간"] == '야간':
+                elif self.dict_option['주간야간'] == '야간':
                     remove_keys = {'선물', '미니선물'} # 해당하는 키값 삭제
                     self.dict_ticker_bong_limit = {k: v for k, v in self.dict_ticker_bong_limit.items() if k not in remove_keys}
-                    # self.dict_ticker_bong_limit = {k.replace('야간',''): v for k, v in self.dict_ticker_bong_limit.items()}
+                else:
+                    print(f"signal_start {self.dict_option['주간야간']= }")
+                    quit()
                 print(f"3 {self.dict_ticker_bong_limit= }")
                 if list(set(self.dict_ticker_bong_limit.keys()) & set(['선물','야간선물','통합선물'])):
-                    # list_ticker, past_expiry_date, expiry_date,_ = self.dict_option["exchange"].get_expiry_date(target='선물',today=now_dt)
-                    # self.dict_codes_info['선물']['만기일'] = expiry_date
-                    # self.dict_codes_info['선물']['지난만기일'] = past_expiry_date
-                    expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '선물', '만기일'].tolist()[0]
-                    self.dict_codes_info['선물']['만기일'] = pd.to_datetime(expiry_date)
-                    past_expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '선물', '지난만기일'].tolist()[0]
-                    self.dict_codes_info['선물']['지난만기일'] = pd.to_datetime(past_expiry_date)
+                    if self.dict_codes_info.get('선물'):
+                        expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '선물', '만기일'].tolist()[0]
+                        self.dict_codes_info['선물']['만기일'] = pd.to_datetime(expiry_date)
+                        past_expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '선물', '지난만기일'].tolist()[0]
+                        self.dict_codes_info['선물']['지난만기일'] = pd.to_datetime(past_expiry_date)
 
                 if list(set(self.dict_ticker_bong_limit.keys()) & set(['미니선물','야간미니선물','통합미니선물'])):
-                    # list_ticker, past_expiry_date, expiry_date,_ = self.dict_option["exchange"].get_expiry_date(target='미니선물',today=now_dt)
-                    # self.dict_codes_info['미니선물']['만기일'] = expiry_date
-                    # self.dict_codes_info['미니선물']['지난만기일'] = past_expiry_date
-                    print(self.df_tickers)
-                    expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '미니선물', '만기일'].tolist()[0]
-                    self.dict_codes_info['미니선물']['만기일'] = pd.to_datetime(expiry_date)
-                    past_expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '미니선물', '지난만기일'].tolist()[0]
-                    self.dict_codes_info['미니선물']['지난만기일'] = pd.to_datetime(past_expiry_date)
-                print(f"4 {self.dict_ticker_bong_limit= }")
+                    if self.dict_codes_info.get('미니선물'):
+                        expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '미니선물', '만기일'].tolist()[0]
+                        self.dict_codes_info['미니선물']['만기일'] = pd.to_datetime(expiry_date)
+                        past_expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '미니선물', '지난만기일'].tolist()[0]
+                        self.dict_codes_info['미니선물']['지난만기일'] = pd.to_datetime(past_expiry_date)
+                print(self.df_tickers)
                 conn = sqlite3.connect('DB/DB_futopt_kis.db')
                 for ticker, li_bong in self.dict_ticker_bong_limit.items():
                     if ticker.startswith('통합'):
                         df = pd.read_sql(f"SELECT * FROM {ticker.replace('통합','')}", conn).set_index('날짜') #주간데이터
                         df_night = pd.read_sql(f"SELECT * FROM {ticker.replace('통합','야간')}", conn).set_index('날짜') #야간데이터
-                        # if self.dict_option["주간야간"] == '주간': #주간일 경우 야간장의 마지막 시간을 갖고와야될까
-                        #     self.dict_codes_info[self.dict_trade[ticker]]['from_dt'] = pd.to_datetime(df.index[-1])
-                        # elif self.dict_option["주간야간"] == '야간':
-                        #     self.dict_codes_info[self.dict_trade[ticker]]['from_dt'] = pd.to_datetime(df_night.index[-1])
                         df = pd.concat([df, df_night], axis=0)
                         df = df.sort_index()
-                        remark = "통합"
+                        remark = "통합_old_"
                     else:
                         if ticker.startswith('야간'):
-                            remark = "야간"
+                            remark = "야간_old_"
                         else:
-                            remark = "주간"
+                            remark = "주간_old_"
                         df = pd.read_sql(f"SELECT * FROM {ticker}", conn).set_index('날짜')
                         self.dict_codes_info[self.dict_trade[ticker]]['from_dt'] = pd.to_datetime(df.index[-1])
 
@@ -1275,8 +1247,6 @@ class Window(QMainWindow):
                         normalized[k] = v
                 self.dict_ticker_bong_limit = normalized
                 print(f"6 {self.dict_ticker_bong_limit= }")
-                print(self.dict_codes_info)
-                self.dict_option['주간야간'] = '주간'
                 for ticker, li_bong in self.dict_ticker_bong_limit.items():
                     # 신규 데이터
                     symbol = self.dict_codes_info[ticker]['ticker']
@@ -1288,7 +1258,8 @@ class Window(QMainWindow):
                         globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=symbol,
                                                                                            now_dt=now_dt,
                                                                                            from_dt=from_dt,
-                                                                                           past_expiry=past_expiry_dt,
+                                                                                           past_expiry_dt=past_expiry_dt,
+                                                                                           expiry_dt = expiry_dt,
                                                                                            ohlcv = [])
                     elif self.dict_option['주간야간'] == '야간':
                         globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=symbol,
@@ -1301,11 +1272,16 @@ class Window(QMainWindow):
                         print('휴일 error')
                         print(f"{self.dict_option['주간야간']}")
                         raise
-                    # df = self.dict_option['exchange'].get_kis_ohlcv(globals()[f"{ticker}_ohlcv"])
-    #                 df.to_sql(f"{ticker}_ohlcv", sqlite3.connect("DB/bt.db"), if_exists='replace')
-                    # df = self.dict_option["exchange"].get_kis_ohlcv(globals()[ticker])
-                    # df.to_sql(f'{ticker}', sqlite3.connect('DB/bt.db'), if_exists='replace')
                 conn.close()
+            self.df_trend = pd.DataFrame()
+            while True:
+                현재시간 = datetime.datetime.now().replace(microsecond=0)
+                if self.dict_option['주간야간'] == '주간' and 현재시간 > datetime.datetime.now().replace(hour=14,minute=45,second=0):
+                    break
+                elif self.dict_option['주간야간'] == '야간' and 현재시간 > datetime.datetime.now().replace(hour=18,minute=0,second=0):
+                    break
+
+
 
         elif self.market == "업비트":
             print("self.market == '업비트'")
@@ -1329,45 +1305,61 @@ class Window(QMainWindow):
             start_time = now_time - (self.dict_bong_time_datetime[bong]*(bong_detail+5)) # 여분 5 정도
 
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.do_trade)
-        self.timer.start(2000)  # 1000ms = 1초마다 실행
+        self.timer_trade = QTimer()
+        self.timer_trade.timeout.connect(self.do_trade)
+        self.timer_trade.start(5000)  # 1000ms = 1초마다 실행
 
+        self.timer_ohlcv = QTimer()
+        self.timer_ohlcv.timeout.connect(self.gather_ohlcv)
+        self.timer_ohlcv.start(10000)  # 1000ms = 1초마다 실행
+
+        self.timer_trend = QTimer()
+        self.timer_trend.timeout.connect(self.trend_time)
+        self.timer_trend.start(20000)
+
+    def trend_time(self):
+        현재시간 = datetime.datetime.now().replace(second=0,microsecond=0)
+        self.df_trend = self.dict_option['exchange'].add_trend(현재시간=현재시간, df_trend=self.df_trend,COND_MRKT=self.cond_mrkt)
+        print(self.df_trend)
+    def gather_ohlcv(self):
+        현재시간 = datetime.datetime.now().replace(microsecond=0)
+        for ticker, li_bong in self.dict_ticker_bong_limit.items():
+            if self.market == '업비트' or self.market == 'bybit': # 데이터 갖고오기
+                limit = (time.time()-(globals()[ticker][-1][0]/1000))//60
+                stamp_date_old = globals()[ticker][-3][0]/1000 #마지막에서 3번째 시간
+                globals()[ticker] = common_def.get_coin_ohlcv_real(dict_option=self.dict_option, ohlcv=globals()[ticker],since=stamp_date_old, ticker=ticker,limit=limit+5,bong_detail="1분봉")
+            elif self.market == '국내선옵':
+                symbol = self.dict_codes_info[self.dict_trade[ticker]]['ticker']
+                past_expiry_dt = self.dict_codes_info[self.dict_trade[ticker]]['지난만기일']
+                expiry_dt = self.dict_codes_info[self.dict_trade[ticker]]['만기일']
+                if globals()[f"{ticker}_ohlcv"]:
+                    lastest_data = globals()[f"{ticker}_ohlcv"][0]
+                    lastest_dt = datetime.datetime.strptime(lastest_data['stck_bsop_date']+lastest_data['stck_cntg_hour'],"%Y%m%d%H%M%S")
+                    if (현재시간-datetime.timedelta(minutes=1)) > lastest_dt:
+                        print(f"ohlcv 생성 {ticker=}     {현재시간=}     {lastest_dt=}")
+                        if self.dict_option["주간야간"] == '주간':
+                            globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=symbol, now_dt = 현재시간,
+                                from_dt=현재시간,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
+                        elif self.dict_option["주간야간"] == '야간':
+                            globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=symbol, now_dt=현재시간,
+                                from_dt=현재시간, expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
+                else: # 장 시작 전에는 계속 데이터 확인
+                    if self.dict_option["주간야간"] == '주간':
+                        globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=symbol,now_dt=현재시간,from_dt=현재시간,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
+                    elif self.dict_option["주간야간"] == '야간':
+                        globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=symbol,now_dt=현재시간,from_dt=현재시간,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
 
     def do_trade(self):
         schedule.every().hour.at(":00").do(self.time_sync)  #매시각 정시마다
         self.effect_start()
         현재시간 = datetime.datetime.now().replace(microsecond=0)
         self.df_trade['현재시간'] = 현재시간
-        # if 현재시간.time().second == 2:
-        for ticker, li_bong in self.dict_ticker_bong_limit.items():
-            if self.market == '업비트' or self.market == 'bybit': # 데이터 갖고오기
-                limit = (time.time()-(globals()[ticker][-1][0]/1000))//60
-                stamp_date_old = globals()[ticker][-3][0]/1000 #마지막에서 3번째 시간
-                globals()[ticker] = common_def.get_coin_ohlcv_real(dict_option=self.dict_option,
-                                                              ohlcv=globals()[ticker],since=stamp_date_old,
-                                                              ticker=ticker,limit=limit+5,bong_detail="1분봉")
-            elif self.market == '국내선옵':
-                symbol = self.dict_codes_info[self.dict_trade[ticker]]['ticker']
-                past_expiry_dt = self.dict_codes_info[self.dict_trade[ticker]]['지난만기일']
-                expiry_dt = self.dict_codes_info[self.dict_trade[ticker]]['만기일']
-                lastest_data = globals()[f"{ticker}_ohlcv"][0]
-                lastest_dt = datetime.datetime.strptime(lastest_data['stck_bsop_date']+lastest_data['stck_cntg_hour'],"%Y%m%d%H%M%S")
-                if (현재시간-datetime.timedelta(minutes=1)) > lastest_dt:
-                    print(f"ohlcv 생성 {ticker=}     {현재시간=}     {lastest_dt=}")
-
-                    if self.dict_option["주간야간"] == '주간':
-                        globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=symbol, from_dt=현재시간,
-                                                now_dt = 현재시간,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
-                    elif self.dict_option["주간야간"] == '야간':
-                        globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=symbol, now_dt=현재시간,
-                            from_dt=현재시간, expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
-
 
         # 진인대상과 비교대상을 구분해서 미리 데이터프레임을 만들어놓고 합치기만 하는방법을 구상해보자
         for stg, row in self.df_trade.iterrows():
             ohlcv = []  #output
             if self.market == '국내선옵':
+                print(f"{self.dict_trade[row['ticker']]= }")
                 ohlcv = globals()[f"{self.dict_trade[row['ticker']]}_ohlcv"].copy()
                 if row["ticker"].startswith('통합'):
                     ohlcv.extend(globals()[row['ticker']])

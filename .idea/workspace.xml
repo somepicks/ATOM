@@ -5,7 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ee73ab5c-1e80-499b-b1c4-ad281c1744cd" name="변경" comment="HOME">
-      <change afterPath="$PROJECT_DIR$/ATOM_websocket.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/DB_bybit.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_bybit.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/DB_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/DB_futopt.db" afterDir="false" />
@@ -17,8 +16,11 @@
       <change beforePath="$PROJECT_DIR$/DB/stg_futopt.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_futopt.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/stg_stock.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/stg_stock.db" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DB/strategy.db" beforeDir="false" afterPath="$PROJECT_DIR$/DB/strategy.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/KIS.py" beforeDir="false" afterPath="$PROJECT_DIR$/KIS.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TA_Lib-0.4.28-cp311-cp311-win_amd64.whl" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/common_def.py" beforeDir="false" afterPath="$PROJECT_DIR$/common_def.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" afterPath="$PROJECT_DIR$/ex.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tab_trade.py" beforeDir="false" afterPath="$PROJECT_DIR$/tab_trade.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -103,7 +105,7 @@
       <recent name="D:\ATOM" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.tab_trade">
+  <component name="RunManager" selected="Python.KIS">
     <configuration name="ATOM_WS_KIS" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ATOM" />
       <option name="ENV_FILES" value="" />
@@ -216,10 +218,10 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.tab_trade" />
         <item itemvalue="Python.KIS" />
-        <item itemvalue="Python.websocket_kis" />
+        <item itemvalue="Python.tab_trade" />
         <item itemvalue="Python.ex" />
+        <item itemvalue="Python.websocket_kis" />
         <item itemvalue="Python.ATOM_WS_KIS" />
       </list>
     </recent_temporary>
@@ -600,7 +602,23 @@
       <option name="project" value="LOCAL" />
       <updated>1779591422447</updated>
     </task>
-    <option name="localTasksCounter" value="46" />
+    <task id="LOCAL-00046" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1779594219523</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1779594219523</updated>
+    </task>
+    <task id="LOCAL-00047" summary="HOME">
+      <option name="closed" value="true" />
+      <created>1779594375403</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1779594375403</updated>
+    </task>
+    <option name="localTasksCounter" value="48" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

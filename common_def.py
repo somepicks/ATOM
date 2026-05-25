@@ -404,16 +404,7 @@ class common(QObject):
                     else:  # 비교대상의 경우 'BTC_5분봉'
                         df = common_def.detail_to_compare(df, cker_full_name)
         elif self.market == '국내선옵':
-                # 시간 단축을 위해 데이터프레임에서 필요없는 팩터 지우기
-                # df_check = common_def.get_kis_ohlcv(market,ohlcv)
-                # df_standard, df_check = common_def.detail_to_spread(df_check, dict_stg['봉'], dict_stg['상세봉'])
-                # li_factor = []
-                # for factor in df_check.columns.tolist():
-                #     if not factor in str(dict_stg['진입전략'] + dict_stg['청산전략']):  # 실제 전략에 필요한 팩터만 남기고 데이터프레임에서 삭제
-                #         if not factor in ['상세시가', '상세고가', '상세저가', '상세종가', '시가', '고가', '저가', '종가', '종료시간',
-                #                           '현재시간', '장시작시간', '장종료시간']:  # 삭제에서 제외
-                #             df_check.drop(factor, axis=1, inplace=True)
-                #             li_factor.append(factor)
+            # self.necessary_def() # 필요한 변수만 갖고오기
             df = self.dict_option["exchange"].get_kis_ohlcv(ohlcv)
             if dict_info["check_compare"]:  # 비교대상일 경우
                 df = detail_to_compare(df, dict_info["봉"])
@@ -451,7 +442,7 @@ class common(QObject):
             else:
                 self.send_make_df.emit(df,dict_info)
         else:
-            print(f"common(QObject) {dict_info= }")
+            print(f"common(QObject) {dict_info['req']= }")
             quit()
         # data = df.to_numpy(dtype=float)
         # return df
@@ -495,14 +486,12 @@ class common(QObject):
             df[f'이평5_{name}'] = talib.MA(df[f'종가_{name}'], 5)
             df[f'이평20_{name}'] = talib.MA(df[f'종가_{name}'], 20)
             df[f'이평60_{name}'] = talib.MA(df[f'종가_{name}'], 60)
-            df[f'데이터길이_{name}'] = np.arange(1, len(df.index.tolist()) + 1,
-                                            1)  # start=1, stop=len(df.index.tolist())+1, step=1
+            df[f'데이터길이_{name}'] = np.arange(1, len(df.index.tolist()) + 1,1)  # start=1, stop=len(df.index.tolist())+1, step=1
         return df
 
     # bong을 ''로 받으면 기준이 되는 봉이 없기 때문에 일단 시가,고가,저가 가 없고
     def detail_to_spread(self, market, df_min, bong, bong_detail: str = '1분봉',
                          compare: bool = False):  # df=특정봉데이터반환, df_combined=전체봉데이터반환
-
         df_min.rename(columns={'시가': f'상세시가', '고가': f'상세고가', '저가': f'상세저가', '종가': f'상세종가',
                                '거래량': f'상세거래량', '거래대금': f'상세거래대금'}, inplace=True)  # 컬럼명 변경
         detail_unit = self.dict_bong_stamp[bong_detail]
@@ -587,7 +576,17 @@ class common(QObject):
         #######################################################
         # df = df[[col for col in df.columns if not col.endswith(bong)]] #컬럼명이 기준봉으로 끝나는 컬럼명은 삭제
         return df, df_combined
-
+    def necessary_def(self,market,ohlcv):
+        # 시간 단축을 위해 데이터프레임에서 필요없는 팩터 지우기
+        df_check = self.dict_option["exchange"].get_kis_ohlcv(market,ohlcv)
+        df_standard, df_check = self.detail_to_spread(df_check, dict_stg['봉'], dict_stg['상세봉'])
+        li_factor = []
+        for factor in df_check.columns.tolist():
+            if not factor in str(dict_stg['진입전략'] + dict_stg['청산전략']):  # 실제 전략에 필요한 팩터만 남기고 데이터프레임에서 삭제
+                if not factor in ['상세시가', '상세고가', '상세저가', '상세종가', '시가', '고가', '저가', '종가', '종료시간',
+                                  '현재시간', '장시작시간', '장종료시간']:  # 삭제에서 제외
+                    df_check.drop(factor, axis=1, inplace=True)
+                    li_factor.append(factor)
     def trend_time(self):
         now_dt = datetime.datetime.now().replace(second=0,microsecond=0)
         self.df_trend = self.dict_option["exchange"].add_trend(현재시간=now_dt,df_trend=self.df_trend,COND_MRKT=self.dict_option['cond_mrkt']) #투자자별

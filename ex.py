@@ -776,10 +776,14 @@ di = {'A01606': '1164.49'}
 li = list(di.keys())[0]
 
 while True:
-    t = datetime.datetime.now().replace(microsecond=0)
-    tt= t.time().second
-    if tt == 44:
-        print(t)
+    현재시간 = datetime.datetime.now().replace(microsecond=0)
+    if 현재시간 > datetime.datetime.now().replace(hour=13,minute=0,second=0):
+        print(현재시간)
+        t = datetime.datetime.now().replace(microsecond=0)
+        tt= t.time().second
+        if tt == 44:
+            print(t)
+        break
 # app = QApplication(sys.argv)
 #
 # window = MainWindow()
