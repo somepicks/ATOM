@@ -2021,7 +2021,6 @@ class KoreaInvestment:
                 while True :
                     print(symbol, timeframe, early_day, lately_day, adj_price)
                     resp = self._fetch_ohlcv_domestic(symbol, timeframe, early_day, lately_day, adj_price)
-
                     if [item for item in resp['output2'] if item == {}]: #output2가 빈 딕셔너리를 보내면 탈출
                         break
                     elif resp['msg1'] == '정상처리 되었습니다.':
@@ -2037,12 +2036,12 @@ class KoreaInvestment:
                         elif len(resp['output2']) < 100:
                             break
                         # time.sleep(0.5)
-                        QTest.qWait(500)
+                        QTest.qWait(10)
                         # print(early_day, "==" ,lately_day)
                     elif resp['msg1'] == '기간이 만료된 token 입니다.':
                         raise
                     else:
-                        QTest.qWait(300)
+                        QTest.qWait(10)
                         # if not resp:
                         #     break
 
@@ -2074,8 +2073,6 @@ class KoreaInvestment:
                 return df
             else:
                 return pd.DataFrame()
-
-
         else:
             while True:
                 resp = self.fetch_ohlcv_overesea(symbol, timeframe, lately_day, adj_price)
@@ -4378,10 +4375,14 @@ class KoreaInvestment:
 if __name__ == "__main__":
     market = '국내주식' #미니 A05605, 선물 A01606
     kis = KoreaInvestment(market=market)
-
+    ohlcv = kis.fetch_ohlcv(symbol= "005930")
+    print(pd.DataFrame(ohlcv))
+    df = kis.investor_trend_stock("005930")
+    print(df)
     di, df = kis.fetch_balance()
     print(di)
     print(df)
+    quit()
     kis.save_data()
     pprint(kis.fetch_price('A01606',True))
 
