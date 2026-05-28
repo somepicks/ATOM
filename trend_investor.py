@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QMainWindow,QPushButton,QWidget,QVBoxLayout,QApplic
 from PyQt5.QtCore import QThread,QTimer,pyqtSignal,QObject,QTime
 
 import numpy as np
+from pathlib import Path
 
 from PIL import ImageGrab
 
@@ -422,11 +423,15 @@ class Worker(QObject):
             pass
 
     def save_data(self):
-        db_file = 'DB/trend.db'
+        BASE_DIR = Path(__file__).resolve().parent
+        db_file = BASE_DIR.parent / "DB" / "trend.db"
+
+        # db_file = 'DB/trend.db'
         conn = sqlite3.connect(db_file)
         self.df_trend.to_sql(datetime.datetime.now().strftime('%Y%m%d'),conn,if_exists='replace')
         conn.close()
-        conn = sqlite3.connect('DB/DB_futopt_kis.db')
+        db_file = BASE_DIR.parent / "DB" / "DB_futopt_kis.db"
+        conn = sqlite3.connect(db_file)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         try:
@@ -1141,25 +1146,29 @@ class Window(QMainWindow):
         ex = KIS.KoreaInvestment(market='국내선옵',mock=False)
         ticker_future = ex.display_fut().index[0]
         df_call, df_put, cond, past_day, ex_day = ex.display_opt_weekly(datetime.datetime.now())
-        conn = sqlite3.connect("DB/DB_futopt_kis.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        try:
-            list_table = np.concatenate(cursor.fetchall()).tolist()
-        except:
-            list_table = []
-        cursor.close()
-        now_day = datetime.datetime.now().date()
-        if not 'holiday' in list_table:
-            df_holiday = ex.check_holiday_domestic_stock(now_day)
-            df_holiday.to_sql('holiday', conn, if_exists='replace')
-        else:
-            df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn).set_index('날짜')
-            ex_day = now_day+datetime.timedelta(days=90)
-            ex_day = datetime.datetime.strftime(ex_day,'%Y%m%d')
-            if not ex_day in df_holiday.index.tolist():
-                df_holiday = ex.check_holiday_domestic_stock(now_day)
-        conn.close()
+        # BASE_DIR = Path(__file__).resolve().parent
+        # db_file = BASE_DIR.parent / "DB" / "DB_futopt_kis.db"
+
+        # conn = sqlite3.connect(db_file)
+        # cursor = conn.cursor()
+        # cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        # try:
+        #     list_table = np.concatenate(cursor.fetchall()).tolist()
+        # except:
+        #     list_table = []
+        # cursor.close()
+        # now_day = datetime.datetime.now().date()
+        # if not 'holiday' in list_table:
+        #     df_holiday = ex.check_holiday_domestic_stock(now_day)
+        #     df_holiday.to_sql('holiday', conn, if_exists='replace')
+        # else:
+        #     df_holiday = pd.read_sql(f"SELECT * FROM 'holiday'", conn).set_index('날짜')
+        #     ex_day = now_day+datetime.timedelta(days=90)
+        #     ex_day = datetime.datetime.strftime(ex_day,'%Y%m%d')
+        #     if not ex_day in df_holiday.index.tolist():
+        #         df_holiday = ex.check_holiday_domestic_stock(now_day)
+        # conn.close()
+
         # 봇 인스턴스 생성 (images 폴더에 저장)
         self.start_time = QTime(8,40,0)
         self.finish_time = QTime(15,45,0)

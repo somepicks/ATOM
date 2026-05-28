@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import QMainWindow, QGridLayout, QLineEdit, QLabel, QPushBu
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from setuptools.command.dist_info import dist_info
 from queue import Queue
+from pathlib import Path
 
 class KISReal(QThread):
     price_updated = pyqtSignal(dict)
@@ -27,8 +28,8 @@ class KISReal(QThread):
         self.secret_key = dict_info["secret"]
         self.market = dict_info["market"]
         self.mock = dict_info["mock"]
-        # self.dict_orders = dict_orders
-
+        self.dict_orders = dict_orders
+        self.dict_tickers = {}
         self.ws = None
         self.running = False
         self._connect_key = None
@@ -37,14 +38,16 @@ class KISReal(QThread):
         self.aes_key = None
         self.aes_iv = None
         # 구독할 종목 목록 (tr_id: [종목코드 리스트])
-        self.token_file = "DB/token.dat"
+        BASE_DIR = Path(__file__).resolve().parent
+        self.token_file = BASE_DIR.parent / "DB" / "token.dat"
+        # self.token_file = "DB/token.dat"
         # if self.check_access_token():  # 기존에 생성한 토큰이 있는지 확인
         #     self.load_access_token()
         # else:
         self._connect_key = self.issue_access_token()
         self._subscriptions = {}
-        if dict_info['market'] == '국내주식':
-            if dict_info['mock'] == True:
+        if self.dict_info['market'] == '국내주식':
+            if self.dict_info['mock'] == True:
                 self.chegyeol = 'H0STCNI9' #체결 모의
                 self.contract_stock = 'H0STCNT0' #체결가
                 self.hoka_stock = 'H0STASP0' # 호가
@@ -52,8 +55,8 @@ class KISReal(QThread):
                 self.chegyeol = 'H0STCNI0' #체결
                 self.contract_stock = 'H0STCNT0' #체결가
                 self.hoka_stock = 'H0STASP0' # 호가
-        elif dict_info['night'] == '주간':
-            if dict_info['mock'] == True:
+        elif self.dict_info['market'] == '국내선옵':
+            if self.dict_info['mock'] == True:
                 self.chegyeol = 'H0IFCNI9'
             else:
                 self.chegyeol = 'H0IFCNI0'
@@ -61,7 +64,7 @@ class KISReal(QThread):
             self.hoka_fut = 'H0IFASP0'
             self.contract_opt = 'H0IOCNT0'
             self.hoka_opt = 'H0IOASP0'
-        elif dict_info['night'] == '야간':
+        elif self.dict_info['market'] == '야간선옵':
             self.chegyeol = 'H0MFCNI0'
             self.contract_fut = 'H0MFCNT0'
             self.hoka_fut = 'H0MFASP0'
@@ -70,7 +73,7 @@ class KISReal(QThread):
         else:
             print('오늘은 휴장')
             return
-        self.subscribe(self.chegyeol,[dict_info["user_id"]])
+        self.subscribe(self.chegyeol,[self.dict_info["user_id"]])
     def run(self):   # ✅ 이게 진짜 스레드 entry
         self.running = True
         Thread(target=self._ws_loop, daemon=True).start()
@@ -81,20 +84,26 @@ class KISReal(QThread):
     def update_order(self,dict_orders):
         if not list(set(dict_orders.values())) == list(set(self.dict_orders.values())):
             self.dict_info = dict_orders
-            # for tr in [self.dict_info['체결'],self.dict_info['호가']]:
-            for tr in [self.contract_stock,self.hoka_stock]:
+            for tr in [self.dict_info['체결'],self.dict_info['호가']]:
+            # for tr in [self.contract_stock,self.hoka_stock]:
             # for tr in [self.contract_stock]:
                 self.subscribe(tr,list(set(self.dict_info)))
 
-    def add_symbol(self, code):
+    def fetch_tickers(self, dict_tickers):
         # for tr in ['H0STASP0', 'H0STCNT0']:
-        for tr in ['H0STCNT0']:
-            self._subscriptions.setdefault(tr, []).append(code)
-            # 중복구독 위험 때문에 아래로
-            # if code not in self._subscriptions.setdefault(tr, []):
-            #     self._subscriptions[tr].append(code)
-            msg = self._build_message(tr, code)
-            self.ws.send(msg)
+        if not list(set(dict_tickers.keys())) == list(set(self.dict_tickers.keys())):
+
+            if self.dict_info['market'] == '국내선옵':
+                for symbol,trade_market in self.dict_tickers:
+                    if trade_market.endswith('선물'):
+                        self._subscriptions.setdefault(self.contract_fut, []).append(symbol)
+                    elif trade_market.endswith('옵션'):
+                        self._subscriptions.setdefault(self.contract_opt, []).append(symbol)
+                    # 중복구독 위험 때문에 아래로
+                    # if code not in self._subscriptions.setdefault(tr, []):
+                    #     self._subscriptions[tr].append(code)
+                    # msg = self._build_message(tr, code)
+                    # self.ws.send(msg)
 
     def remove_symbol(self, code):
         for tr, codes in self._subscriptions.items():
@@ -540,6 +549,7 @@ class KISReal(QThread):
 
 class Window(QMainWindow): #별도로 실행하고자 할 때
     send_orders = pyqtSignal(dict)
+    send_tickers = pyqtSignal(dict)
     def __init__(self):
         super().__init__()
         self.QPB_start_stock = QPushButton('웹소켓 연결(주식)')
@@ -556,6 +566,7 @@ class Window(QMainWindow): #별도로 실행하고자 할 때
         QVB_main.addWidget(self.QPB_start_stock)
         QVB_main.addWidget(self.QPB_start_futopt)
         QVB_main.addWidget(self.QPB_start_futopt_night)
+        QVB_main.addWidget(self.QPB_chegyeol)
         QVB_main.addWidget(self.QPB_add)
         QVB_main.addWidget(self.QPB_del)
         QVB_main.addWidget(self.QLE)
@@ -567,6 +578,7 @@ class Window(QMainWindow): #별도로 실행하고자 할 때
         self.QPB_start_stock.clicked.connect(lambda:self.connect_ws('국내주식'))
         self.QPB_start_futopt.clicked.connect(lambda:self.connect_ws('국내선옵'))
         self.QPB_start_futopt_night.clicked.connect(lambda:self.connect_ws('야간선옵'))
+        self.QPB_chegyeol.clicked.connect(lambda:self.connect_ws('야간선옵'))
         self.QPB_add.clicked.connect(lambda: self.add_order(self.QLE.text()))
         self.QPB_del.clicked.connect(lambda: self.del_order(self.QLE.text()))
         self.dict_info = {}
@@ -594,6 +606,7 @@ class Window(QMainWindow): #별도로 실행하고자 할 때
         self.thread_ws.price_updated.connect(self.price_data)
         self.thread_ws.order_filled.connect(self.chegyeol_closed)
         self.send_orders.connect(self.thread_ws.update_order)
+        self.send_tickers.connect(self.thread_ws.fetch_tickers)
         # self.thread_ws.subscribe('H0STCNI9','somepick')
         self.thread_ws.start()
     @pyqtSlot(dict)
@@ -603,17 +616,31 @@ class Window(QMainWindow): #별도로 실행하고자 할 때
     def chegyeol_closed(self,data):
         print(f"체결:    {data}")
     def add_order(self,code):
+
         print(code)
         if not code in list(set(self.dict_orders.values())):
-            # self.thread_ws.add_symbol(code)
-            self.send_orders.emit(code)
+            self.thread_ws.add_symbol(code)
+        self.send_orders.emit(code)
 
-        id = datetime.datetime.now().replace(microsecond=0).strftime("%Y%m%d%H%M%S")
-        self.dict_orders[id] = code
-        self.QTE.clear()
-        formatted_text = json.dumps(self.dict_orders, indent=4, ensure_ascii=False)
-        self.QTE.setText(formatted_text)
-        print(self.dict_orders)
+        # id = datetime.datetime.now().replace(microsecond=0).strftime("%Y%m%d%H%M%S")
+        # self.dict_orders[id] = code
+        # self.QTE.clear()
+        # formatted_text = json.dumps(self.dict_orders, indent=4, ensure_ascii=False)
+        # self.QTE.setText(formatted_text)
+        # print(self.dict_orders)
+    def add_tickers(self):
+        code = {'A01606': '선물', 'A05606': '미니선물', 'B09F1WB38': '위클리콜옵션', 'B09F1WB34': '위클리콜옵션', 'B09F1WB32': '위클리콜옵션',
+         'B09F1WB30': '위클리콜옵션', 'B09F1WB28': '위클리콜옵션', 'B09F1WB26': '위클리콜옵션', 'B09F1WB25': '위클리콜옵션',
+         'B09F1WB24': '위클리콜옵션', 'B09F1WB23': '위클리콜옵션', 'B09F1WB22': '위클리콜옵션', 'B09F1WB21': '위클리콜옵션',
+         'B09F1WB20': '위클리콜옵션', 'B09F1WB18': '위클리콜옵션', 'B09F1WB17': '위클리콜옵션', 'B09F1WB16': '위클리콜옵션',
+         'B09F1WB15': '위클리콜옵션', 'B09F1WB14': '위클리콜옵션', 'B09F1WB12': '위클리콜옵션', 'B09F1WB10': '위클리콜옵션',
+         'C09F1WB18': '위클리풋옵션', 'C09F1WB14': '위클리풋옵션', 'C09F1WB12': '위클리풋옵션', 'C09F1WB11': '위클리풋옵션',
+         'C09F1WB10': '위클리풋옵션', 'C09F1WB09': '위클리풋옵션', 'C09F1WB08': '위클리풋옵션', 'C09F1WB07': '위클리풋옵션',
+         'C09F1WB06': '위클리풋옵션', 'C09F1WB05': '위클리풋옵션', 'C09F1WB04': '위클리풋옵션', 'C09F1WB02': '위클리풋옵션',
+         'C09F1WA99': '위클리풋옵션', 'C09F1WA97': '위클리풋옵션', 'C09F1WA95': '위클리풋옵션', 'C09F1WA93': '위클리풋옵션',
+         'C09F1WA89': '위클리풋옵션', 'C09F1WA85': '위클리풋옵션', 'C09F1WA81': '위클리풋옵션'}
+        self.send_tickers.emit(code)
+
     def del_order(self,uuid):
         try:
             dict_ord_old = self.dict_orders.copy()

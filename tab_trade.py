@@ -25,6 +25,7 @@ import ATOM_websocket
 import pickle
 import ctypes
 # from ex import df_holiday
+from pathlib import Path
 
 pd.set_option('display.max_columns', None)  # 모든 열을 보고자 할 때
 pd.set_option('display.max_colwidth', None)
@@ -38,7 +39,7 @@ class Window(QMainWindow):
     send_orders = pyqtSignal(dict)
     send_ohlcv = pyqtSignal(dict,list)
     send_chart = pyqtSignal(pd.DataFrame)
-    send_trading = pyqtSignal(pd.DataFrame,dict)
+    send_trading = pyqtSignal(pd.DataFrame,dict,pd.DataFrame)
     def __init__(self):
         super().__init__()
         self.dict_bong = {'1분봉': '1m', '3분봉': '3m', '5분봉': '5m','15분봉': '15m', '30분봉': '30m', '1시간봉': '60m','4시간봉': '4h', '일봉': 'd'}
@@ -282,16 +283,20 @@ class Window(QMainWindow):
 
     def init_file(self):
         # list_db_file = ['DB/stg_stock.db', 'DB/stg_bybit.db', 'DB/stg_futopt.db','DB/stg_upbit.db', 'DB/stg_futopt_oversea.db']
-        li_col = ['전략명','market', '진입대상','비교대상', 'ticker', '봉', '방향', '초기자금','배팅금액', '매입금액', '레버리지',
-                  '진입전략', '청산전략',  '현재가', '주문가','평단가', '주문수량', '보유수량','진입시간', '청산시간',
-                  '수익률', '최고수익률', '최저수익률', '수익금', '평가금액', '상태', 'id', '수수료', '수수료율', '승률(win/all)', '누적수익금',
-                  '잔고', '봉길이', '현재봉시간', 'table', '분할매수', '분할매도', '분할상태', '분할주문가','매입율','주문방식',
+        li_col = ['전략명','market', '진입대상','비교대상', 'ticker','symbol', '봉', '방향', '초기자금','배팅금액', '매입금액',
+                  '레버리지', '진입전략', '청산전략',  '현재가', '주문가','평단가', '주문수량', '보유수량','진입시간', '청산시간',
+                  '수익률', '최고수익률', '최저수익률', '수익금', '평가금액', '상태', 'id', '수수료', '수수료율', '승률(win/all)',
+                  '누적수익금', '잔고', '봉길이', '현재봉시간', 'table', '분할매수', '분할매도', '분할상태', '분할주문가','매입율','주문방식',
                   # '상세봉','청산가','분할청산가','주문시간',,'청산신호시간'  ,
                   '분할주문수량', '분할보유수량', '분할매입금액', '분할청산금액', '분할수수료', '분할id',
                   '분할평가금액','분할진입시간','분할청산시간','매도전환','주문취소시간']
-        db_file = 'DB/stg_trade.db'
+        # db_file = 'DB/stg_trade.db'
+        # self.conn_stg = sqlite3.connect(db_file)
 
-        self.conn_stg = sqlite3.connect(db_file)
+        BASE_DIR = Path(__file__).resolve().parent
+        db_path = BASE_DIR.parent / "DB" / "stg_trade.db"
+        self.conn_stg = sqlite3.connect(db_path)
+
         cursor = self.conn_stg.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         # if not os.path.isfile(db_file):
@@ -374,7 +379,18 @@ class Window(QMainWindow):
         df4_with_separator = pd.concat([df_put_top, create_separator_row(common_columns)], ignore_index=True)
         df_combined = pd.concat([df1_with_separator, df2_with_separator,df3_with_separator, df4_with_separator], ignore_index=True)
         df_combined = df_combined[['종목코드', '현재가', '이론가/행사가', '거래량', '전일대비','미결제약정', '종목명', '만기일', '지난만기일']]
-        return df_combined
+        df_combined.index = df_combined['종목코드']
+        self.dict_option['df_tickers'] = df_combined
+        self.df_tickers = df_combined
+        self.set_table_make(self.QT_tickers,df_combined)
+        print(df_combined)
+        dict_tickers = df_combined.set_index('종목코드')['종목명'].to_dict()
+        dict_tickers.pop('===')
+        print(dict_tickers)
+        print(len(dict_tickers))
+        # dict_tickers = df_combined
+        self.send_orders.emit(dict_tickers)
+        # return df_combined
 
     def select_market(self):  # 국내시장인지 bybit인지 선택합니다.
         self.market = self.QCB_market.currentText()
@@ -388,7 +404,13 @@ class Window(QMainWindow):
         self.QTE_stg_buy.clear()
         self.QTE_stg_sell.clear()
         self.df_tickers = pd.DataFrame()
-        token_file = "DB/token.dat"
+        # token_file = "DB/token.dat"
+
+        BASE_DIR = Path(__file__).resolve().parent
+        token_file = BASE_DIR.parent / "DB" / "token.dat"
+
+
+
         if not os.path.isfile(token_file): #파일이 없을 경우
             data={}
             data['bybit'] = {'api':'','secret':''}
@@ -435,7 +457,11 @@ class Window(QMainWindow):
         elif self.market == '국내선옵':
             import websocket_kis
             try:
-                self.dict_option["exchange"] = KIS.KoreaInvestment(market='국내선옵',mock=self.QCB_mock.isChecked(),only_short=False)
+                if self.dict_option["mock"] == True:
+                    self.dict_option["exchange_mock"] = KIS.KoreaInvestment(market='국내선옵',mock=True,only_short=False)
+                    self.dict_option["exchange"] = KIS.KoreaInvestment(market='국내선옵',mock=False,only_short=False)
+                else:
+                    self.dict_option["exchange"] = KIS.KoreaInvestment(market='국내선옵',mock=self.QCB_mock.isChecked(),only_short=False)
                 self.dict_option["주간야간"] = self.dict_option["exchange"].check_holiday()
                 market = '야간선옵' if self.dict_option["주간야간"] == '야간' else '국내선옵'
                 dict_info = {'key':'','secret':'','market':market,'mock':False,
@@ -444,34 +470,35 @@ class Window(QMainWindow):
                 self.thread_ws.price_updated.connect(self.price_data)
                 self.thread_ws.order_filled.connect(self.chegyeol_closed)
                 self.send_orders.connect(self.thread_ws.update_order)
+                # self.send_tickers.connect(self.thread_ws.update_order)
                 # self.thread_ws.subscribe('H0STCNI9','somepick')
                 self.thread_ws.start()
+
                 # self.dict_option["주간야간"] = self.dict_option["exchange"].check_holiday_now()
 
-                if self.dict_option["exchange"].access_token == None:
+                if type(self.dict_option["exchange"].access_token) == dict:
+                    message = self.dict_option["exchange"].access_token[None]
+                    self.pop_message('에러',f'국내선옵 API 확인 - {message}')
+                    return
+
+                elif self.dict_option["exchange"].access_token == None:
                     # self.df_tickers = pd.DataFrame()
                     self.pop_message('에러','국내선옵 API 확인 [issue_access_token]')
                     return
-                else:
-                    self.df_tickers = self.display_futopt()
 
-                self.dict_option['df_tickers'] = self.df_tickers
             except IOError as e:
                 print(e)
                 self.pop_message('에러','국내선옵 API 확인')
                 return
             print(f"휴일: {self.dict_option['주간야간']}")
             self.dict_option['real_chart'] = '선옵_리얼'
+            self.display_futopt()
             self.dict_codes_info = self.make_tickers_info()
         else:
             stg_file = ''
             return
         self.real_chart.chart_table(self.dict_option['real_chart'])
-        # self.QCB_chart_bong_detail.setCurrentText('1분봉')
-        # self.QCB_chart_bong_detail.setEnabled(False)
         self.QCB_chart_bong.setCurrentText('5분봉')
-
-        self.set_table_make(self.QT_tickers,self.df_tickers)
 
         if not self.market == '':
             if self.QCB_market.currentText() == 'bybit':
@@ -540,9 +567,10 @@ class Window(QMainWindow):
         self.thread_common.send_make_df.connect(self.get_df)
         self.thread_common.send_trend_df.connect(self.get_trend)
         self.send_ohlcv.connect(self.thread_common.make_df)
-        if self.market == '국내선옵':
-            self.timer_trend = QTimer()
-            self.timer_trend.timeout.connect(self.thread_common.trend_time)
+        # if self.market == '국내선옵' or self.market == '국내주식':
+
+        #     self.timer_trend = QTimer()
+        #     self.timer_trend.timeout.connect(self.thread_common.trend_time)
 
     # def sell_only(self):
     #     self.select_market()
@@ -583,7 +611,7 @@ class Window(QMainWindow):
                 print('매도만을 체크하세요.')
     def save_stg(self):
         global 분봉1, 분봉3, 분봉5, 분봉15, 분봉30, 시간봉1, 시간봉4, 일봉, 주봉, 월봉
-        global long, short
+        global long, short, 방향
         분봉1 = '1분봉'  # 시가CN(bong,pre) bong자리에 넣기 위함 변수로 숫자가 앞에 올 수는 없기 때문
         분봉3 = '3분봉'
         분봉5 = '5분봉'
@@ -645,7 +673,7 @@ class Window(QMainWindow):
                 trade_market = '조건검색'
                 ticker = list(object.keys())[0]
             else:
-                trade_market = '선물' if object[:1] == '1' else '콜옵션' if object[:1] == '2' else '풋옵션' if object[:1] == '3' else '스프레드'
+                trade_market = '선물' if object.endswith('선물') else '옵션'
                 ticker = object
 
         elif self.QCB_market.currentText() == 'bybit' and self.QLE_stg.text() != '':
@@ -679,7 +707,7 @@ class Window(QMainWindow):
             if type(object) == list or type(object) == dict:
                 object = json.dumps(object, ensure_ascii=False)
             dict_data = {'전략명': self.QLE_stg.text(), 'market': trade_market, '진입대상': object,
-                         '비교대상': json.dumps(list_compare), 'ticker': ticker,
+                         '비교대상': json.dumps(list_compare), 'ticker': ticker, 'symbol': '',
                          '봉': self.dict_bong_int[list(bong.keys())[0]], '방향': direction, '초기자금': bet, '배팅금액': bet,
                          '매입금액': 0,
                          '레버리지': leverage, '진입전략': stg_buy, '청산전략': stg_sell, '현재가': 0, '평단가': 0,'주문가': 0,
@@ -808,7 +836,11 @@ class Window(QMainWindow):
         self.df_set.loc['자동종료','check'] = self.QCB_auto_finish.isChecked()
         self.df_set.loc['자동종료시간','value'] = self.QTE_finish.text()
         self.df_set.loc['텔레그램','check'] = self.QCB_tele.isChecked()
-        token_file = "DB/token.dat"
+        # token_file = "DB/token.dat"
+
+        BASE_DIR = Path(__file__).resolve().parent
+        token_file = BASE_DIR.parent / "DB" / "token.dat"
+
         f = open(token_file, "rb")
         data = pickle.load(f)
         pprint(data)
@@ -856,7 +888,9 @@ class Window(QMainWindow):
                     pickle.dump(data, f)
                 self.QLE_id.clear()
         pprint(data)
-        db_file = 'DB/stg_trade.db'
+        # db_file = 'DB/stg_trade.db'
+        BASE_DIR = Path(__file__).resolve().parent
+        db_file = BASE_DIR.parent / "DB" / "stg_trade.db"
         conn = sqlite3.connect(db_file)
         self.df_set.to_sql('set', conn, if_exists='replace')
         self.pop_message('확인', '설정이 저장 되었습니다.')
@@ -968,17 +1002,17 @@ class Window(QMainWindow):
 
 
     def view_chart(self):
-        dict_info = {"req":"real_chart","check_compare":False}
-        dict_info['ticker'] = self.QLE_chart_ticker.text()
-        # dict_info['봉'] = self.QCB_chart_bong.currentText()
+        self.dict_info_chart = {"req":"real_chart","check_compare":False}
+        self.dict_info_chart['ticker'] = self.QLE_chart_ticker.text()
+        # self.dict_info_chart['봉'] = self.QCB_chart_bong.currentText()
         bong = self.QCB_chart_bong.currentText()
-        dict_info['봉'] = self.dict_bong_int[bong]
+        self.dict_info_chart['봉'] = self.dict_bong_int[bong]
         self.bool_light_chart = False
         if self.state_real_chart == False:
             self.state_real_chart = True
-            if dict_info['ticker'] != '':
+            if self.dict_info_chart['ticker'] != '':
                 duration = 1 if self.QCB_chart_duration.currentText() == '기간(일)' else int(self.QCB_chart_duration.currentText())
-                dict_info['duration'] = duration
+                self.dict_info_chart['duration'] = duration
                 if self.market == '업비트' or self.market == 'bybit':
                     ohlcv = []
                     # for ticker, li_bong in self.dict_ticker_bong_limit.items():
@@ -986,43 +1020,44 @@ class Window(QMainWindow):
                     stamp_date_old = common_def.datetime_to_stamp(date_old)
                     self.ohlcv_real = common_def.get_coin_initial_data(market=self.market, dict_option=self.dict_option,
                                                                          ohlcv=ohlcv, since=stamp_date_old,
-                                                                         ticker=dict_info['ticker'],
+                                                                         ticker=self.dict_info_chart['ticker'],
                                                                          limit=200,
                                                                          bong_detail="1분봉")  # 최대 200개 숫자 늘리면 안됨
                 elif self.market == '국내선옵':
-                    conn = sqlite3.connect('DB/DB_futopt_kis.db')
+                    BASE_DIR = Path(__file__).resolve().parent
+                    db_path = BASE_DIR.parent / "DB" / "DB_futopt_kis.db"
+                    conn = sqlite3.connect(db_path)
                     now_dt = datetime.datetime.now()
                     dict_symbol = {'선물':'선물','통합선물':'선물','야간선물':'선물',
                                    '미니선물':'미니선물','통합미니선물':'미니선물','야간미니선물':'미니선물'}
-                    ticker_symbol = dict_symbol[dict_info['ticker']]
-                    dict_info['symbol'] = self.dict_codes_info[ticker_symbol]['ticker']
+                    ticker_symbol = dict_symbol[self.dict_info_chart['ticker']]
+                    self.dict_info_chart['symbol'] = self.dict_codes_info[ticker_symbol]['ticker']
 
                     expiry_dt = self.df_tickers.loc[self.df_tickers['종목명'] == ticker_symbol, '만기일'].tolist()[0]
-                    dict_info['expiry_dt'] = datetime.datetime.strptime(expiry_dt,'%Y-%m-%d %H:%M:%S')
+                    self.dict_info_chart['expiry_dt'] = datetime.datetime.strptime(expiry_dt,'%Y-%m-%d %H:%M:%S')
                     past_expiry_dt = self.df_tickers.loc[self.df_tickers['종목명'] == ticker_symbol, '지난만기일'].tolist()[0]
-                    dict_info['past_expiry_dt'] = datetime.datetime.strptime(past_expiry_dt,'%Y-%m-%d %H:%M:%S')
-                    if dict_info['ticker'].startswith('통합'):
-                        df = pd.read_sql(f"SELECT * FROM {dict_info['ticker'].replace('통합', '')}", conn).set_index('날짜')  # 주간데이터
-                        df_night = pd.read_sql(f"SELECT * FROM {dict_info['ticker'].replace('통합', '야간')}", conn).set_index('날짜')  # 야간데이터
+                    self.dict_info_chart['past_expiry_dt'] = datetime.datetime.strptime(past_expiry_dt,'%Y-%m-%d %H:%M:%S')
+                    if self.dict_info_chart['ticker'].startswith('통합'):
+                        df = pd.read_sql(f"SELECT * FROM {self.dict_info_chart['ticker'].replace('통합', '')}", conn).set_index('날짜')  # 주간데이터
+                        df_night = pd.read_sql(f"SELECT * FROM {self.dict_info_chart['ticker'].replace('통합', '야간')}", conn).set_index('날짜')  # 야간데이터
                         df = pd.concat([df, df_night], axis=0)
                         df = df.sort_index()
                     else:
-                        df = pd.read_sql(f"SELECT * FROM {dict_info['ticker']}", conn).set_index('날짜')
-
+                        df = pd.read_sql(f"SELECT * FROM {self.dict_info_chart['ticker']}", conn).set_index('날짜')
                     from_dt = pd.to_datetime(df.index[-1])
-                    if dict_info['ticker'].startswith('야간'):
-                        output = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=dict_info['symbol'],
+                    if self.dict_info_chart['ticker'].startswith('야간') or (self.dict_info_chart['ticker'].startswith('통합') and self.dict_option["주간야간"]=='야간'):
+                        output = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=self.dict_info_chart['symbol'],
                                                                                  now_dt=now_dt,
                                                                                  from_dt=from_dt,
-                                                                                 expiry_dt=dict_info['expiry_dt'],
-                                                                                 past_expiry_dt=dict_info['past_expiry_dt'],
+                                                                                 expiry_dt=self.dict_info_chart['expiry_dt'],
+                                                                                 past_expiry_dt=self.dict_info_chart['past_expiry_dt'],
                                                                                  ohlcv=[])
                     else:
-                        output = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=dict_info['symbol'],
+                        output = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=self.dict_info_chart['symbol'],
                                                                            now_dt=now_dt,
                                                                            from_dt=from_dt,
-                                                                           expiry_dt=dict_info['expiry_dt'],
-                                                                           past_expiry_dt=dict_info['past_expiry_dt'],
+                                                                           expiry_dt=self.dict_info_chart['expiry_dt'],
+                                                                           past_expiry_dt=self.dict_info_chart['past_expiry_dt'],
                                                                            ohlcv=[])
                     df.index = pd.to_datetime(df.index)
                     result = (df.groupby(df.index.date).apply(lambda x: list(x.index)).sort_index()).index.tolist() #인덱스를 날짜로 그룹으로 묶어서 리스트로 추출
@@ -1034,13 +1069,13 @@ class Window(QMainWindow):
                     self.ohlcv_real = output
                     # self.ohlcv_real = ohlcv
                 self.chart_thread = self.real_chart
-                # self.chart_thread.make_init_data(self.dict_option,dict_info)
+                # self.chart_thread.make_init_data(self.dict_option,self.dict_info_chart)
                 self.chart_thread.make_init_data(self.dict_option)
                 # self.send_real_data.connect(self.chart_thread.update_plot_data)
                 self.send_chart.connect(self.chart_thread.update_plot_data)
                 self.timer_real_chart = QTimer()
-                self.timer_real_chart.timeout.connect(lambda:self.do_real_chart(dict_info))
-                self.timer_real_chart.start(1000)  # 1000ms = 1초마다 실행
+                self.timer_real_chart.timeout.connect(self.do_real_chart)
+                self.timer_real_chart.start(3000)  # 1000ms = 1초마다 실행
             else:
                 print('ticker 확인')
         elif self.state_real_chart == True:
@@ -1051,7 +1086,7 @@ class Window(QMainWindow):
             self.QPB_chart.setStyleSheet("background-color: #cccccc;")
 
 
-    def do_real_chart(self,dict_info):
+    def do_real_chart(self):
         # ticker = self.QLE_chart_ticker.text()
         self.effect_chart()
         if self.market == '업비트' or self.market == 'bybit':
@@ -1059,7 +1094,7 @@ class Window(QMainWindow):
             stamp_date_old = self.ohlcv_real[-3][0] / 1000  # 마지막에서 3번째 시간
             self.ohlcv_real = common_def.get_coin_ohlcv_real(dict_option=self.dict_option,
                                                                ohlcv=self.ohlcv_real, since=stamp_date_old,
-                                                               ticker=dict_info['ticker'], limit=limit + 5, bong_detail="1분봉")
+                                                               ticker=self.dict_info_chart['ticker'], limit=limit + 5, bong_detail="1분봉")
         elif self.market == '국내선옵':
             now_dt = datetime.datetime.now()
             # dict_symbol = {'선물': '선물', '통합선물': '선물', '야간선물': '선물',
@@ -1071,25 +1106,25 @@ class Window(QMainWindow):
             # past_expiry_dt = self.df_tickers.loc[self.df_tickers['종목명']==ticker_symbol,'지난만기일'][0]
             # past_expiry_dt = datetime.datetime.strptime(past_expiry_dt, '%Y-%m-%d %H:%M:%S')
             from_dt = datetime.datetime.strptime(self.ohlcv_real[0]['stck_bsop_date'] + self.ohlcv_real[0]['stck_cntg_hour'],"%Y%m%d%H%M%S")
-            if dict_info['ticker'].startswith('야간'):
+            if self.dict_info_chart['ticker'].startswith('야간')  or (self.dict_info_chart['ticker'].startswith('통합') and self.dict_option["주간야간"]=='야간'):
                 # print(f"{symbol=} {from_dt=}  {expiry_dt=}  {past_expiry_dt}")
-                self.ohlcv_real = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=dict_info['symbol'],
+                self.ohlcv_real = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=self.dict_info_chart['symbol'],
                                                                                     now_dt=now_dt,
                                                                                     from_dt=from_dt,
-                                                                                    expiry_dt=dict_info['expiry_dt'],
-                                                                                    past_expiry_dt=dict_info['past_expiry_dt'],
+                                                                                    expiry_dt=self.dict_info_chart['expiry_dt'],
+                                                                                    past_expiry_dt=self.dict_info_chart['past_expiry_dt'],
                                                                                     ohlcv=self.ohlcv_real)
                 # print(pd.DataFrame(self.ohlcv_real))
                 # quit()
             else:
-                self.ohlcv_real = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=dict_info['symbol'],
+                self.ohlcv_real = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=self.dict_info_chart['symbol'],
                                                                               now_dt=now_dt,
                                                                               from_dt=from_dt,
-                                                                              expiry_dt = dict_info['expiry_dt'],
-                                                                              past_expiry_dt=dict_info['past_expiry_dt'],
+                                                                              expiry_dt = self.dict_info_chart['expiry_dt'],
+                                                                              past_expiry_dt=self.dict_info_chart['past_expiry_dt'],
                                                                               ohlcv=self.ohlcv_real)
 
-        self.send_ohlcv.emit(dict_info,self.ohlcv_real)
+        self.send_ohlcv.emit(self.dict_info_chart,self.ohlcv_real)
         # df = common_def.make_df(market=self.market,ticker=ticker,ohlcv=self.ohlcv_real,
         #                          bong=self.dict_bong_int[self.QCB_chart_bong.currentText()],
         #                         check_compare=False,dict_option=self.dict_option)
@@ -1176,18 +1211,26 @@ class Window(QMainWindow):
         self.thread = ATOM_trade_numpy.Trade_np(self.dict_option, self.df_set)
         self.thread.send_save_stg.connect(self.update_save_stg)
         self.thread.send_stg.connect(self.update_stg)
+        self.thread.send_message.connect(self.pop_message)
         self.send_trading.connect(self.thread.trading)
         dict_orders = self.make_dict_orders()
         self.dict_ticker_bong_limit = self.make_dict_ticker_bong()
         if self.market == '국내주식' or self.market == '국내선옵':
             if self.market == '국내주식':
+                BASE_DIR = Path(__file__).resolve().parent
+                db_path = BASE_DIR.parent / "DB" / "DB_stock_kis.db"
+                conn = sqlite3.connect(db_path)
+
                 for ticker in self.dict_ticker_bong_limit.keys():
                     globals()[ticker] = self.dict_option['exchange'].fetch_1m_ohlcv(symbol=ticker, from_dt=datetime,
                                                 now_dt=now_dt, past_expiry_dt=now_dt,ohlcv=[])
+
+
+
             elif self.market == '국내선옵':
                 print(f"1 {self.dict_ticker_bong_limit=}")
                 print(f"2 {self.dict_ticker_bong_limit= }")
-                self.dict_option['주간야간'] = '주간'
+                # self.dict_option['주간야간'] = '주간'
 
                 if self.dict_option['주간야간'] == '주간':
                     self.dict_ticker_bong_limit = {k: v for k, v in self.dict_ticker_bong_limit.items() if not k.startswith('야간')}
@@ -1212,28 +1255,33 @@ class Window(QMainWindow):
                         past_expiry_date = self.df_tickers.loc[self.df_tickers['종목명'] == '미니선물', '지난만기일'].tolist()[0]
                         self.dict_codes_info['미니선물']['지난만기일'] = pd.to_datetime(past_expiry_date)
                 print(self.df_tickers)
-                conn = sqlite3.connect('DB/DB_futopt_kis.db')
+                # conn = sqlite3.connect('DB/DB_futopt_kis.db')
+                BASE_DIR = Path(__file__).resolve().parent
+                db_path = BASE_DIR.parent / "DB" / "DB_futopt_kis.db"
+                conn = sqlite3.connect(db_path)
                 for ticker, li_bong in self.dict_ticker_bong_limit.items():
                     if ticker.startswith('통합'):
                         df = pd.read_sql(f"SELECT * FROM {ticker.replace('통합','')}", conn).set_index('날짜') #주간데이터
                         df_night = pd.read_sql(f"SELECT * FROM {ticker.replace('통합','야간')}", conn).set_index('날짜') #야간데이터
                         df = pd.concat([df, df_night], axis=0)
                         df = df.sort_index()
-                        remark = "통합_old_"
+                        remark = "통합"
                     else:
                         if ticker.startswith('야간'):
-                            remark = "야간_old_"
+                            remark = "야간"
                         else:
-                            remark = "주간_old_"
+                            remark = "주간_"
                         df = pd.read_sql(f"SELECT * FROM {ticker}", conn).set_index('날짜')
-                        self.dict_codes_info[self.dict_trade[ticker]]['from_dt'] = pd.to_datetime(df.index[-1])
+                    self.dict_codes_info[self.dict_trade[ticker]]['from_dt'] = pd.to_datetime(df.index[-1])
 
                     if len(df) > self.dict_ticker_bong_limit[ticker]:
                         df = df[self.dict_ticker_bong_limit[ticker]:]
                     #기존에 받아놓은 데이터프레임 리스트로 가공 후 저장
                     globals()[f"{remark}{self.dict_trade[ticker]}"] = self.dict_option["exchange"].change_to_list(df)
+                    print(f"{remark}{self.dict_trade[ticker]}")
+
                     # df = self.dict_option['exchange'].get_kis_ohlcv(globals()[f"{remark}{self.dict_trade[ticker]}"])
-                    # df.to_sql(f"{remark}{self.dict_trade[ticker]}", sqlite3.connect("DB/bt.db"), if_exists='replace')
+                    # df.to_sql(f"{remark}{self.dict_trade[ticker]}", sqlite3.connect("bt.db"), if_exists='replace')
                 print(f"5 {self.dict_ticker_bong_limit= }")
                 mini_keys = {'미니선물', '야간미니선물', '통합미니선물'} #미니선물 관련된게 있을 경우 미니선물로 통일
                 futures_keys = {'선물', '야간선물', '통합선물'} #선물 관련된게 있을 경우 선물로 통일
@@ -1249,25 +1297,17 @@ class Window(QMainWindow):
                 print(f"6 {self.dict_ticker_bong_limit= }")
                 for ticker, li_bong in self.dict_ticker_bong_limit.items():
                     # 신규 데이터
-                    symbol = self.dict_codes_info[ticker]['ticker']
+                    symbol = self.dict_codes_info[ticker]['symbol']
                     past_expiry_dt = self.dict_codes_info[ticker]['지난만기일']
                     expiry_dt = self.dict_codes_info[ticker]['만기일']
                     from_dt = self.dict_codes_info[ticker]['from_dt']
                     print(f"{ticker= }   {symbol= }    {from_dt=}    {self.dict_option['주간야간']=} {now_dt= }   {expiry_dt=}    {past_expiry_dt=}")
                     if self.dict_option['주간야간'] == '주간':
                         globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=symbol,
-                                                                                           now_dt=now_dt,
-                                                                                           from_dt=from_dt,
-                                                                                           past_expiry_dt=past_expiry_dt,
-                                                                                           expiry_dt = expiry_dt,
-                                                                                           ohlcv = [])
+                           now_dt=now_dt,from_dt=from_dt,past_expiry_dt=past_expiry_dt,expiry_dt = expiry_dt,ohlcv = [])
                     elif self.dict_option['주간야간'] == '야간':
                         globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=symbol,
-                                                                                            now_dt=now_dt,
-                                                                                            from_dt=from_dt,
-                                                                                            expiry_dt=expiry_dt,
-                                                                                            past_expiry_dt=past_expiry_dt,
-                                                                                            ohlcv = [])
+                            now_dt=now_dt,from_dt=from_dt,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv = [])
                     else:
                         print('휴일 error')
                         print(f"{self.dict_option['주간야간']}")
@@ -1276,10 +1316,14 @@ class Window(QMainWindow):
             self.df_trend = pd.DataFrame()
             while True:
                 현재시간 = datetime.datetime.now().replace(microsecond=0)
-                if self.dict_option['주간야간'] == '주간' and 현재시간 > datetime.datetime.now().replace(hour=14,minute=45,second=0):
+                if self.dict_option['주간야간'] == '주간' and 현재시간 > datetime.datetime.now().replace(hour=8,minute=45,second=0):
                     break
                 elif self.dict_option['주간야간'] == '야간' and 현재시간 > datetime.datetime.now().replace(hour=18,minute=0,second=0):
                     break
+                elif self.dict_option['주간야간'] == '야간' and 현재시간 < datetime.datetime.now().replace(hour=5,minute=50,second=0):
+                    break
+                print('장 시작 전 대기')
+                time.sleep(1)
 
 
 
@@ -1317,10 +1361,17 @@ class Window(QMainWindow):
         self.timer_trend.timeout.connect(self.trend_time)
         self.timer_trend.start(20000)
 
+        self.timer_trend = QTimer()
+        self.timer_trend.timeout.connect(self.display_futopt)
+        self.timer_trend.start(60000)
+
     def trend_time(self):
-        현재시간 = datetime.datetime.now().replace(second=0,microsecond=0)
-        self.df_trend = self.dict_option['exchange'].add_trend(현재시간=현재시간, df_trend=self.df_trend,COND_MRKT=self.cond_mrkt)
-        print(self.df_trend)
+        if not self.dict_option['주간야간'] == '야간':
+            현재시간 = datetime.datetime.now().replace(second=0,microsecond=0)
+            self.df_trend = self.dict_option['exchange'].add_trend(현재시간=현재시간, df_trend=self.df_trend,COND_MRKT=self.cond_mrkt)
+        else:
+            self.df_trend = None
+
     def gather_ohlcv(self):
         현재시간 = datetime.datetime.now().replace(microsecond=0)
         for ticker, li_bong in self.dict_ticker_bong_limit.items():
@@ -1329,7 +1380,7 @@ class Window(QMainWindow):
                 stamp_date_old = globals()[ticker][-3][0]/1000 #마지막에서 3번째 시간
                 globals()[ticker] = common_def.get_coin_ohlcv_real(dict_option=self.dict_option, ohlcv=globals()[ticker],since=stamp_date_old, ticker=ticker,limit=limit+5,bong_detail="1분봉")
             elif self.market == '국내선옵':
-                symbol = self.dict_codes_info[self.dict_trade[ticker]]['ticker']
+                symbol = self.dict_codes_info[self.dict_trade[ticker]]['symbol']
                 past_expiry_dt = self.dict_codes_info[self.dict_trade[ticker]]['지난만기일']
                 expiry_dt = self.dict_codes_info[self.dict_trade[ticker]]['만기일']
                 if globals()[f"{ticker}_ohlcv"]:
@@ -1339,18 +1390,19 @@ class Window(QMainWindow):
                         print(f"ohlcv 생성 {ticker=}     {현재시간=}     {lastest_dt=}")
                         if self.dict_option["주간야간"] == '주간':
                             globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=symbol, now_dt = 현재시간,
-                                from_dt=현재시간,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
+                                from_dt=lastest_dt,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
                         elif self.dict_option["주간야간"] == '야간':
                             globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=symbol, now_dt=현재시간,
-                                from_dt=현재시간, expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
+                                from_dt=lastest_dt, expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
                 else: # 장 시작 전에는 계속 데이터 확인
                     if self.dict_option["주간야간"] == '주간':
                         globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv(symbol=symbol,now_dt=현재시간,from_dt=현재시간,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
                     elif self.dict_option["주간야간"] == '야간':
                         globals()[f"{ticker}_ohlcv"] = self.dict_option["exchange"].fetch_1m_ohlcv_night(symbol=symbol,now_dt=현재시간,from_dt=현재시간,expiry_dt=expiry_dt,past_expiry_dt=past_expiry_dt,ohlcv=globals()[f"{ticker}_ohlcv"])
+            # elif self.market == '국내주식':
 
     def do_trade(self):
-        schedule.every().hour.at(":00").do(self.time_sync)  #매시각 정시마다
+    #     schedule.every().hour.at(":00").do(self.time_sync)  #매시각 정시마다
         self.effect_start()
         현재시간 = datetime.datetime.now().replace(microsecond=0)
         self.df_trade['현재시간'] = 현재시간
@@ -1359,42 +1411,44 @@ class Window(QMainWindow):
         for stg, row in self.df_trade.iterrows():
             ohlcv = []  #output
             if self.market == '국내선옵':
-                print(f"{self.dict_trade[row['ticker']]= }")
+                print(f"[do_trade] : {self.dict_trade[row['ticker']]= }")
                 ohlcv = globals()[f"{self.dict_trade[row['ticker']]}_ohlcv"].copy()
                 if row["ticker"].startswith('통합'):
-                    ohlcv.extend(globals()[row['ticker']])
+                    ohlcv.extend(globals()[f"{row['ticker']}"])
                 else:
-                    if self.dict_option["주간야간"] == '야간':
+                    if self.dict_option["주간야간"] == '주간':
+                        if not row['ticker'].startswith('야간'):
+                            ohlcv.extend(globals()[f"주간_{row['ticker']}"])
+                        else:
+                            continue
+                    elif self.dict_option["주간야간"] == '야간':
                         if row['ticker'].startswith('야간'):
                             ohlcv.extend(globals()[f"{row['ticker']}"])
                         else:
                             # print(f"countinue 야간   =   {row['ticker']}")
                             continue
-                    elif self.dict_option["주간야간"] == '주간':
-                        if '야간' in row['ticker']:
-#                             print(f"countinue 주간  =   {row['ticker']}")
-                            continue
-                        else:
-                            ohlcv.extend(globals()[f"주간{row['ticker']}"])
+
 
             elif self.market == '업비트':
                 ohlcv = globals()[row["ticker"]]
             # self.df_trade.loc[stg,'현재시간'] = 현재시간
 
-            # if row["ticker"] == '야간미니선물':
-            #     # df = self.dict_option['exchange'].get_kis_ohlcv(ohlcv)
+            # if row["ticker"] == '통합미니선물':
+            #     conn = sqlite3.connect("bt.db")
             #     df = self.dict_option['exchange'].get_kis_ohlcv(globals()[f"{self.dict_trade[row['ticker']]}_ohlcv"])
-            #     df.to_sql(f"{row['ticker']}_err_row_ohlcv", sqlite3.connect("DB/bt.db"), if_exists='replace')
+            #     df.to_sql(f"{row['ticker']}_recent", conn, if_exists='replace')
             #     df = self.dict_option['exchange'].get_kis_ohlcv(globals()[row['ticker']])
-            #     df.to_sql(f"{row['ticker']}_err_row", sqlite3.connect("DB/bt.db"), if_exists='replace')
+            #     df.to_sql(f"{row['ticker']}_old", conn, if_exists='replace')
             #     df = self.dict_option['exchange'].get_kis_ohlcv(ohlcv)
-            #     df.to_sql(f"ohlcv", sqlite3.connect("DB/bt.db"), if_exists='replace')
+            #     df.to_sql(f"ohlcv", conn, if_exists='replace')
             #     quit()
             stg_data = self.df_trade.loc[stg]
             dict_info = stg_data.to_dict()
             dict_info['check_compare'] = False
             dict_info['req'] = "trade"
             dict_info['현재시간'] = 현재시간
+            dict_info['trend'] = self.df_trend
+            dict_info['symbol'] = self.dict_codes_info[self.dict_trade[row['ticker']]]['symbol']
             self.send_ohlcv.emit(dict_info, ohlcv)
 
             # df = common_def.make_df(market=self.market,ticker=row["ticker"],ohlcv=ohlcv,
@@ -1411,7 +1465,7 @@ class Window(QMainWindow):
     def get_df(self,df,dict_info):
         self.df_trade.loc[dict_info['전략명'],'현재가'] = df.loc[df.index[-1], '상세종가']
         # self.thread.trading(df,dict_info)
-        self.send_trading.emit(df,dict_info)
+        self.send_trading.emit(df,dict_info,self.df_trade)
     def get_trend(self,df):
         self.df_trend = df.copy()
     def make_dict_orders(self):
@@ -1428,20 +1482,20 @@ class Window(QMainWindow):
                             dict_orders[row['id']] = '미니선물'
         return dict_orders
     def make_tickers_info(self):
-        dict_codes = self.df_tickers.set_index('종목코드')['종목명'].to_dict()
+        dict_codes = self.dict_option['df_tickers'].set_index('종목코드')['종목명'].to_dict()
         from collections import defaultdict
         self.dict_trade = {'선물': '선물', '야간선물': '선물', '통합선물': '선물',
                            '미니선물': '미니선물', '야간미니선물': '미니선물', '통합미니선물': '미니선물', }
-        di = defaultdict(lambda: {'ticker': []})
+        di = defaultdict(lambda: {'symbol': []})
         for ticker, t_market in dict_codes.items():
             if ticker == "===":
                 continue
             if t_market in ['선물', '미니선물']:
-                di[t_market]['ticker'] = ticker
+                di[t_market]['symbol'] = ticker
             else:
-                di[t_market]['ticker'].append(ticker)
+                di[t_market]['symbol'].append(ticker)
         dict_codes_info = dict(di)
-        print(dict_codes_info)
+        pprint(f"{dict_codes_info= }")
         return dict_codes_info
 
     @pyqtSlot(dict)
@@ -1499,7 +1553,7 @@ class Window(QMainWindow):
 
 
     def chegyeol_closed(self,dict_info):
-        print(f"{dict_info= }")
+        print(f"chegyeol_closed {dict_info= }")
         uuid = list(dict_info.keys())[0]
         if uuid in self.df_trade['id'].tolist():
             stg = self.df_trade.loc[self.df_trade['id']==uuid,'전략명']
@@ -1560,7 +1614,6 @@ class Window(QMainWindow):
             elif dict_info[uuid]['state'] == '미체결':
                 return
 
-            print(self.df_trade)
             dict_orders = self.make_dict_orders()
             self.send_orders.emit(dict_orders)
             self.df_trade.to_sql(self.stg_market, self.conn_stg, if_exists='replace')
@@ -1569,7 +1622,6 @@ class Window(QMainWindow):
             self.qtable_closed(df)
         else:
             print(f"id 없음 {uuid=}   |   {self.df_trade['id'].tolist()}")
-
     @pyqtSlot()
     def slot_clicked_button(self):
         """
@@ -1581,7 +1633,9 @@ class Window(QMainWindow):
         # self.thread.toggle_status()
         # self.pb.setText({True: "Pause", False: "Resume"}[self.th.status])
         self.QPB_start.setStyleSheet("background-color: #cccccc;")
-        self.timer.stop()
+        self.timer_trade.stop()
+        self.timer_ohlcv.stop()
+        self.timer_trend.stop()
         self.thread_ws.stop()
     def qtable_open(self, df):
         df['상태[분할]'] = df['분할상태'].copy()

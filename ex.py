@@ -772,18 +772,26 @@ class MainWindow(QMainWindow):
         # 값 전달
         self.sig_send_number.emit(777)
 
-di = {'A01606': '1164.49'}
-li = list(di.keys())[0]
+# di = {'A01606': '1164.49'}
+# li = list(di.keys())[0]
+#
+# while True:
+#     현재시간 = datetime.datetime.now().replace(microsecond=0)
+#     if 현재시간 > datetime.datetime.now().replace(hour=13,minute=0,second=0):
+#         print(현재시간)
+#         t = datetime.datetime.now().replace(microsecond=0)
+#         tt= t.time().second
+#         if tt == 44:
+#             print(t)
+#         break
 
-while True:
-    현재시간 = datetime.datetime.now().replace(microsecond=0)
-    if 현재시간 > datetime.datetime.now().replace(hour=13,minute=0,second=0):
-        print(현재시간)
-        t = datetime.datetime.now().replace(microsecond=0)
-        tt= t.time().second
-        if tt == 44:
-            print(t)
-        break
+from pathlib import Path
+import sqlite3
+
+BASE_DIR = Path(__file__).resolve().parent
+db_path = BASE_DIR.parent / "DB" / "table.db"
+
+conn = sqlite3.connect(db_path)
 # app = QApplication(sys.argv)
 #
 # window = MainWindow()

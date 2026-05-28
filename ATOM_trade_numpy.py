@@ -482,7 +482,7 @@ def 종료시간N(pre):
 class Trade_np(QObject):
     send_save_stg = pyqtSignal(dict)
     send_stg = pyqtSignal(dict)
-
+    send_message = pyqtSignal(str,str)
     # def __init__(self, parent, market, simul, df_stg, chart_duration, tele,
     #              dict_market_option,auto_finish,finish_time):
     #     super().__init__(parent)
@@ -490,7 +490,7 @@ class Trade_np(QObject):
         super().__init__()
         self.dict_option = dict_option
         self.market = self.dict_option["market"]
-        self.simul = self.dict_option["mock"]
+        self.mock = self.dict_option["mock"]
         # self.df_trade = df_trade
         # self.df_set = df_set.iloc[0]
         self.dict_set = df_set.to_dict()['check']
@@ -518,9 +518,10 @@ class Trade_np(QObject):
                                     '1시간봉':datetime.timedelta(minutes=60),
                                     '4시간봉':datetime.timedelta(minutes=240),
                                     '일봉':datetime.timedelta(days=1)}
-        self.dic_multiplier = {'101':250000,'201':250000,'301':250000,'209':250000,'309':250000,'2AF':250000,'3AF':250000, #코스피200
-                               '105':50000,'205':50000,'305':50000, #미니코스피200
-                               '106': 10000, '206': 10000, '306': 10000, #코스닥150
+        self.dic_multiplier = {'선물':250000,'야간선물':250000,'통합선물':250000,
+                               '미니선물':50000,'야간미니선물':50000,'통합미니선물':50000, #코스피200
+                               '콜옵션':250000,'풋옵션':250000,'위클리콜옵션':250000, #미니코스피200
+                               '위클리풋옵션': 250000, '206': 10000, '306': 10000, #코스닥150
                                }
         # self.timer_light = QtCore.QTimer()
         # self.timer_light.start()
@@ -889,7 +890,7 @@ class Trade_np(QObject):
         # print(self.df_trade[['현재봉시간','캔들종료시간']])
         return one_minute, dict_stg
     # @pyqtSignal(pd.DataFrame,dict)
-    def trading(self,df,dict_stg):
+    def trading(self,df,dict_stg,df_trade):
         global np_tik_ar, list_columns, np_tik_idx, np_tik_length
         global 매수가, 매도가, 시장가, 매수, 매도, 재진입금지
         global 수익률, 최고수익률, 최저수익률
@@ -903,6 +904,7 @@ class Trade_np(QObject):
         global 분할상태, 매입율
         global 콜옵션, 콜옵션_위클리, 풋옵션, 풋옵션_위클리, 거래량상위, 등락률상위
         global 거래대금상위, 시가총액상위, 시간외잔량상위, 체결강도상위, 관심종목등록상위
+        self.df_trade = df_trade
         매수 = False
         매도 = False
         재진입금지 = False
@@ -955,6 +957,7 @@ class Trade_np(QObject):
                 locals_dict_buy = {}
                 exec(stg_buy, None, locals_dict_buy) #전략연산
                 매수 = locals_dict_buy.get('매수')
+                dict_stg['방향'] = locals_dict_buy.get('방향')
                 if 매수 != False and 매수 != None :  # 매수 주문
                     매수가 = locals_dict_buy.get('매수가')
                     # dict_stg['ticker'] = 종목코드
@@ -1158,7 +1161,7 @@ class Trade_np(QObject):
                 exec(stg_buy, None, locals_dict_buy) #전략연산
 
                 매수 = locals_dict_buy.get('매수')
-
+                방향 = locals_dict_buy.get('방향')
                 if 매수 != False and 매수 != None :  # 매수 주문
                     매수가 = locals_dict_buy.get('매수가')
                     self.df_trade.loc[stg, 'ticker'] = 종목코드
@@ -1415,7 +1418,7 @@ class Trade_np(QObject):
         if self.market == 'bybit' or market == '업비트':
             보유수량 = float(보유수량)
             매입금액 = float(매입금액)
-            if self.simul == False:  # 실매매시
+            if self.mock == False:  # 실매매시
                 # while True:
                 ord_open = self.fetch_open_orders(id, ticker)
                 if ord_open == None:  # 체결일 경우
@@ -1452,7 +1455,7 @@ class Trade_np(QObject):
                                             보유수량=보유수량, 체결금액=체결금액, 매입금액=매입금액, 잔고=잔고, 수수료=진입수수료,상태=상태)
 
                 # else: #매수 주문이 있는데 체결이 안되었을 경우
-            elif self.simul == True:  # 모의매매시
+            elif self.mock == True:  # 모의매매시
                 # 진입가 = self.df_trade.loc[stg, '진입가']
                 if (방향 == 'long' and 현재가 <= 진입가) or (방향 == 'short' and 현재가 >= 진입가) or 상태 == '시장가매수':
                     상태 = '매수'
@@ -1562,7 +1565,7 @@ class Trade_np(QObject):
         증거금률 = self.위탁증거금률 / 100 if trade_market == '선물' else 1/레버리지 if trade_market == 'bybit' else 1
         체결 = False # 체결이 됐을 때 만
         if self.market == 'bybit' or market == '업비트':
-            if self.simul == False:  # 실매매시
+            if self.mock == False:  # 실매매시
                 ord_open = self.fetch_open_orders(id, ticker)
                 if ord_open == None: # 체결일 경우
                     ord_closed = self.fetch_closed_orders(id, ticker)  # open 주문과 close 주문 2중으로 확인
@@ -1587,7 +1590,7 @@ class Trade_np(QObject):
                             잔고 = float(잔고 + round(체결금액*증거금률) - 청산수수료)
                             self.df_trade.loc[stg, '잔고'] = 잔고
                             fee = 청산수수료
-            elif self.simul == True:  # 모의매매시
+            elif self.mock == True:  # 모의매매시
                 # 청산가 = self.df_trade.loc[stg, '청산가']
                 # print(f"{방향= }, {현재가= }, {청산가= }")
                 if (방향 == 'long' and 현재가 >= 청산가) or (방향 == 'short' and 현재가 <= 청산가) or 상태 == '시장가매도':
@@ -1981,7 +1984,7 @@ class Trade_np(QObject):
         취소수량 = dict_stg['주문수량']
         uuid = dict_stg['id']
         if dict_stg['market'] == 'bybit' or dict_stg['market'] == '업비트':
-            if self.simul == False:  # 실매매 시
+            if self.mock == False:  # 실매매 시
                 if dict_stg['market'] == 'bybit':
                     self.dict_option['exchange'].cancel_order(uuid, dict_stg['ticker'] + 'USDT', params={})
                 else: #업비트
@@ -2039,7 +2042,8 @@ class Trade_np(QObject):
 
     def order_price(self,dict_stg, 가격): # side = 매수일 경우 '매수주문', 매도 = '매도주문'
         if self.market == "국내선옵":
-            거래승수 = self.dic_multiplier[dict_stg['ticker'][:3]]
+            print(f"{dict_stg['ticker']= }")
+            거래승수 = self.dic_multiplier[dict_stg['ticker']]
             if self.market == '국내선옵' and 가격 == 시장가:  # 선물옵션의경우 시장가 매수 시 잔고만큼 가격 안되기 때문에 매도수 10호가로 주문
                 try:
                     가격 = {현재가: '매수5호가'} if dict_stg['방향'] == 'long' else {현재가: '매도5호가'}
@@ -2063,12 +2067,11 @@ class Trade_np(QObject):
                                      ) #튜플로 반환 받음
                 fee_rate = self.fee_upbit_limit
             elif self.market=='국내주식' :
-                price_out = self.ex_kis.hogaPriceReturn(self.df_stock_info.loc[dict_stg['ticker'], '시장구분'],dict_stg['ticker'], hoga_price, hoga_rate)
+                price_out = self.dict_option['exchange'].hogaPriceReturn('코스피',dict_stg['ticker'], hoga_price, hoga_rate)
                 fee_rate = self.fee_stock
             elif self.market == '국내선옵':
-                price_out = self.ex_kis.hogaPriceReturn(self.market,dict_stg['ticker'], hoga_price, hoga_rate)
+                price_out = self.dict_option['exchange'].hogaPriceReturn(self.market,dict_stg['ticker'], hoga_price, hoga_rate)
                 fee_rate = self.fee_future if dict_stg['ticker'][:1] == '1' else self.fee_putopt1 if price_out > 2.47 or price_out < 0.42 else self.fee_putopt2
-
         elif 가격 == 시장가: #시장가일 경우
             dict_stg['주문방식'] = 'market'
             if dict_stg['방향'] == 'long':
@@ -2107,7 +2110,7 @@ class Trade_np(QObject):
                 fee_rate = self.fee_upbit_market
             elif self.market=='bybit':
                 price_out = float(self.dict_option["exchange"].price_to_precision(dict_stg['ticker'] + 'USDT',가격))
-                if self.simul == True:  # 모의매매
+                if self.mock == True:  # 모의매매
                     if dict_stg['방향'] == 'long':
                         if price_out >= 현재가:
                             price_out = 현재가 + (slippage / 100 * 현재가)
@@ -2173,7 +2176,7 @@ class Trade_np(QObject):
             수량 = float(self.dict_option["exchange"].amount_to_precision(ticker + 'USDT', 수량))
             # print(f"{ticker= }, {수량= }, {fee= }, {dict_stg['레버리지']=}, {금액= }, {주문가= }")
             if 수량 <= 0: raise print(f'수량 이상 {배팅금액= }')
-            if self.simul == False: #실매매
+            if self.mock == False: #실매매
                 try:
                     self.dict_option["exchange"].set_leverage(leverage=dict_stg['레버리지'], symbol=ticker+'USDT')
                 except:
@@ -2188,7 +2191,7 @@ class Trade_np(QObject):
             # 주문가격 = 주문가[0]
             수량 = 주문가[1]
             # 매입금액 = 수량 * 주문가격
-            if self.simul == False: #실매매
+            if self.mock == False: #실매매
                 id = self.create_order_open(ticker=ticker + '/KRW', price=주문가[0], qty=수량, side='buy', ord_type=dict_stg['주문방식'],leverage=dict_stg['레버리지'])
             else: #모의매매
                 id = ''
@@ -2198,31 +2201,23 @@ class Trade_np(QObject):
                 self.df_trade.loc[stg, 'market'] = self.df_stock_info.loc[ticker,'시장구분']
                 수량 = (100 - dict_stg['수수료율']) / 100 * 금액 // 주문가
             elif self.market=='국내선옵':
-                if self.df_trade.loc[stg, '진입대상'][0] == '{':
-                    trade_market = '조건검색'
-                elif ticker[:1] == '1':
-                    trade_market = '선물'
-                elif ticker[:1] == '2':
-                    trade_market = '콜옵션'
-                elif ticker[:1] == '3':
-                    trade_market = '풋옵션'
-                else:
-                    trade_market = '스프레드'
-                self.df_trade.loc[stg, 'market'] = trade_market
-                거래승수 = self.dic_multiplier[ticker[:3]]
+                거래승수 = self.dic_multiplier[ticker]
                 매수가능금액 = round((100 - dict_stg['수수료율']) / 100 * 금액)
                 계약가 = 주문가 * 거래승수
-                if trade_market == '선물':
-                    계약당필요현금 = 계약가 * (self.위탁증거금률 / 100)
+                if ticker.endswith('선물'):
+                    계약당필요현금 = int(계약가 * (self.위탁증거금률 / 100))
                     수량 = int(매수가능금액 // 계약당필요현금)
                 else:
-                    print(f"{stg= }, {ticker= }, {상태= }, {현재가= }, {매수가= }, {거래승수=}, {주문가=}, {계약가=}, {매수가능금액=}")
+                    # print(f"{stg= }, {ticker= }, {상태= }, {현재가= }, {매수가= }, {거래승수=}, {주문가=}, {계약가=}, {매수가능금액=}")
                     수량 = int(매수가능금액 // 계약가)
             if 수량 <= 0:
-                print(f"order_open 수량 에러 {stg= }, {ticker= }, {현재가= }, {매수가= }, {주문가= }, {수량= }, {방향= }, {배팅금액= }")
+                self.send_message.emit('에러',f'[수량 부족] 수량:{수량},  매수가능금액:{매수가능금액},  계약당필요현금:{계약당필요현금}')
+                print(f"order_open 수량  에러   {거래승수= }  {매수가능금액= }  {계약가= } {주문가= } {거래승수= } {계약당필요현금= } {매수가능금액= }")
+                pprint(dict_stg)
                 상태 = '대기'
                 수수료 = 0
                 id = ''
+                quit()
                 return 상태, 수량, 주문가, 수수료, id
             # if self.market == '국내주식':
             #     진입가 =  int(진입가)
@@ -2231,21 +2226,37 @@ class Trade_np(QObject):
             #     else:
             #         id = self.ex_kis.create_limit_buy_order(symbol=ticker, price=진입가, quantity=int(수량), side='buy')
             # elif self.market == '국내선옵':
-            list_state = self.df_trade.loc[(self.df_trade['ticker']==ticker)&(self.df_trade['방향']!=방향),'상태'].tolist() #양방향매매가 안되기 때문에 종목이 역방향 보유중이면 확인 해야함.
+            # print(self.df_trade)
+            # pprint(dict_stg)
+            list_state = self.df_trade.loc[(self.df_trade['ticker']==ticker)&(self.df_trade['방향']!=dict_stg['방향']),'상태'].tolist() #양방향매매가 안되기 때문에 종목이 역방향 보유중이면 확인 해야함.
             list_state = list(set(list_state))
-            # print(f"{stg= }, {ticker= }, {방향= }, {진입방식= }, {진입가= }, {수량= }")
+            symbol = dict_stg['symbol']
+            # print(f"[order_open] {ticker= }, {dict_stg['방향']= }, {dict_stg['주문방식']= }, {주문가= }, {수량= }")
             if not ('매수' in list_state or '매수주문' in list_state or '부분매수' in list_state or '시장가매수' in list_state
                     or '매수취소' in list_state or '매도주문' in list_state or '부분매도' in list_state or '시장가매도' in list_state):
-                if 방향 == 'long':
-                    if 진입방식 == 'market':
-                        id = self.ex_kis.create_market_buy_order(symbol=ticker, quantity=int(수량),side='buy')
+                if dict_stg['방향'] == 'long' or dict_stg['방향'] == '매수':
+                    if dict_stg['주문방식'] == 'market':
+                        if self.mock == True:
+                            id = self.dict_option['exchange_mock'].create_market_buy_order(symbol=symbol, quantity=수량,side='buy')
+                        else:
+                            id = self.dict_option['exchange'].create_market_buy_order(symbol=symbol, quantity=수량,side='buy')
                     else:
-                        id = self.ex_kis.create_limit_buy_order(symbol=ticker, price=진입가, quantity=int(수량),side='buy')
-                elif 방향 == 'short':
-                    if 진입방식 == 'market':
-                        id = self.ex_kis.create_market_buy_order(symbol=ticker, quantity=int(수량), side='sell')
+                        if self.mock == True:
+                            id = self.dict_option['exchange_mock'].create_limit_buy_order(symbol=symbol, price=주문가, quantity=수량,side='buy')
+                        else:
+                            id = self.dict_option['exchange'].create_limit_buy_order(symbol=symbol, price=주문가, quantity=수량,side='buy')
+                elif dict_stg['방향'] == 'short' or dict_stg['방향'] == '매도':
+                    if dict_stg['주문방식'] == 'market':
+                        if self.mock == True:
+                            id = self.dict_option['exchange_mock'].create_market_buy_order(symbol=symbol, quantity=수량, side='sell')
+                        else:
+                            id = self.dict_option['exchange'].create_market_buy_order(symbol=symbol, quantity=수량, side='sell')
                     else:
-                        id = self.ex_kis.create_limit_buy_order(symbol=ticker, price=진입가, quantity=int(수량),side='sell')
+                        if self.mock == True:
+                            id = self.dict_option['exchange_mock'].create_limit_buy_order(symbol=symbol, price=주문가, quantity=수량,side='sell')
+                        else:
+                            id = self.dict_option['exchange'].create_limit_buy_order(symbol=symbol, price=주문가, quantity=수량,side='sell')
+
             else:
                 order = {}
                 order['msg1'] = '기존 반대포지션 보유 중'
@@ -2253,6 +2264,9 @@ class Trade_np(QObject):
                 수량 = 0
                 진입가 = 0
                 id = ''
+            if id.startswith('에러 '):
+                self.send_message.emit('에러',f'{id}')
+                quit()
         dict_stg['주문수량'] = 수량
         dict_stg['주문가'] = 주문가
         # dict_stg['매입금액'] = 매입금액
@@ -2270,7 +2284,7 @@ class Trade_np(QObject):
         pprint(dict_stg)
         print(f"order_close  {ticker= }, {주문가= }, {현재가= }")
         if self.market == 'bybit':
-            if self.simul == False: #실매매
+            if self.mock == False: #실매매
                 if 방향 == 'long':
                     id = self.create_order_close(ticker=ticker+'USDT' ,price=주문가, qty=수량, side='sell', ord_type=dict_stg['주문방식'])
                 elif 방향 == 'short':
@@ -2282,7 +2296,7 @@ class Trade_np(QObject):
         elif self.market == '업비트':
             수량 = 주문가[1]
             # 매도금액 = 수량 * 주문가
-            if self.simul == False: #실매매
+            if self.mock == False: #실매매
                 id = self.create_order_close(ticker=ticker + '/KRW', price=주문가[0], qty=수량, side='sell', ord_type=dict_stg['주문방식'])
             else: #모의매매
                 id = ''
@@ -2851,7 +2865,7 @@ class Trade_np(QObject):
                 list_table = []
             # today = datetime.datetime.now().date()
             for ticker in ['콜옵션','풋옵션','콜옵션_위클리','풋옵션_위클리']:
-                common_def.save_futopt_DB(self.simul,self.ex_kis, ticker,list_table,conn_DB)
+                common_def.save_futopt_DB(self.mock,self.ex_kis, ticker,list_table,conn_DB)
             cursor.close()
             conn_DB.close()
             file_path = 'token.dat'

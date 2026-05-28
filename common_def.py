@@ -410,8 +410,14 @@ class common(QObject):
                 df = detail_to_compare(df, dict_info["봉"])
                 # df = df.add_prefix(f'{ticker}_{bong}_') #XRP_15분봉_시가 컬럼명 앞에넣기
                 df = df.add_suffix(f'_{ticker}_{dict_info["봉"]}') #시가_XRP_15분봉 컬럼명 뒤에넣기
-            if not dict_info["check_compare"]:  # 진입대상일 경우
+            elif not dict_info["check_compare"]:  # 진입대상일 경우
                 df_standard, df = self.detail_to_spread(market = self.market,df_min=df, bong=dict_info["봉"], compare=False)
+            df_trend = dict_info.get('trend')
+            # print(df_trend)
+            if df_trend is not None and isinstance(df_trend, pd.DataFrame):
+                df_trend = dict_info['trend']
+                df = pd.concat([df,df_trend],axis=1)
+                # print(df)
         elif self.market =='bybit' or self.market == '업비트':
             df = pd.DataFrame(ohlcv, columns=['날짜', '시가', '고가', '저가', '종가', '거래량'])
             df['거래대금'] = df['종가']*df['거래량']
@@ -587,10 +593,10 @@ class common(QObject):
                                   '현재시간', '장시작시간', '장종료시간']:  # 삭제에서 제외
                     df_check.drop(factor, axis=1, inplace=True)
                     li_factor.append(factor)
-    def trend_time(self):
-        now_dt = datetime.datetime.now().replace(second=0,microsecond=0)
-        self.df_trend = self.dict_option["exchange"].add_trend(현재시간=now_dt,df_trend=self.df_trend,COND_MRKT=self.dict_option['cond_mrkt']) #투자자별
-        self.send_trend_df.emit(self.df_trend)
+    # def trend_time(self):
+    #     now_dt = datetime.datetime.now().replace(second=0,microsecond=0)
+    #     self.df_trend = self.dict_option["exchange"].add_trend(현재시간=now_dt,df_trend=self.df_trend,COND_MRKT=self.dict_option['cond_mrkt']) #투자자별
+    #     self.send_trend_df.emit(self.df_trend)
 
 
 def fetch_inverse_list(market,dict_ex):

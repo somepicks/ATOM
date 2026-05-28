@@ -28,6 +28,7 @@ from PyQt5 import QtTest
 from PyQt5.QtTest import *
 from dateutil.relativedelta import relativedelta
 # from pykrx import stock
+from pathlib import Path
 
 import common_def
 
@@ -247,7 +248,11 @@ class KoreaInvestment:
         self.secret_key = secret_key
         self.only_short = only_short
         self.acc_no_prefix = acc_no[:8]
-        self.token_file = "DB/token.dat"
+
+
+        # self.token_file = "token.dat"
+        BASE_DIR = Path(__file__).resolve().parent
+        self.token_file = BASE_DIR.parent / "DB" / "token.dat"
         self.exchange = '해외' if market.startswith('해외') else '국내'
         self.market = '주식' if market.endswith('주식') else '선옵'
         self.acc_no_postfix = '03' if market.endswith('선옵') else '01'
@@ -358,10 +363,10 @@ class KoreaInvestment:
         if data_err == None:
             self.access_token = f'Bearer {output["access_token"]}'
         else:
-            print(f"issue_access_token 에러 {output}")
+            print(f"issue_access_token 에러 {output['error_description']}")
             print(f"{self.api_key= }")
             print(f"{self.secret_key= }")
-            self.access_token = None
+            self.access_token = {None:output["error_description"]}
             return output
         output['api'] = self.api_key
         output['secret'] = self.secret_key
@@ -485,13 +490,15 @@ class KoreaInvestment:
         haskkey = resp.json()["HASH"]
         return haskkey
     def fetch_price(self, symbol: str , night:bool = False) -> dict:
-        print("fetch_price")
-        print(self.exchange)
+        # print("fetch_price")
+        # print(self.exchange)
+        # print(f"{symbol= }")
         if self.exchange == "국내":
             if self.market == '주식':
                 return self.fetch_domestic_price("J", symbol)
             elif self.market == '선옵':
                 trade_market = '선물' if symbol[:1] == 'A' else '콜옵션' if symbol[:1] == 'B' else '풋옵션' if symbol[:1] == 'C' else '스프레드'
+#                 print(f"{trade_market= }")
                 if trade_market == '선물':
                     if night:
                         return self.fetch_domestic_price("CM", symbol)
@@ -1121,7 +1128,7 @@ class KoreaInvestment:
         df = df.apply(to_numeric)
         if self.exchange == '국내':
             if self.market == '주식':
-                df = df[['stck_oprc', 'stck_hgpr', 'stck_lwpr', 'stck_prpr', 'cntg_vol', 'acml_tr_pbmn']]
+                # df = df[['stck_oprc', 'stck_hgpr', 'stck_lwpr', 'stck_prpr', 'cntg_vol', 'acml_tr_pbmn']]
                 # df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
                 # df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
                 # df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
@@ -1152,7 +1159,7 @@ class KoreaInvestment:
                                   'cntg_vol': '거래량',
                                   'acml_tr_pbmn': '누적거래대금',
                                   }, inplace=True)
-        # df.columns = ['시가', '고가', '저가', '종가', '거래량', '누적거래대금']
+        df = df[['시가', '고가', '저가', '종가', '거래량', '누적거래대금']]
         df['거래대금'] = df['누적거래대금'] - df['누적거래대금'].shift(-1)
         df['거래대금'] = df['거래대금'].clip(lower=0)  # 음수를 0으로 변환
         # 날짜 변경 여부 확인
@@ -1236,25 +1243,23 @@ class KoreaInvestment:
                                             expiry_dt=expiry_date,past_expiry_dt=past_expiry_date,ohlcv=[])
             df = self.get_kis_ohlcv(ohlcv)
             if df.empty:  # 데이터가 없을 경우
-                print(f"{ticker_symbol= } 데이터 없음")
+                print(f"[get_futopt_df]  {ticker_symbol= } 데이터 없음")
                 return pd.DataFrame()
             df.index = pd.to_datetime(df.index)
             df['종목코드'] = symbol
             # past_expiry = datetime.datetime.combine(past_expiry_date,
             #                                         datetime.time(15, 45, 0))  # 12:30:45 추가 past_expiry_date+시간
             df = df[df.index >= past_expiry_date]
+
             if df.empty:
                 return pd.DataFrame()
             df['만기일'] = expiry_date
             # 데이터를 기존이랑 합치려면
-            # df = pd.concat([df_exist, df])
-            # df = df[~df.index.duplicated(keep='last')]
+            df = pd.concat([df_exist, df], axis=0)
         else:  # 테이블만 있고 데이터 비어있을 경우
             # list_table.remove(ticker_symbol)
         # if not ticker_symbol in list_table:  # DB에 테이블 제목만 있고 데이터가 없는 경우가 있어서 else 말고 if not으로 다시 확인
             print(f"기존데이터 없음 {target= }   {symbol= }  {past_expiry_date=}  {type(past_expiry_date)=}")
-            # past_expiry = datetime.datetime.combine(past_expiry_date,
-            #                                         datetime.time(15, 45, 0))  # 12:30:45 추가 past_expiry_date+시간
             if target.startswith('야간'):
                 ohlcv = self.fetch_1m_ohlcv_night(symbol=symbol, from_dt=past_expiry_date, now_dt=now_dt,
                                                   expiry_dt=expiry_date,past_expiry_dt=past_expiry_date,ohlcv=[])
@@ -1270,23 +1275,24 @@ class KoreaInvestment:
                 df = df[df.index > datetime.datetime.combine(past_expiry_date, datetime.time(15, 45,
                                                                                              0))]  # 12:30:45 추가 past_expiry_date+시간]
             except:
-                print(past_expiry_date)
+                print(f"[get_futopt_df] {past_expiry_date=}")
             df['만기일'] = expiry_date
-        # print(f"{symbol= }   {ticker_symbol= }    {d_day.days= }    {expiry_date= }    {past_expiry_date= }")
 
         # 데이터가 없을경우 해당하는 행 삭제
-        now = datetime.datetime.now().replace(second=0, microsecond=0)
+        # now = datetime.datetime.now().replace(second=0, microsecond=0)
         # df = df.drop(df.loc[df.index == now].index)
-        if not df.empty:
+        if df.empty:
+            return pd.DataFrame()
+        else:
             # for col in df.columns:
             #     sample_values = df[col].dropna().head(3)
             #     if len(sample_values) > 0:
             #         print(f"{col}: {type(sample_values.iloc[0])}")
+            df = df[~df.index.duplicated(keep='last')]
             df.index = df.index.astype(str)
+            df['만기일'] = df['만기일'].astype(str)
             return df
             # df.to_sql(f"{ticker_symbol}", conn, if_exists='replace')
-        else:
-            return pd.DataFrame()
         # time.sleep(1)
 
     # def make_ohlcv_1m(self, ohlcv):   #common_df.get_kis_ohlcv 에서 변환
@@ -1877,27 +1883,32 @@ class KoreaInvestment:
            "tr_cont": "",
         }
         try:
-            resp = requests.get(url, headers=headers, params=params)
-            if resp.json()['msg1'] == '정상처리 되었습니다.':
-                df = pd.DataFrame(resp.json()['output'])
-                df.rename(
-                    columns={'stck_bsop_date': '날짜', 'stck_clpr': '종가', 'prdy_vrss': '전일대비', 'prdy_vrss_sign': '전일대비부호',
-                             'prsn_ntby_qty': '개인순매수수량',
-                             'frgn_ntby_qty': '외국인순매수수량',
-                             'orgn_ntby_qty': '기관계순매수수량',
-                             'prsn_ntby_tr_pbmn': '개인순매수거래대금',
-                             'frgn_ntby_tr_pbmn': '외국인순매수거래대금',
-                             'orgn_ntby_tr_pbmn': '기관계순매수거래대금',
-                             'frgn_seln_tr_pbmn': '외국인매도거래대금',
-                             'orgn_seln_tr_pbmn': '기관계매도거래대금',
-                             'prsn_seln_tr_pbmn': '개인매도거래대금',
-                             }, inplace=True)
-                df = df[['날짜','종가','전일대비','전일대비부호','개인순매수수량','외국인순매수수량','기관계순매수수량','개인순매수거래대금','외국인순매수거래대금',
-                         '기관계순매수거래대금','외국인매도거래대금','기관계매도거래대금','개인매도거래대금',]]
-                df = df[::-1]  # 거꾸로 뒤집기
-                df.index = df['날짜']
-                df = self.convert_column_types(df)
-                return df
+            while True:
+                resp = requests.get(url, headers=headers, params=params)
+                if resp.json()['msg1'] == '정상처리 되었습니다.':
+                    df = pd.DataFrame(resp.json()['output'])
+                    df.rename(
+                        columns={'stck_bsop_date': '날짜', 'stck_clpr': '종가', 'prdy_vrss': '전일대비', 'prdy_vrss_sign': '전일대비부호',
+                                 'prsn_ntby_qty': '개인순매수수량',
+                                 'frgn_ntby_qty': '외국인순매수수량',
+                                 'orgn_ntby_qty': '기관계순매수수량',
+                                 'prsn_ntby_tr_pbmn': '개인순매수거래대금',
+                                 'frgn_ntby_tr_pbmn': '외국인순매수거래대금',
+                                 'orgn_ntby_tr_pbmn': '기관계순매수거래대금',
+                                 'frgn_seln_tr_pbmn': '외국인매도거래대금',
+                                 'orgn_seln_tr_pbmn': '기관계매도거래대금',
+                                 'prsn_seln_tr_pbmn': '개인매도거래대금',
+                                 }, inplace=True)
+                    df.index = df['날짜']
+                    df = df[['전일대비','전일대비부호','개인순매수수량','외국인순매수수량','기관계순매수수량','개인순매수거래대금','외국인순매수거래대금',
+                             '기관계순매수거래대금','외국인매도거래대금','기관계매도거래대금','개인매도거래대금',]]
+                    df = df[::-1]  # 거꾸로 뒤집기
+                    df = self.convert_column_types(df)
+                    return df
+                elif resp.json()['msg1'].startswith('초당 거래건수를 초과'):
+                    time.sleep(5)
+                else:
+                    print(f"[investor_trend_stock] - {resp.json()}")
         except:
             return pd.DataFrame()
     def investor_trend_time(self,market) -> dict:
@@ -2001,7 +2012,7 @@ class KoreaInvestment:
         resp = requests.get(url, headers=headers, params=params)
         return resp.json()
     def fetch_ohlcv(self, symbol: str, timeframe: str = 'D', early_day:str="", lately_day:str="",
-                    adj_price: bool = True) -> dict:
+                    adj_price: bool = False) -> dict:
         """fetch OHLCV (day, week, month)
         Args:
             symbol (str): 종목코드
@@ -2019,9 +2030,10 @@ class KoreaInvestment:
                     early_day = datetime.datetime.now().date() - datetime.timedelta(days=600) # early_day 비어있으면 600일 이전 조회
                     early_day = early_day.strftime("%Y%m%d")
                 while True :
-                    print(symbol, timeframe, early_day, lately_day, adj_price)
                     resp = self._fetch_ohlcv_domestic(symbol, timeframe, early_day, lately_day, adj_price)
                     if [item for item in resp['output2'] if item == {}]: #output2가 빈 딕셔너리를 보내면 탈출
+                        break
+                    elif not resp['output2']:
                         break
                     elif resp['msg1'] == '정상처리 되었습니다.':
                         ohlcv.extend(resp['output2'])
@@ -2036,17 +2048,18 @@ class KoreaInvestment:
                         elif len(resp['output2']) < 100:
                             break
                         # time.sleep(0.5)
-                        QTest.qWait(10)
+                        QTest.qWait(50)
                         # print(early_day, "==" ,lately_day)
                     elif resp['msg1'] == '기간이 만료된 token 입니다.':
                         raise
                     else:
-                        QTest.qWait(10)
+                        QTest.qWait(50)
                         # if not resp:
                         #     break
 
             elif self.market == '선옵':
-                trade_market = '선물' if symbol[:1] == '1' else '콜옵션' if symbol[:1] == '2' else '풋옵션' if symbol[:1] == '3' else '스프레드'
+                print(f"fetch_ohlcv {symbol= }")
+                trade_market = '선물' if symbol[:1] == 'A' else '콜옵션' if symbol[:1] == '2' else '풋옵션' if symbol[:1] == '3' else '스프레드'
                 if trade_market == '선물': market = 'F'
                 elif trade_market == '옵션': market = 'O'
                 resp = self._fetch_futopt_ohlcv_domestic(symbol, timeframe, early_day, lately_day, market)
@@ -2723,6 +2736,7 @@ class KoreaInvestment:
 
     def create_order(self, side: str, symbol: str, price, quantity: int, order_type: str) -> dict:
         # while True:
+        # print(f"{side=}  {symbol=}  {price=}     {quantity=}  {order_type=} ")
         QTest.qWait(500)
         if self.market == '주식':
             path = "uapi/domestic-stock/v1/trading/order-cash"
@@ -2828,6 +2842,12 @@ class KoreaInvestment:
             raise
         elif resp['msg1'] == '모의투자 상/하한가 오류':
             pprint(f"create_order - 모의투자 상/하한가 오류 {symbol=}, {price=} {quantity=}, {side=}")
+        elif resp['msg1'].startswith('모의투자 주문이 불가한'):
+            pprint(f"create_order - 모의투자 주문불가 {symbol=}, {price=} {quantity=}, {side=}")
+            quit()
+        elif resp['msg1'].startswith('주문금액이 주문가능금액총액을'):
+            pprint(f"create_order - 보유금액 미달 {symbol=}, {price=} {quantity=}, {side=}")
+            id = '에러: 보유잔고 미달'
         else:
             print('create_order - =============== else =============== 데이터값 확인 필요')
             pprint(f"create_order {resp}, {symbol=}, {price=} {quantity=}, {side=}")
@@ -3378,7 +3398,7 @@ class KoreaInvestment:
         return resp.json()
 
     def _fetch_ohlcv_domestic(self, symbol: str, timeframe:str='D', early_day:str="",
-                             lately_day:str="", adj_price:bool=True):
+                             lately_day:str="", adj_price:bool=False):
         """국내주식시세/국내주식 기간별 시세(일/주/월/년)
 
         Args:
@@ -3479,7 +3499,10 @@ class KoreaInvestment:
     def save_data(self):
         self.check_holiday()
         if self.market == '선옵':
-            conn = sqlite3.connect('DB/DB_futopt_kis.db')
+            BASE_DIR = Path(__file__).resolve().parent
+            db_path = BASE_DIR.parent / "DB" / "DB_futopt_kis.db"
+
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             try:
@@ -3488,8 +3511,8 @@ class KoreaInvestment:
                 list_table = []
             now_dt = datetime.datetime.now()
 
-            # for target in ['선물', '미니선물', '본옵션', '위클리옵션', '야간선물', '야간미니선물', '야간본옵션', '야간위클리옵션']:
-            for target in ['선물','미니선물','야간선물','야간미니선물']:
+            for target in ['선물', '미니선물', '본옵션', '위클리옵션', '야간선물', '야간미니선물', '야간본옵션', '야간위클리옵션']:
+            # for target in ['선물','미니선물','야간선물','야간미니선물']:
                 dict_codes, past_expiry_dt, expiry_date, df_display,cond_mrkt = self.get_expiry_date(target=target, now_dt=now_dt)
                 for symbol,price in dict_codes.items():
                     ticker_symbol = self.get_futopt_symbol(target=target, symbol=symbol, expiry_date=expiry_date, price=price)
@@ -3510,13 +3533,14 @@ class KoreaInvestment:
                     df = self.get_futopt_df(target=target, ticker_symbol=ticker_symbol, symbol=symbol,
                                            past_expiry_date=past_expiry_dt, expiry_date=expiry_date,
                                            df_exist=df_exist, now_dt=dt)
-
                     if not df.empty:
                         df.to_sql(f"{ticker_symbol}", conn, if_exists='replace')
             cursor.close()
             conn.close()
         elif self.market == '주식':
-            conn = sqlite3.connect('DB/DB_stock_kis.db')
+            BASE_DIR = Path(__file__).resolve().parent
+            db_path = BASE_DIR.parent / "DB" / "DB_stock_kis.db"
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             try:
@@ -3525,24 +3549,59 @@ class KoreaInvestment:
                 list_table = []
             now_dt = datetime.datetime.now()
             from_dt = now_dt-datetime.timedelta(days=1)
-            df_tickers, li_kospi = self.fetch_kospi_200_list()
-            print(df_tickers)
-            df_tickers.to_sql(f"종목코드", conn, if_exists='replace')
+            df_tickers, li_kospi_200 = self.fetch_kospi_200_list()
             dict_codes = df_tickers.set_index('종목코드')['회사명'].to_dict()
-            for ticker,name in dict_codes.items():
+            df_tickers.to_sql(f"종목코드", conn, if_exists='replace')
+            for ticker in li_kospi_200:
                 ohlcv = self.fetch_1m_ohlcv(symbol=ticker, now_dt=now_dt, from_dt=from_dt, past_expiry_dt=from_dt,
                        ohlcv=[], expiry_dt=from_dt)
                 df = self.get_kis_ohlcv(ohlcv)
+                print(f"{ticker}    {dict_codes[ticker]} ")
 
-                if ticker in list_table:  # 연속저장 (기존데이터가 있을 경우)
-                    df_exist = pd.read_sql(f"SELECT * FROM '{name}'", conn).set_index('날짜')
+                if dict_codes[ticker] in list_table:  # 연속저장 (기존데이터가 있을 경우)
+                    df_exist = pd.read_sql(f"SELECT * FROM '{dict_codes[ticker]}'", conn).set_index('날짜')
                 else:
                     df_exist = pd.DataFrame()
-                df = pd.concat([df_exist, df])
+                df = pd.concat([df_exist, df],axis=0)
+                df.index = df.index.astype(str)
                 df = df[~df.index.duplicated(keep='last')]
-                df.to_sql(f"{name}", conn, if_exists='replace')
-
-
+                df.to_sql(f"{dict_codes[ticker]}", conn, if_exists='replace')
+            cursor.close()
+            conn.close()
+            db_path = BASE_DIR.parent / "DB" / "DB_stock_day_kis.db"
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            try:
+                list_table = np.concatenate(cursor.fetchall()).tolist()
+            except:
+                list_table = []
+            for ticker in li_kospi_200:
+                if dict_codes[ticker] in list_table:  # 연속저장 (기존데이터가 있을 경우)
+                    df_exist = pd.read_sql(f"SELECT * FROM '{dict_codes[ticker]}'", conn).set_index('날짜')
+                    if df_exist.empty:
+                        early_day = ""
+                    else:
+                        try:
+                            early_day = datetime.datetime.strftime(df_exist.index[-1],'%Y%m%d')
+                        except:
+                            early_day = df_exist.index[-1]
+                else:
+                    df_exist = pd.DataFrame()
+                    early_day = ""
+                print(f"{ticker}    {dict_codes[ticker]}  {early_day=}")
+                df_ohlcv = kis.fetch_ohlcv(symbol=ticker,early_day=early_day)
+                df_trend = kis.investor_trend_stock(ticker)
+                df_trend.index = pd.to_datetime(df_trend.index, format='%Y%m%d')
+                # 인덱스 기준 좌우 결합
+                df_result = pd.concat([df_ohlcv, df_trend], axis=1)
+                df = pd.concat([df_exist, df_result], axis=0)
+                df.index = df.index.strftime('%Y%m%d')
+                df.index = df.index.astype(str)
+                df = df[~df.index.duplicated(keep='last')]
+                df.to_sql(f"{dict_codes[ticker]}", conn, if_exists='replace')
+            cursor.close()
+            conn.close()
     def fetch_kospi_200_list(self):
         import pandas as pd
         import bs4
@@ -3555,7 +3614,8 @@ class KoreaInvestment:
         etf = {'122630':'KODEX 레버리지','252670':'KODEX 200선물인버스2X','133690':'TIGER 미국나스닥100',
                '360750':'TIGER 미국S&P500','233740':'KODEX 코스닥150레버리지','251340':'KODEX 코스닥150선물인버스',
                '305720':'KODEX 2차전지산업','091160':'KODEX 반도체','379810':'KODEX 미국나스닥100TR','469160':'KODEX AI반도체핵심장비',
-               '381180':'TIGER 미국필라델피아반도체나스닥'}
+               '381180':'TIGER 미국필라델피아반도체나스닥','0193T0':'KODEX SK하이닉스단일종목레버리지',
+               '0193W0':'KODEX 삼성전자단일종목레버리지','494310':'KODEX 반도체레버리지'}
         for ticker, name in etf.items():
             stock_code.loc[ticker,'종목코드'] = ticker
             stock_code.loc[ticker,'회사명'] = name
@@ -3572,7 +3632,7 @@ class KoreaInvestment:
 
         # 회사명 → 종목코드 딕셔너리 생성
         code_map = dict(zip(stock_code['회사명'], stock_code['종목코드']))
-        kospi_200 = []
+        kospi_200 = list(etf.keys())
         for name in company_name:
             if name in code_map:
                 kospi_200.append(code_map[name])
@@ -4035,31 +4095,31 @@ class KoreaInvestment:
             return 500
         elif price > 2000000 and jang == "업비트":
             return 1000
-        elif price < 1000 and jang == 'KOSPI':
+        elif price < 1000 and (jang == 'KOSPI' or jang == '코스피'):
             return 1
-        elif price < 5000 and jang == 'KOSPI':
+        elif price < 5000 and (jang == 'KOSPI' or jang == '코스피'):
             return 5
-        elif price < 10000 and jang == 'KOSPI':
+        elif price < 10000 and (jang == 'KOSPI' or jang == '코스피'):
             return 10
-        elif price < 50000 and jang == "KOSPI":
+        elif price < 50000 and (jang == 'KOSPI' or jang == '코스피'):
             return 50
-        elif price < 100000 and jang == "KOSPI":
+        elif price < 100000 and (jang == 'KOSPI' or jang == '코스피'):
             return 100
-        elif price < 500000 and jang == "KOSPI":
+        elif price < 500000 and (jang == 'KOSPI' or jang == '코스피'):
             return 500
-        elif price >= 500000 and jang == "KOSPI":
+        elif price >= 500000 and (jang == 'KOSPI' or jang == '코스피'):
             return 1000
         elif price >= 50000 and jang == "KOSDAQ":
             return 100
         elif jang == "ETF" or jang == "etf":
             return 5
-        elif jang == '선옵' or jang == '선물' or jang.endswith('옵션'):
-            if ticker[:3] == '101' or ticker == '선물': #코스피200선물
-                return 0.05
-            elif ticker[:3] == '105' or ticker == '미니선물': #미니코스피200 선물
+        elif jang == '선옵' or jang == '국내선옵' or jang.endswith('선물') or jang.endswith('옵션'):
+            if ticker.endswith('미니선물'): #미니코스피200 선물
                 return 0.02
-            elif ticker[:3] == '106' or ticker == '코스닥선물': #코스닥선물
+            elif ticker.endswith('코스닥선물'): #코스닥선물
                 return 0.1
+            elif ticker.endswith('선물'): #코스피200선물
+                return 0.05
             elif (ticker[:3] == '201' or ticker[:3] == '301' or ticker[5:6]=='W') and price < 10: #코스피200 옵션 10포인트 미만
                 return 0.01
             elif (ticker[:3] == '201' or ticker[:3] == '301' or ticker[5:6]=='W') and price >= 10: #코스피200 옵션 10포인트 이상
@@ -4119,7 +4179,7 @@ class KoreaInvestment:
         else:
             return 0  # 소수점 이하 자리가 없는 경우
     def hogaPriceReturn(self, jang,ticker, current_price, hoga_in):  # 호가로 입력
-        if type(hoga_in) == str: #호가르 str로 받을 경우
+        if type(hoga_in) == str: #호가를 str로 받을 경우
             if hoga_in[:2] == '매도':
                 mark = '-'
             elif hoga_in[:2] == '매수':
@@ -4128,7 +4188,7 @@ class KoreaInvestment:
                 raise
             idx = hoga_in[2:hoga_in.index('호가')]
             hoga = int(mark + idx)
-        if jang == '선옵': #선물/옵셥의 경우
+        if jang.endswith('선옵'): #선물/옵셥의 경우
             if type(hoga_in) == str:
                 for _ in range(abs(hoga)):
                     if hoga < 0:
@@ -4316,7 +4376,9 @@ class KoreaInvestment:
         return dict_codes, past_expiry_dt, expiry_dt, df_display, cond_mrkt
 
     def check_holiday(self):
-        conn = sqlite3.connect('DB/stg_trade.db')
+        BASE_DIR = Path(__file__).resolve().parent
+        db_path = BASE_DIR.parent / "DB" / "stg_trade.db"
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         try:
@@ -4373,18 +4435,11 @@ class KoreaInvestment:
                 holiday = '주간'
         return holiday
 if __name__ == "__main__":
-    market = '국내주식' #미니 A05605, 선물 A01606
-    kis = KoreaInvestment(market=market)
-    ohlcv = kis.fetch_ohlcv(symbol= "005930")
-    print(pd.DataFrame(ohlcv))
-    df = kis.investor_trend_stock("005930")
-    print(df)
-    di, df = kis.fetch_balance()
-    print(di)
-    print(df)
-    quit()
-    kis.save_data()
-    pprint(kis.fetch_price('A01606',True))
+    market = '국내선옵' #미니 A05605, 선물 A01606
+    kis = KoreaInvestment(market=market,mock=True)
+    kis.create_order(side='buy',symbol='A05606',price=1282.96,quantity=1,order_type='지정가')
+    # kis.save_data()
+    # pprint(kis.fetch_price('A01606',True))
 
 
     # from_dt = datetime.datetime(2026,5,1,6,0,0)

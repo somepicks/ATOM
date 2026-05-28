@@ -3,7 +3,7 @@ import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFontMetrics, QFont
 from PyQt5.QtCore import QThread, pyqtSlot, pyqtSignal, QObject, Qt
-
+from pathlib import Path
 import sqlite3
 import pandas as pd
 import numpy as np
@@ -1412,7 +1412,8 @@ class Window(QWidget):
 
     def init_file(self):
         import os
-        stg_file = ['DB/DB_stock.db', 'DB/DB_futopt.db', 'DB/DB_bybit.db', 'DB/DB_upbit.db']
+        stg_file = ['DB_stock_kis.db', 'DB_futopt_kis.db', 'DB_bybit.db',
+                    'DB_upbit.db']
         for market in stg_file:
             if not os.path.isfile(market):  # stg_file.db 파일이 없으면
                 print(f"{market} 파일 없음")
@@ -1423,14 +1424,15 @@ class Window(QWidget):
                     df = df.set_index('날짜', drop=True)
                     df.to_sql('holiday',conn,if_exists='replace')
 
-        file = 'DB/strategy.db'
-        if not os.path.isfile(file):
-            sqlite3.connect(file)
-            conn = sqlite3.connect(file)
-            list_stg = ['bybit_buy', 'bybit_sell','업비트_buy', '업비트_sell', '국내주식_buy', '국내주식_sell','국내선옵_buy', '국내선옵_sell']
-            for stg in list_stg:
-                df = pd.DataFrame(columns=['전략코드'])
-                df.to_sql(stg, conn, if_exists='replace')
+        # file = 'DB/strategy.db'
+        BASE_DIR = Path(__file__).resolve().parent
+        # if not os.path.isfile(file):
+        db_path = BASE_DIR.parent / "DB" / "strategy.db"
+        conn = sqlite3.connect(db_path)
+        list_stg = ['bybit_buy', 'bybit_sell','업비트_buy', '업비트_sell', '국내주식_buy', '국내주식_sell','국내선옵_buy', '국내선옵_sell']
+        for stg in list_stg:
+            df = pd.DataFrame(columns=['전략코드'])
+            df.to_sql(stg, conn, if_exists='replace')
     def pop_vars_buy(self):
         popup = TextPopupBuy(self)
         popup.exec_()  # 모달 다이얼로그 (메인  창 블록)

@@ -1,13 +1,8 @@
 from PyQt5.QtWidgets import *
-#from PyQt5.QtCore import *
-#from PyQt5.QtGui import *
 import numpy as np
-#import pyqtgraph as pg
 from PIL import ImageGrab
-
 import sqlite3
 from PyQt5.QtCore import QThread, pyqtSlot, pyqtSignal, QObject, Qt
-
 from PyQt5.QtTest import QTest
 import pandas as pd
 # from pymongo import MongoClient
@@ -16,9 +11,9 @@ import ATOM_chart_numpy
 import tab_backtest
 import os
 from pprint import pprint
-#import datetime
-import ATOM
 import datetime
+from pathlib import Path
+
 class Window(QWidget):
     # def __init__(self,df):
     def __init__(self, parent=None):
@@ -262,9 +257,13 @@ class Window(QWidget):
         df_chart_table = pd.DataFrame(index=list_chart_idx)
         df_chart_table['chart'] = li_table
         df_chart_table.index.name = 'index'
-        file = os.getcwd()+'/DB/chart_table.db'
-        conn = sqlite3.connect(file)
+        # file = os.getcwd()+'../DB/chart_table.db'
+        # conn = sqlite3.connect(file)
 
+        BASE_DIR = Path(__file__).resolve().parent
+        db_path = BASE_DIR.parent / "DB" / "chart_table.db"
+
+        conn = sqlite3.connect(db_path)
         # df_chart_table = pd.read_sql(f"SELECT * FROM '{market}'", conn).set_index('index')
         # print(df_chart_table)
         if market != '':
@@ -281,7 +280,9 @@ class Window(QWidget):
         self.df = df
         return df_chart_table
     def impo_table(self,df,market):
-        conn = sqlite3.connect("DB/chart_table.db")
+        BASE_DIR = Path(__file__).resolve().parent
+        db_path = BASE_DIR.parent / "DB" / "chart_table.db"
+        conn = sqlite3.connect(db_path)
         df_chart_table = pd.read_sql(f"SELECT * FROM '{market}'", conn).set_index('index')
         self.df_chart_table = df_chart_table
         self.df = df
@@ -292,7 +293,9 @@ class Window(QWidget):
         self.QLE_end.setText(end_day)
         conn.close()
     def df_to_show(self,df,market):
-        conn = sqlite3.connect('DB/chart_table.db')
+        BASE_DIR = Path(__file__).resolve().parent
+        db_path = BASE_DIR.parent / "DB" / "chart_table.db"
+        conn = sqlite3.connect(db_path)
         self.df_chart_table = pd.read_sql(f"SELECT * FROM '{market}'", conn).set_index('index')
         conn.close()
         self.df = df
@@ -310,8 +313,9 @@ class Window(QWidget):
 
     def init_file(self):
         import os
-        file = '/DB/chart_table.db'
-        if not os.path.isfile(os.getcwd()+file):
+        BASE_DIR = Path(__file__).resolve().parent
+        db_path = BASE_DIR.parent / "DB" / "chart_table.db"
+        if not os.path.isfile(os.getcwd()+db_path):
             print('init_file')
             for market in ['코인','국내주식','국내선옵','리얼차트','코인_리얼','주식_리얼','선옵_리얼']:
                 self.save_table(market)

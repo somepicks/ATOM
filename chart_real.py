@@ -2,7 +2,7 @@ import sqlite3
 import datetime
 import time
 from pandas import to_numeric
-
+from pathlib import Path
 from pprint import pprint
 import pandas as pd
 from PyQt5.QtWidgets import QMainWindow,QTableWidgetItem,QHeaderView,QApplication
@@ -291,7 +291,10 @@ class Graph(QObject):
 
     def chart_table(self,market):
         if not market=='empty':
-            conn = sqlite3.connect('DB/chart_table.db')
+            BASE_DIR = Path(__file__).resolve().parent
+            db_path = BASE_DIR.parent / "DB" / "chart_table.db"
+
+            conn = sqlite3.connect(db_path)
             self.df_chart_table = pd.read_sql(f"SELECT * FROM '{market}'", conn).set_index('index')
         else:
             self.df_chart_table = pd.DataFrame(index=['p0_0','p0_1','p0_2','p0_3','p1_0','p1_1','p1_2','p1_3','p2_0','p2_1','p2_2','p2_3'],columns=['chart'])
